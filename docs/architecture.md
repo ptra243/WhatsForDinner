@@ -4,7 +4,7 @@
 flowchart LR
   Phone["Owner's phone"] -->|everyday use| App["GitHub Pages app<br/>Vite + React + TS"]
   Phone -->|planning chat| Claude["Claude chat<br/>Dinner Planner skill"]
-  App -->|supabase-js, publishable key,<br/>login + Row Level Security| DB[("Supabase Postgres<br/>Sydney")]
+  App -->|supabase-js, publishable key,<br/>login + Row Level Security| DB[("Supabase Postgres<br/>Singapore")]
   Claude -->|Supabase connector<br/>(admin, owner only)| DB
   App -->|Ask Claude buttons:<br/>prefilled claude.ai link| Claude
 ```
@@ -14,7 +14,7 @@ flowchart LR
 | Piece | What it is | Notes |
 | --- | --- | --- |
 | Everyday app | Static React app on GitHub Pages at `ptra243.github.io/WhatsForDinner`, deployed by a GitHub Action on push to `master` | Installable (PWA); last-loaded list viewable offline |
-| Database | Supabase Postgres (free tier, Sydney) with Auth (email magic link) | Schema as migrations in `supabase/migrations/` |
+| Database | Supabase Postgres (free tier, Singapore region; project ref `fckheksaemriadvrveoj`) with Auth (email magic link) | Schema as migrations in `supabase/migrations/` |
 | Planning | Claude chat (any device) with the Dinner Planner skill and the Supabase connector | Skill source in `claude/dinner-planner/SKILL.md` |
 | Hand-off | "Ask Claude" buttons open a claude.ai link with the prompt prefilled | Falls back to copying the prompt |
 
