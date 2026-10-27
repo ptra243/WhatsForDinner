@@ -21,7 +21,7 @@ You are the **adversarial reviewer** (decision 0008). The PR is wrong until it p
 
 ## Checklist
 
-- **Acceptance criteria**: each one met by something you can point at.
+- **Acceptance criteria**: each one met by something you can point at. The issue's **Owner checks** section is the owner's, after merge; it never blocks your verdict.
 - **Hard rules** in `CLAUDE.md`: secrets, `household_id` plus Row Level Security, fixed units and sections in step across code, skill and docs, schema changes as new migrations with docs updated.
 - **Tested claims**: a claim CI covers stands when CI is green and a test actually exercises the changed code; confirm the test exists. A claim CI cannot see (live database, phone, by hand) you reproduce, or you ask for evidence.
 - **Bugs**: wrong results, unhandled cases, broken re-runs, data loss. Each one with its failure case.
