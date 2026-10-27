@@ -15,12 +15,16 @@ Read it from the arguments:
 - A milestone (`M1`, `M1 · Real use`): its open issues, in the build order in `docs/roadmap.md`, **one at a time**.
 - Anything else, or nothing: ask the owner.
 
+## Session titles
+
+Every session in the workflow is titled `#<issue> - <what it is doing>` so the owner can read the sidebar at a glance. Rename yourself with `set_session_title` (session `self`) at the start of each issue: `#N - ship: <issue title>`; in milestone mode, before the first issue, `M1 - ship milestone`.
+
 ## Per issue
 
 1. **Ready check.** Read the issue (`gh api repos/ptra243/WhatsForDinner/issues/N`). It is ready when it is open, has acceptance criteria, and everything under "Depends on" is merged. Not ready: tell the owner why, then skip it (milestone) or stop (single issue).
-2. **Start the author.** `start_session`: initiation `user_asked`, context `fresh`, `use_worktree: true`, title `Author #N: <issue title>`, prompt `/implement-issue N`. Nothing else in the prompt.
+2. **Start the author.** `start_session`: initiation `user_asked`, context `fresh`, `use_worktree: true`, title `#N - author: <issue title>`, prompt `/implement-issue N`. Nothing else in the prompt.
 3. **Find the PR** when the author's note arrives: `gh pr list --state open --search "N in:body"`. No PR means the author is blocked; pass its question to the owner.
-4. **Start the reviewer.** `start_session`: initiation `user_asked`, context `fresh`, `use_worktree: true`, title `Review PR #P`, prompt `/review-pr P`. Nothing else in the prompt: the reviewer's brief is its skill, never your summary.
+4. **Start the reviewer.** `start_session`: initiation `user_asked`, context `fresh`, `use_worktree: true`, title `#N - review PR #P`, prompt `/review-pr P`. Nothing else in the prompt: the reviewer's brief is its skill, never your summary.
 5. **Relay** each time the reviewer ends a turn. Read the newest PR comment starting `Review:` (`gh api repos/ptra243/WhatsForDinner/issues/P/comments`):
    - `Review: APPROVE` and the PR is merged: tell the owner in one line (`#N merged as PR #P`), move to the next issue.
    - `Review: CHANGES REQUESTED`: `SendMessage` the author `New review on PR #P.` When the author ends its turn, `SendMessage` the reviewer `Author updated PR #P; re-review.`

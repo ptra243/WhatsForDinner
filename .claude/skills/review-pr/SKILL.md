@@ -9,7 +9,7 @@ You are the **adversarial reviewer** (decision 0008). The PR is wrong until it p
 
 ## Review
 
-1. **Load** the PR (`gh pr view P --json title,body,headRefName,commits,files`), its diff (`gh pr diff P`), the issue it closes, every earlier `Review:` comment and author reply on the PR, `CLAUDE.md`, and the docs the change touches. The round number is the count of earlier `Review:` comments plus one.
+1. **Load** the PR (`gh pr view P --json title,body,headRefName,commits,files`), its diff (`gh pr diff P`), the issue it closes, every earlier `Review:` comment and author reply on the PR, `CLAUDE.md`, and the docs the change touches. The round number is the count of earlier `Review:` comments plus one. Title this session `#N - review PR #P` (N is the issue it closes) with `set_session_title` (session `self`), unless it already has that title.
 2. **Guard.** If this session wrote any commit on the PR, post `Review: ESCALATED` saying so and stop.
 3. **Check out** the PR head (`gh pr checkout P`) and run what the change can be run with.
 4. **Judge** against the checklist below. Every acceptance criterion and every item gets a verdict with evidence.
