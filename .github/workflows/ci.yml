@@ -28,3 +28,27 @@ jobs:
           git diff --exit-code supabase/seed/seed.sql
       - name: Seed loads once and keeps household edits
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 $(node supabase/tests/seed-counts.mjs) -f supabase/tests/seed.sql
+
+  web:
+    name: web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Apply migrations to a local Supabase database
+        run: npx supabase db start --workdir ..
+      - name: Database types are up to date with the migrations
+        run: |
+          npm run gen:types
+          git diff --exit-code src/lib/database.types.ts
