@@ -11,3 +11,4 @@ Short records of settled decisions: the context, the decision and what it costs.
 | [0005](0005-planning-in-claude-chat.md) | Plan in Claude chat with a skill; app hands off with prefilled prompts | 2026-10-28 |
 | [0006](0006-frontend-stack.md) | Vite + React + TypeScript + Vitest on GitHub Pages; magic-link login | 2026-10-28 |
 | [0007](0007-repo-workflow.md) | Repo is the source of truth; docs in `docs/`, tickets in GitHub Issues | 2026-10-28 |
+| [0008](0008-review-harness.md) | Separate author and reviewer sessions; CI gates merges | 2026-10-28 |
