@@ -22,3 +22,9 @@ jobs:
         run: supabase db lint --local --level error --fail-on error
       - name: Structural checks
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/checks.sql
+      - name: Seed is up to date with seed/
+        run: |
+          node supabase/seed/build.mjs
+          git diff --exit-code supabase/seed/seed.sql
+      - name: Seed loads once and keeps household edits
+        run: psql "$DB_URL" -v ON_ERROR_STOP=1 $(node supabase/tests/seed-counts.mjs) -f supabase/tests/seed.sql
