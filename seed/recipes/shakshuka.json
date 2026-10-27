@@ -1,0 +1,95 @@
+{
+  "name": "Shakshuka",
+  "course": "main",
+  "serves": 4,
+  "activeMins": 10,
+  "totalMins": 30,
+  "provides": [
+    "protein",
+    "veg"
+  ],
+  "spice": 1,
+  "tags": [
+    "vegetarian"
+  ],
+  "source": "Starter example",
+  "ingredients": [
+    {
+      "name": "egg",
+      "qty": 8,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "crushed tomato",
+      "qty": 800,
+      "unit": "g",
+      "note": ""
+    },
+    {
+      "name": "capsicum",
+      "qty": 2,
+      "unit": "each",
+      "note": "sliced"
+    },
+    {
+      "name": "onion",
+      "qty": 1,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "garlic clove",
+      "qty": 3,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "smoked paprika",
+      "qty": 2,
+      "unit": "tsp",
+      "note": ""
+    },
+    {
+      "name": "ground cumin",
+      "qty": 1,
+      "unit": "tsp",
+      "note": ""
+    },
+    {
+      "name": "feta",
+      "qty": 100,
+      "unit": "g",
+      "note": ""
+    },
+    {
+      "name": "coriander",
+      "qty": 1,
+      "unit": "bunch",
+      "note": ""
+    }
+  ],
+  "steps": [
+    {
+      "text": "Soften the onion and capsicum in oil.",
+      "timerMins": 8
+    },
+    {
+      "text": "Add the garlic and spices, then the crushed tomato. Simmer until thick.",
+      "timerMins": 10
+    },
+    {
+      "text": "Make wells, crack in the eggs, cover and cook until the whites set.",
+      "timerMins": 8
+    },
+    {
+      "text": "Crumble over the feta and coriander.",
+      "timerMins": null
+    }
+  ],
+  "rating": 4,
+  "notes": "",
+  "example": true,
+  "createdAt": "2026-10-20T00:00:00Z",
+  "updatedAt": "2026-10-20T00:00:00Z"
+}

@@ -1,0 +1,100 @@
+{
+  "name": "Beef ragù",
+  "course": "main",
+  "serves": 6,
+  "activeMins": 25,
+  "totalMins": 180,
+  "provides": [
+    "protein",
+    "veg"
+  ],
+  "spice": 0,
+  "tags": [
+    "weekend",
+    "freezes well"
+  ],
+  "source": "Starter example",
+  "ingredients": [
+    {
+      "name": "beef chuck",
+      "qty": 1,
+      "unit": "kg",
+      "note": "in large chunks"
+    },
+    {
+      "name": "onion",
+      "qty": 1,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "carrot",
+      "qty": 2,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "celery",
+      "qty": 2,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "garlic clove",
+      "qty": 4,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "crushed tomato",
+      "qty": 800,
+      "unit": "g",
+      "note": ""
+    },
+    {
+      "name": "red wine",
+      "qty": 250,
+      "unit": "ml",
+      "note": ""
+    },
+    {
+      "name": "beef stock",
+      "qty": 250,
+      "unit": "ml",
+      "note": ""
+    },
+    {
+      "name": "tomato paste",
+      "qty": 2,
+      "unit": "tbsp",
+      "note": ""
+    }
+  ],
+  "steps": [
+    {
+      "text": "Brown the beef in batches in a heavy pot.",
+      "timerMins": 10
+    },
+    {
+      "text": "Soften the chopped onion, carrot and celery, then add the garlic and tomato paste.",
+      "timerMins": 8
+    },
+    {
+      "text": "Add the wine and bubble for 2 minutes, then the tomato and stock. Return the beef.",
+      "timerMins": null
+    },
+    {
+      "text": "Cover and simmer gently until the beef falls apart. In the pressure cooker: 45 minutes on high, then natural release.",
+      "timerMins": 150
+    },
+    {
+      "text": "Shred the beef into the sauce and season.",
+      "timerMins": null
+    }
+  ],
+  "rating": 5,
+  "notes": "",
+  "example": true,
+  "createdAt": "2026-10-20T00:00:00Z",
+  "updatedAt": "2026-10-20T00:00:00Z"
+}

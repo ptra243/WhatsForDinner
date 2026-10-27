@@ -1,0 +1,81 @@
+{
+  "name": "Fish tacos",
+  "course": "main",
+  "serves": 4,
+  "activeMins": 25,
+  "totalMins": 30,
+  "provides": [
+    "protein",
+    "carb"
+  ],
+  "spice": 1,
+  "tags": [],
+  "source": "Starter example",
+  "ingredients": [
+    {
+      "name": "white fish fillet",
+      "qty": 600,
+      "unit": "g",
+      "note": ""
+    },
+    {
+      "name": "tortilla",
+      "qty": 8,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "lime",
+      "qty": 2,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "avocado",
+      "qty": 2,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "greek yoghurt",
+      "qty": 150,
+      "unit": "g",
+      "note": ""
+    },
+    {
+      "name": "chipotle in adobo",
+      "qty": 1,
+      "unit": "tbsp",
+      "note": ""
+    },
+    {
+      "name": "ground cumin",
+      "qty": 1,
+      "unit": "tsp",
+      "note": ""
+    }
+  ],
+  "steps": [
+    {
+      "text": "Season the fish with cumin, salt and lime zest.",
+      "timerMins": null
+    },
+    {
+      "text": "Pan-fry the fish until just cooked, then flake.",
+      "timerMins": 6
+    },
+    {
+      "text": "Stir the chipotle into the yoghurt with a squeeze of lime.",
+      "timerMins": null
+    },
+    {
+      "text": "Warm the tortillas and fill with fish, avocado and the sauce.",
+      "timerMins": null
+    }
+  ],
+  "rating": 4,
+  "notes": "",
+  "example": true,
+  "createdAt": "2026-10-20T00:00:00Z",
+  "updatedAt": "2026-10-20T00:00:00Z"
+}

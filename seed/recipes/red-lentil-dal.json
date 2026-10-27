@@ -1,0 +1,96 @@
+{
+  "name": "Red lentil dal",
+  "course": "main",
+  "serves": 4,
+  "activeMins": 15,
+  "totalMins": 40,
+  "provides": [
+    "protein",
+    "veg"
+  ],
+  "spice": 1,
+  "tags": [
+    "vegetarian",
+    "mild"
+  ],
+  "source": "Starter example",
+  "ingredients": [
+    {
+      "name": "red lentil",
+      "qty": 300,
+      "unit": "g",
+      "note": ""
+    },
+    {
+      "name": "onion",
+      "qty": 1,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "garlic clove",
+      "qty": 3,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "ginger",
+      "qty": 20,
+      "unit": "g",
+      "note": "grated"
+    },
+    {
+      "name": "ground cumin",
+      "qty": 1,
+      "unit": "tsp",
+      "note": ""
+    },
+    {
+      "name": "ground turmeric",
+      "qty": 1,
+      "unit": "tsp",
+      "note": ""
+    },
+    {
+      "name": "crushed tomato",
+      "qty": 400,
+      "unit": "g",
+      "note": ""
+    },
+    {
+      "name": "coconut milk",
+      "qty": 400,
+      "unit": "ml",
+      "note": ""
+    },
+    {
+      "name": "baby spinach",
+      "qty": 120,
+      "unit": "g",
+      "note": ""
+    }
+  ],
+  "steps": [
+    {
+      "text": "Soften the chopped onion in a little oil.",
+      "timerMins": 8
+    },
+    {
+      "text": "Add the garlic, ginger and spices and cook for a minute.",
+      "timerMins": null
+    },
+    {
+      "text": "Add the lentils, crushed tomato, coconut milk and 500 ml water. Simmer, stirring now and then, until soft.",
+      "timerMins": 25
+    },
+    {
+      "text": "Stir in the spinach until wilted and season.",
+      "timerMins": null
+    }
+  ],
+  "rating": 5,
+  "notes": "",
+  "example": true,
+  "createdAt": "2026-10-20T00:00:00Z",
+  "updatedAt": "2026-10-20T00:00:00Z"
+}

@@ -1,0 +1,90 @@
+{
+  "name": "Pork and cabbage stir-fry",
+  "course": "main",
+  "serves": 4,
+  "activeMins": 20,
+  "totalMins": 25,
+  "provides": [
+    "protein",
+    "veg",
+    "carb"
+  ],
+  "spice": 0,
+  "tags": [
+    "quick"
+  ],
+  "source": "Starter example",
+  "ingredients": [
+    {
+      "name": "pork mince",
+      "qty": 500,
+      "unit": "g",
+      "note": ""
+    },
+    {
+      "name": "cabbage",
+      "qty": 0.5,
+      "unit": "each",
+      "note": "shredded"
+    },
+    {
+      "name": "carrot",
+      "qty": 1,
+      "unit": "each",
+      "note": "julienned"
+    },
+    {
+      "name": "spring onion",
+      "qty": 1,
+      "unit": "bunch",
+      "note": ""
+    },
+    {
+      "name": "garlic clove",
+      "qty": 3,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "soy sauce",
+      "qty": 3,
+      "unit": "tbsp",
+      "note": ""
+    },
+    {
+      "name": "hoisin sauce",
+      "qty": 2,
+      "unit": "tbsp",
+      "note": ""
+    },
+    {
+      "name": "egg noodle",
+      "qty": 400,
+      "unit": "g",
+      "note": ""
+    }
+  ],
+  "steps": [
+    {
+      "text": "Cook the noodles, drain and rinse.",
+      "timerMins": 4
+    },
+    {
+      "text": "Brown the pork mince in a hot wok, breaking it up.",
+      "timerMins": 5
+    },
+    {
+      "text": "Add the garlic, cabbage and carrot and stir-fry until just tender.",
+      "timerMins": 3
+    },
+    {
+      "text": "Toss through the noodles, soy and hoisin, then the spring onion.",
+      "timerMins": null
+    }
+  ],
+  "rating": 4,
+  "notes": "",
+  "example": true,
+  "createdAt": "2026-10-20T00:00:00Z",
+  "updatedAt": "2026-10-20T00:00:00Z"
+}

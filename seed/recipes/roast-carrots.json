@@ -1,0 +1,48 @@
+{
+  "name": "Honey roast carrots",
+  "course": "side",
+  "serves": 4,
+  "activeMins": 5,
+  "totalMins": 40,
+  "provides": [
+    "veg"
+  ],
+  "spice": 0,
+  "tags": [],
+  "source": "Starter example",
+  "ingredients": [
+    {
+      "name": "carrot",
+      "qty": 6,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "honey",
+      "qty": 1,
+      "unit": "tbsp",
+      "note": ""
+    },
+    {
+      "name": "olive oil",
+      "qty": 1,
+      "unit": "tbsp",
+      "note": ""
+    }
+  ],
+  "steps": [
+    {
+      "text": "Halve the carrots, toss with oil and honey.",
+      "timerMins": null
+    },
+    {
+      "text": "Roast until tender and caramelised.",
+      "timerMins": 35
+    }
+  ],
+  "rating": null,
+  "notes": "",
+  "example": true,
+  "createdAt": "2026-10-20T00:00:00Z",
+  "updatedAt": "2026-10-20T00:00:00Z"
+}

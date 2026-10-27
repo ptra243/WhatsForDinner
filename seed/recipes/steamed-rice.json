@@ -1,0 +1,36 @@
+{
+  "name": "Steamed rice",
+  "course": "side",
+  "serves": 4,
+  "activeMins": 5,
+  "totalMins": 20,
+  "provides": [
+    "carb"
+  ],
+  "spice": 0,
+  "tags": [],
+  "source": "Starter example",
+  "ingredients": [
+    {
+      "name": "jasmine rice",
+      "qty": 300,
+      "unit": "g",
+      "note": ""
+    }
+  ],
+  "steps": [
+    {
+      "text": "Rinse the rice, add 450 ml water, bring to the boil, cover and cook on low.",
+      "timerMins": 12
+    },
+    {
+      "text": "Leave covered off the heat, then fluff with a fork.",
+      "timerMins": 5
+    }
+  ],
+  "rating": null,
+  "notes": "",
+  "example": true,
+  "createdAt": "2026-10-20T00:00:00Z",
+  "updatedAt": "2026-10-20T00:00:00Z"
+}

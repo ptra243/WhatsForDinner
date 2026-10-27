@@ -1,0 +1,54 @@
+{
+  "name": "Cabbage slaw",
+  "course": "side",
+  "serves": 4,
+  "activeMins": 10,
+  "totalMins": 10,
+  "provides": [
+    "veg"
+  ],
+  "spice": 0,
+  "tags": [],
+  "source": "Starter example",
+  "ingredients": [
+    {
+      "name": "cabbage",
+      "qty": 0.25,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "carrot",
+      "qty": 1,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "lime",
+      "qty": 1,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "coriander",
+      "qty": 0.5,
+      "unit": "bunch",
+      "note": ""
+    }
+  ],
+  "steps": [
+    {
+      "text": "Finely shred the cabbage and grate the carrot.",
+      "timerMins": null
+    },
+    {
+      "text": "Toss with lime juice, chopped coriander and salt.",
+      "timerMins": null
+    }
+  ],
+  "rating": null,
+  "notes": "",
+  "example": true,
+  "createdAt": "2026-10-20T00:00:00Z",
+  "updatedAt": "2026-10-20T00:00:00Z"
+}

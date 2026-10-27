@@ -1,0 +1,32 @@
+{
+  "name": "Crusty bread",
+  "course": "side",
+  "serves": 4,
+  "activeMins": 2,
+  "totalMins": 10,
+  "provides": [
+    "carb"
+  ],
+  "spice": 0,
+  "tags": [],
+  "source": "Starter example",
+  "ingredients": [
+    {
+      "name": "crusty loaf",
+      "qty": 1,
+      "unit": "each",
+      "note": ""
+    }
+  ],
+  "steps": [
+    {
+      "text": "Warm the loaf in a hot oven.",
+      "timerMins": 8
+    }
+  ],
+  "rating": null,
+  "notes": "",
+  "example": true,
+  "createdAt": "2026-10-20T00:00:00Z",
+  "updatedAt": "2026-10-20T00:00:00Z"
+}

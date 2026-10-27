@@ -1,0 +1,48 @@
+{
+  "name": "Buttered pappardelle",
+  "course": "side",
+  "serves": 6,
+  "activeMins": 5,
+  "totalMins": 15,
+  "provides": [
+    "carb"
+  ],
+  "spice": 0,
+  "tags": [],
+  "source": "Starter example",
+  "ingredients": [
+    {
+      "name": "pappardelle",
+      "qty": 500,
+      "unit": "g",
+      "note": ""
+    },
+    {
+      "name": "butter",
+      "qty": 30,
+      "unit": "g",
+      "note": ""
+    },
+    {
+      "name": "parmesan",
+      "qty": 50,
+      "unit": "g",
+      "note": ""
+    }
+  ],
+  "steps": [
+    {
+      "text": "Cook the pasta in salted water.",
+      "timerMins": 8
+    },
+    {
+      "text": "Drain and toss with butter and grated parmesan.",
+      "timerMins": null
+    }
+  ],
+  "rating": null,
+  "notes": "",
+  "example": true,
+  "createdAt": "2026-10-20T00:00:00Z",
+  "updatedAt": "2026-10-20T00:00:00Z"
+}

@@ -1,0 +1,212 @@
+{
+  "items": {
+    "lemon": {
+      "name": "lemon",
+      "aisle": "fruit and veg"
+    },
+    "garlic-clove": {
+      "name": "garlic clove",
+      "aisle": "fruit and veg"
+    },
+    "parsley": {
+      "name": "parsley",
+      "aisle": "fruit and veg"
+    },
+    "onion": {
+      "name": "onion",
+      "aisle": "fruit and veg"
+    },
+    "ginger": {
+      "name": "ginger",
+      "aisle": "fruit and veg"
+    },
+    "baby-spinach": {
+      "name": "baby spinach",
+      "aisle": "fruit and veg"
+    },
+    "cabbage": {
+      "name": "cabbage",
+      "aisle": "fruit and veg"
+    },
+    "carrot": {
+      "name": "carrot",
+      "aisle": "fruit and veg"
+    },
+    "spring-onion": {
+      "name": "spring onion",
+      "aisle": "fruit and veg"
+    },
+    "capsicum": {
+      "name": "capsicum",
+      "aisle": "fruit and veg"
+    },
+    "coriander": {
+      "name": "coriander",
+      "aisle": "fruit and veg"
+    },
+    "lime": {
+      "name": "lime",
+      "aisle": "fruit and veg"
+    },
+    "avocado": {
+      "name": "avocado",
+      "aisle": "fruit and veg"
+    },
+    "celery": {
+      "name": "celery",
+      "aisle": "fruit and veg"
+    },
+    "thyme": {
+      "name": "thyme",
+      "aisle": "fruit and veg"
+    },
+    "green-bean": {
+      "name": "green bean",
+      "aisle": "fruit and veg"
+    },
+    "mixed-salad-leaf": {
+      "name": "mixed salad leaf",
+      "aisle": "fruit and veg"
+    },
+    "cucumber": {
+      "name": "cucumber",
+      "aisle": "fruit and veg"
+    },
+    "rosemary": {
+      "name": "rosemary",
+      "aisle": "fruit and veg"
+    },
+    "potato": {
+      "name": "potato",
+      "aisle": "fruit and veg"
+    },
+    "chicken-thigh": {
+      "name": "chicken thigh",
+      "aisle": "meat and seafood"
+    },
+    "pork-mince": {
+      "name": "pork mince",
+      "aisle": "meat and seafood"
+    },
+    "white-fish-fillet": {
+      "name": "white fish fillet",
+      "aisle": "meat and seafood"
+    },
+    "beef-chuck": {
+      "name": "beef chuck",
+      "aisle": "meat and seafood"
+    },
+    "whole-chicken": {
+      "name": "whole chicken",
+      "aisle": "meat and seafood"
+    },
+    "cream": {
+      "name": "cream",
+      "aisle": "dairy and fridge"
+    },
+    "feta": {
+      "name": "feta",
+      "aisle": "dairy and fridge"
+    },
+    "greek-yoghurt": {
+      "name": "greek yoghurt",
+      "aisle": "dairy and fridge"
+    },
+    "butter": {
+      "name": "butter",
+      "aisle": "dairy and fridge"
+    },
+    "parmesan": {
+      "name": "parmesan",
+      "aisle": "dairy and fridge"
+    },
+    "egg": {
+      "name": "egg",
+      "aisle": "dairy and fridge"
+    },
+    "tortilla": {
+      "name": "tortilla",
+      "aisle": "international"
+    },
+    "crusty-loaf": {
+      "name": "crusty loaf",
+      "aisle": "bakery"
+    },
+    "chicken-stock": {
+      "name": "chicken stock",
+      "aisle": "pantry"
+    },
+    "olive-oil": {
+      "name": "olive oil",
+      "aisle": "pantry"
+    },
+    "red-lentil": {
+      "name": "red lentil",
+      "aisle": "pantry"
+    },
+    "ground-cumin": {
+      "name": "ground cumin",
+      "aisle": "herbs and spices"
+    },
+    "ground-turmeric": {
+      "name": "ground turmeric",
+      "aisle": "herbs and spices"
+    },
+    "crushed-tomato": {
+      "name": "crushed tomato",
+      "aisle": "canned veg"
+    },
+    "coconut-milk": {
+      "name": "coconut milk",
+      "aisle": "international"
+    },
+    "soy-sauce": {
+      "name": "soy sauce",
+      "aisle": "international"
+    },
+    "hoisin-sauce": {
+      "name": "hoisin sauce",
+      "aisle": "international"
+    },
+    "egg-noodle": {
+      "name": "egg noodle",
+      "aisle": "international"
+    },
+    "smoked-paprika": {
+      "name": "smoked paprika",
+      "aisle": "herbs and spices"
+    },
+    "chipotle-in-adobo": {
+      "name": "chipotle in adobo",
+      "aisle": "international"
+    },
+    "red-wine": {
+      "name": "red wine",
+      "aisle": "pantry"
+    },
+    "beef-stock": {
+      "name": "beef stock",
+      "aisle": "pantry"
+    },
+    "tomato-paste": {
+      "name": "tomato paste",
+      "aisle": "canned veg"
+    },
+    "jasmine-rice": {
+      "name": "jasmine rice",
+      "aisle": "pantry"
+    },
+    "red-wine-vinegar": {
+      "name": "red wine vinegar",
+      "aisle": "pantry"
+    },
+    "pappardelle": {
+      "name": "pappardelle",
+      "aisle": "pantry"
+    },
+    "honey": {
+      "name": "honey",
+      "aisle": "pantry"
+    }
+  }
+}

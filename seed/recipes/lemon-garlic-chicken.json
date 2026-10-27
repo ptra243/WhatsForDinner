@@ -1,0 +1,84 @@
+{
+  "name": "Lemon garlic chicken",
+  "course": "main",
+  "serves": 4,
+  "activeMins": 15,
+  "totalMins": 45,
+  "provides": [
+    "protein"
+  ],
+  "spice": 0,
+  "tags": [],
+  "source": "Starter example",
+  "ingredients": [
+    {
+      "name": "chicken thigh",
+      "qty": 600,
+      "unit": "g",
+      "note": "skin on"
+    },
+    {
+      "name": "lemon",
+      "qty": 2,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "garlic clove",
+      "qty": 6,
+      "unit": "each",
+      "note": "sliced"
+    },
+    {
+      "name": "cream",
+      "qty": 200,
+      "unit": "ml",
+      "note": ""
+    },
+    {
+      "name": "chicken stock",
+      "qty": 250,
+      "unit": "ml",
+      "note": ""
+    },
+    {
+      "name": "parsley",
+      "qty": 1,
+      "unit": "bunch",
+      "note": ""
+    },
+    {
+      "name": "olive oil",
+      "qty": 2,
+      "unit": "tbsp",
+      "note": ""
+    }
+  ],
+  "steps": [
+    {
+      "text": "Heat the oven to 200°C and season the chicken.",
+      "timerMins": null
+    },
+    {
+      "text": "Brown the chicken skin-side down in the oil in an ovenproof pan.",
+      "timerMins": 6
+    },
+    {
+      "text": "Turn the chicken skin-side up, add the garlic, lemon zest and juice, pour the stock around it and roast until golden.",
+      "timerMins": 20
+    },
+    {
+      "text": "Move the pan to the stove, stir in the cream and simmer.",
+      "timerMins": 3
+    },
+    {
+      "text": "Scatter with chopped parsley and serve.",
+      "timerMins": null
+    }
+  ],
+  "rating": 4,
+  "notes": "",
+  "example": true,
+  "createdAt": "2026-10-20T00:00:00Z",
+  "updatedAt": "2026-10-20T00:00:00Z"
+}

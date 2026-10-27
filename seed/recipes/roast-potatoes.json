@@ -1,0 +1,48 @@
+{
+  "name": "Roast potatoes",
+  "course": "side",
+  "serves": 4,
+  "activeMins": 10,
+  "totalMins": 60,
+  "provides": [
+    "carb"
+  ],
+  "spice": 0,
+  "tags": [],
+  "source": "Starter example",
+  "ingredients": [
+    {
+      "name": "potato",
+      "qty": 1.2,
+      "unit": "kg",
+      "note": ""
+    },
+    {
+      "name": "olive oil",
+      "qty": 3,
+      "unit": "tbsp",
+      "note": ""
+    },
+    {
+      "name": "rosemary",
+      "qty": 1,
+      "unit": "bunch",
+      "note": ""
+    }
+  ],
+  "steps": [
+    {
+      "text": "Parboil the chunked potatoes, drain and rough them up.",
+      "timerMins": 8
+    },
+    {
+      "text": "Roast in hot oil with rosemary, turning once.",
+      "timerMins": 50
+    }
+  ],
+  "rating": null,
+  "notes": "",
+  "example": true,
+  "createdAt": "2026-10-20T00:00:00Z",
+  "updatedAt": "2026-10-20T00:00:00Z"
+}

@@ -1,0 +1,54 @@
+{
+  "name": "Green salad",
+  "course": "side",
+  "serves": 4,
+  "activeMins": 10,
+  "totalMins": 10,
+  "provides": [
+    "veg"
+  ],
+  "spice": 0,
+  "tags": [],
+  "source": "Starter example",
+  "ingredients": [
+    {
+      "name": "mixed salad leaf",
+      "qty": 150,
+      "unit": "g",
+      "note": ""
+    },
+    {
+      "name": "cucumber",
+      "qty": 1,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "olive oil",
+      "qty": 2,
+      "unit": "tbsp",
+      "note": ""
+    },
+    {
+      "name": "red wine vinegar",
+      "qty": 1,
+      "unit": "tbsp",
+      "note": ""
+    }
+  ],
+  "steps": [
+    {
+      "text": "Slice the cucumber and toss with the leaves.",
+      "timerMins": null
+    },
+    {
+      "text": "Dress with oil, vinegar and a pinch of salt just before serving.",
+      "timerMins": null
+    }
+  ],
+  "rating": null,
+  "notes": "",
+  "example": true,
+  "createdAt": "2026-10-20T00:00:00Z",
+  "updatedAt": "2026-10-20T00:00:00Z"
+}

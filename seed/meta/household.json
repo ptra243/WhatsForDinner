@@ -1,0 +1,17 @@
+{
+  "notes": "",
+  "dinnerTime": "18:30",
+  "minutes": {
+    "mon": 45,
+    "tue": 45,
+    "wed": 45,
+    "thu": 45,
+    "fri": 45,
+    "sat": 120,
+    "sun": 120
+  },
+  "equipment": [
+    "pressure cooker"
+  ],
+  "mealRule": "veg+carb"
+}

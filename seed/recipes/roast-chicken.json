@@ -1,0 +1,66 @@
+{
+  "name": "Roast chicken",
+  "course": "main",
+  "serves": 4,
+  "activeMins": 15,
+  "totalMins": 90,
+  "provides": [
+    "protein"
+  ],
+  "spice": 0,
+  "tags": [
+    "weekend"
+  ],
+  "source": "Starter example",
+  "ingredients": [
+    {
+      "name": "whole chicken",
+      "qty": 1.8,
+      "unit": "kg",
+      "note": ""
+    },
+    {
+      "name": "lemon",
+      "qty": 1,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "garlic clove",
+      "qty": 4,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "thyme",
+      "qty": 1,
+      "unit": "bunch",
+      "note": ""
+    },
+    {
+      "name": "butter",
+      "qty": 30,
+      "unit": "g",
+      "note": ""
+    }
+  ],
+  "steps": [
+    {
+      "text": "Heat the oven to 200°C. Rub the chicken with butter, salt and thyme; put the lemon and garlic inside.",
+      "timerMins": null
+    },
+    {
+      "text": "Roast until the juices run clear.",
+      "timerMins": 75
+    },
+    {
+      "text": "Rest before carving.",
+      "timerMins": 10
+    }
+  ],
+  "rating": 5,
+  "notes": "",
+  "example": true,
+  "createdAt": "2026-10-20T00:00:00Z",
+  "updatedAt": "2026-10-20T00:00:00Z"
+}

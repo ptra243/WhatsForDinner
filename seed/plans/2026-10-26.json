@@ -1,0 +1,131 @@
+{
+  "weekStart": "2026-10-26",
+  "nights": {
+    "mon": {
+      "dishes": [
+        {
+          "recipeId": "lemon-garlic-chicken",
+          "role": "main",
+          "servings": 4,
+          "swaps": []
+        },
+        {
+          "recipeId": "steamed-rice",
+          "role": "side",
+          "servings": 4,
+          "swaps": []
+        },
+        {
+          "recipeId": "garlicky-green-beans",
+          "role": "side",
+          "servings": 4,
+          "swaps": []
+        }
+      ],
+      "cooked": true
+    },
+    "tue": {
+      "dishes": [
+        {
+          "recipeId": "red-lentil-dal",
+          "role": "main",
+          "servings": 4,
+          "swaps": []
+        },
+        {
+          "recipeId": "steamed-rice",
+          "role": "side",
+          "servings": 4,
+          "swaps": []
+        }
+      ]
+    },
+    "wed": {
+      "dishes": [
+        {
+          "recipeId": "pork-cabbage-stir-fry",
+          "role": "main",
+          "servings": 4,
+          "swaps": []
+        }
+      ]
+    },
+    "thu": {
+      "dishes": [
+        {
+          "recipeId": "shakshuka",
+          "role": "main",
+          "servings": 4,
+          "swaps": []
+        },
+        {
+          "recipeId": "crusty-bread",
+          "role": "side",
+          "servings": 4,
+          "swaps": []
+        },
+        {
+          "recipeId": "green-salad",
+          "role": "side",
+          "servings": 4,
+          "swaps": []
+        }
+      ]
+    },
+    "fri": {
+      "dishes": [
+        {
+          "recipeId": "fish-tacos",
+          "role": "main",
+          "servings": 4,
+          "swaps": []
+        },
+        {
+          "recipeId": "cabbage-slaw",
+          "role": "side",
+          "servings": 4,
+          "swaps": []
+        }
+      ]
+    },
+    "sat": {
+      "dishes": [
+        {
+          "recipeId": "beef-ragu",
+          "role": "main",
+          "servings": 6,
+          "swaps": []
+        },
+        {
+          "recipeId": "buttered-pappardelle",
+          "role": "side",
+          "servings": 6,
+          "swaps": []
+        }
+      ]
+    },
+    "sun": {
+      "dishes": [
+        {
+          "recipeId": "roast-chicken",
+          "role": "main",
+          "servings": 4,
+          "swaps": []
+        },
+        {
+          "recipeId": "roast-potatoes",
+          "role": "side",
+          "servings": 4,
+          "swaps": []
+        },
+        {
+          "recipeId": "roast-carrots",
+          "role": "side",
+          "servings": 4,
+          "swaps": []
+        }
+      ]
+    }
+  },
+  "updatedAt": "2026-10-27T00:00:00Z"
+}

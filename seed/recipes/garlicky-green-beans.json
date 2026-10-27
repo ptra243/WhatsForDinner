@@ -1,0 +1,48 @@
+{
+  "name": "Garlicky green beans",
+  "course": "side",
+  "serves": 4,
+  "activeMins": 10,
+  "totalMins": 10,
+  "provides": [
+    "veg"
+  ],
+  "spice": 0,
+  "tags": [],
+  "source": "Starter example",
+  "ingredients": [
+    {
+      "name": "green bean",
+      "qty": 300,
+      "unit": "g",
+      "note": "trimmed"
+    },
+    {
+      "name": "garlic clove",
+      "qty": 2,
+      "unit": "each",
+      "note": ""
+    },
+    {
+      "name": "butter",
+      "qty": 20,
+      "unit": "g",
+      "note": ""
+    }
+  ],
+  "steps": [
+    {
+      "text": "Boil the beans until just tender, then drain.",
+      "timerMins": 4
+    },
+    {
+      "text": "Toss in butter with sliced garlic for a minute.",
+      "timerMins": null
+    }
+  ],
+  "rating": null,
+  "notes": "",
+  "example": true,
+  "createdAt": "2026-10-20T00:00:00Z",
+  "updatedAt": "2026-10-20T00:00:00Z"
+}
