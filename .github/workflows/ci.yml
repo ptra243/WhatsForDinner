@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  database:
+    name: database
+    runs-on: ubuntu-latest
+    env:
+      DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - name: Apply migrations to a local Supabase database
+        run: supabase db start
+      - name: Lint SQL functions
+        run: supabase db lint --local --level error --fail-on error
+      - name: Structural checks
+        run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/checks.sql

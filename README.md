@@ -19,5 +19,7 @@ M1 is in progress: a React app on GitHub Pages backed by Supabase, with planning
 | `app/dinner-planner.html` | v1 prototype (retired at the end of M1) |
 | `seed/` | Example recipes, ingredient sections and a sample week, loaded as starting data |
 | `docs/` | Project docs and decision records |
+| `supabase/` | Migrations, CI checks (`tests/`) and local Supabase config |
+| `.claude/skills/` | `/ship`, `/implement-issue`, `/review-pr`: the issue workflow (decision 0008) |
 
 Real recipes and plans live in the database, not in this repo.
