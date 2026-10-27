@@ -16,6 +16,7 @@ M1 is in progress: a React app on GitHub Pages backed by Supabase, with planning
 
 | Path | What it is |
 | --- | --- |
+| `web/` | The app: Vite + React + TypeScript, deployed to GitHub Pages from `master` |
 | `app/dinner-planner.html` | v1 prototype (retired at the end of M1) |
 | `seed/` | Example recipes, ingredient sections and a sample week, loaded as starting data |
 | `supabase/migrations/` | Database schema (schema of record) |
@@ -25,3 +26,7 @@ M1 is in progress: a React app on GitHub Pages backed by Supabase, with planning
 | `.claude/skills/` | `/ship`, `/implement-issue`, `/review-pr`: the issue workflow (decision 0008) |
 
 Real recipes and plans live in the database, not in this repo.
+
+## Working on the app
+
+In `web/`: `npm install`, then `npm run dev` (also the `web` entry in `.claude/launch.json`), `npm test`, `npm run lint`, `npm run build`. After a schema change, start the local database (`npx supabase db start --workdir ..`) and run `npm run gen:types` to regenerate `src/lib/database.types.ts`; CI fails while it is out of date. The site is https://ptra243.github.io/WhatsForDinner/.
