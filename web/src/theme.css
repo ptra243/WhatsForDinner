@@ -178,3 +178,12 @@ ol.steps .tm{color:var(--warn);font-family:var(--display);font-weight:700;font-s
 .weeknav .mid small{font-size:12px;font-weight:400;color:var(--muted)}
 .pick{display:flex;flex-direction:column;gap:6px}
 .pick button{display:flex;justify-content:space-between;gap:8px;align-items:center;text-align:left;min-height:46px;padding:8px 12px;border:1px solid var(--line);border-radius:6px;background:var(--tex),var(--surface)}
+
+/* Cook mode */
+.bar{height:5px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar span{display:block;height:100%;background:var(--accent)}
+.bigstep{font-family:var(--display);font-weight:500;font-size:26px;line-height:1.3;margin:6px 0 0;text-wrap:pretty}
+.timer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px 16px;border:2px solid var(--accent);border-radius:6px;background:var(--accent-soft)}
+.timer .tm{font-family:var(--display);font-weight:700;font-size:40px;font-variant-numeric:tabular-nums;line-height:1}
+.timer.up{border-color:var(--sun);background:var(--hl)}
+.other-timer{align-self:flex-start;font-variant-numeric:tabular-nums}

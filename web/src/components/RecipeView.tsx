@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { mins, scaledQty } from '../lib/format'
 import { deleteRecipe, updateRecipe, type Recipe } from '../lib/recipes'
 import { AddToNight } from './AddToNight'
+import { CookMode } from './CookMode'
 
 type Props = {
   householdId: string
@@ -17,6 +18,7 @@ export function RecipeView({ householdId, recipe: r, onChange, onDeleted, onClos
   const [notes, setNotes] = useState(r.notes)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [cooking, setCooking] = useState(false)
   const [status, setStatus] = useState<string>()
   const [error, setError] = useState<string>()
   const back = useRef<HTMLButtonElement>(null)
@@ -91,9 +93,14 @@ export function RecipeView({ householdId, recipe: r, onChange, onDeleted, onClos
           {r.source && <span className="small muted">From {r.source}</span>}
         </div>
 
-        <button className="btn ghost" type="button" onClick={() => setAdding(true)}>
-          Add to a night
-        </button>
+        <div className="row">
+          <button className="btn grow" type="button" onClick={() => setCooking(true)}>
+            Start cooking
+          </button>
+          <button className="btn ghost grow" type="button" onClick={() => setAdding(true)}>
+            Add to a night
+          </button>
+        </div>
         {status && (
           <p className="small muted flat" role="status">
             {status}
@@ -187,6 +194,27 @@ export function RecipeView({ householdId, recipe: r, onChange, onDeleted, onClos
           </button>
         )}
       </div>
+      {cooking && (
+        <CookMode
+          householdId={householdId}
+          recipe={r}
+          servings={servings}
+          onChange={(next) => {
+            if (next.notes !== r.notes) setNotes(next.notes)
+            onChange(next)
+          }}
+          onExit={() => {
+            setCooking(false)
+            back.current?.focus()
+          }}
+          onDone={(message) => {
+            setCooking(false)
+            setError(undefined)
+            setStatus(message)
+            back.current?.focus()
+          }}
+        />
+      )}
       {adding && (
         <AddToNight
           householdId={householdId}
