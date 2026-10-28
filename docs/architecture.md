@@ -25,6 +25,13 @@ flowchart LR
 - The shopping list is not stored: the app derives it from `meal_plan_dishes` + `recipe_ingredients` (scaled by servings, swaps applied) and overlays `list_marks` and `list_extras`.
 - Realtime: the app subscribes to plan and list changes so a plan Claude saves appears without a refresh.
 
+## Offline
+
+- A service worker (`web/sw.js`, filled in by the build in `vite.config.ts`) caches the app shell, the fonts, and the newest answer to each Supabase read. With no signal the app opens on the last-loaded week, list and recipes under an "Offline, ticks need signal" banner.
+- Ticking and other list changes are disabled offline; nothing is queued (full offline ticking is M2). The list reloads when the signal returns.
+- With no signal a stored login reads as unexpired (`offlineStorage` in `web/src/lib/supabase.ts`), so supabase-js does not spend 30 seconds retrying a token refresh before showing anything.
+- The cached reads are household data in the browser's Cache Storage; signing out deletes them.
+
 ## Keys
 
 - The project URL and **publishable (anon) key** are committed in `web/src/config.ts`. They are public by design; Row Level Security protects the data.

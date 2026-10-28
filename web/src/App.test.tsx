@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
 // A stand-in for the Supabase client: a session (or none), the user's memberships and create_household.
@@ -159,5 +159,52 @@ describe('App shell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(db.client.auth.signOut).toHaveBeenCalled()
     expect(await screen.findByRole('button', { name: 'Email me a sign-in link' })).toBeInTheDocument()
+  })
+})
+
+describe('Offline', () => {
+  const setOnline = (online: boolean) =>
+    act(() => {
+      Object.defineProperty(navigator, 'onLine', { value: online, configurable: true })
+      window.dispatchEvent(new Event(online ? 'online' : 'offline'))
+    })
+  afterEach(() => {
+    setOnline(true)
+    localStorage.clear()
+  })
+
+  it('says ticks need signal and stops hand-added items', async () => {
+    signedIn()
+    window.history.replaceState(null, '', '/#list')
+    render(<App />)
+    expect(await screen.findByRole('button', { name: 'Add item' })).toBeEnabled()
+    expect(screen.queryByText(/Offline/)).not.toBeInTheDocument()
+    setOnline(false)
+    expect(screen.getByText('Offline, ticks need signal.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add item' })).toBeDisabled()
+    setOnline(true)
+    expect(screen.queryByText(/Offline/)).not.toBeInTheDocument()
+  })
+
+  it('stays signed in when an expired login cannot be refreshed with no signal', async () => {
+    // supabase-js reports no session but keeps it in storage until a real sign-out.
+    localStorage.setItem(
+      'sb-fckheksaemriadvrveoj-auth-token',
+      JSON.stringify({ access_token: 'old', refresh_token: 'r', expires_at: 1, user: { id: 'u1', email: 'cook@example.test' } }),
+    )
+    db.state.memberships = [{ household_id: 'h1' }]
+    render(<App />)
+    expect(await screen.findByRole('heading', { level: 1, name: 'This week' })).toBeInTheDocument()
+  })
+
+  it('forgets the last-loaded data on sign-out', async () => {
+    const remove = vi.fn(async () => true)
+    Object.defineProperty(window, 'caches', { value: { delete: remove }, configurable: true })
+    signedIn()
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Household settings' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    expect(await screen.findByRole('button', { name: 'Email me a sign-in link' })).toBeInTheDocument()
+    expect(remove).toHaveBeenCalledWith('wfd-data')
   })
 })
