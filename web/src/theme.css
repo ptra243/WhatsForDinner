@@ -146,6 +146,11 @@ ol.steps .tm{color:var(--warn);font-family:var(--display);font-weight:700;font-s
 .paper.week{display:flex;flex-direction:column;padding:0}
 .night{display:flex;gap:14px;align-items:center;width:100%;text-align:left;border:0;border-bottom:1.5px solid var(--line);background:none;padding:10px 14px 10px 0;min-height:72px}
 .night:last-child{border-bottom:0}
+.night{cursor:pointer}
+.night button:not(.cook){border:0;background:none;padding:0;text-align:left}
+.night .nm>button{align-self:flex-start}
+.night .ds button{font-size:inherit;color:inherit}
+.night .cook{margin-top:4px;min-height:36px;padding:0 14px;border-radius:6px;border:1.5px solid var(--accent);background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:14px}
 .night .dn{width:58px;flex:none;align-self:stretch;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .night .dn b{font-size:12px;letter-spacing:.08em;text-transform:uppercase}
 .night .dn span{font-weight:700;font-size:20px;line-height:1.1}
