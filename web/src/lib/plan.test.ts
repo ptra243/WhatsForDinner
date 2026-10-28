@@ -65,6 +65,21 @@ describe('a night', () => {
     expect(i.main?.recipeId).toBe('rice')
     expect(i.sides[0].recipe).toBeUndefined()
   })
+
+  it('flags avoided allergens until a swap clears them', () => {
+    const recipes = new Map(RECIPES)
+    recipes.set('curry', { ...CURRY, ingredients: [{ name: 'greek yoghurt', qty: 200, unit: 'g', note: '', allergens: ['milk'] }] })
+    recipes.set('bread', { ...BREAD, ingredients: [{ name: 'naan', qty: 4, unit: 'each', note: '', allergens: ['wheat', 'gluten', 'milk'] }] })
+    const avoid = { ...DEFAULT_SETTINGS, avoid: ['milk' as const] }
+    const plain = nightInfo(night([['curry', 'main'], ['bread', 'side']]), 'mon', recipes, avoid)
+    expect(plain.allergens).toEqual(['milk'])
+    expect(plain.dishes.map((d) => d.allergens.length)).toEqual([1, 1])
+    expect(nightInfo(night([['curry', 'main']]), 'mon', recipes, DEFAULT_SETTINGS).allergens).toEqual([])
+
+    const swapped = night([['curry', 'main']])
+    swapped.dishes[0].swaps = [{ from: 'greek yoghurt', to: 'coconut yoghurt', qty: null, unit: null, allergens: [] }]
+    expect(nightInfo(swapped, 'mon', recipes, avoid).allergens).toEqual([])
+  })
 })
 
 describe('adding a dish', () => {
@@ -120,7 +135,8 @@ describe('settings', () => {
     expect(s.minutes.mon).toBe(20)
     expect(s.minutes.sat).toBe(120)
     expect(s.mealRule).toBe('veg')
-    expect(toSettings({ dinnerTime: 'soon', mealRule: 'lots' })).toEqual(DEFAULT_SETTINGS)
+    expect(toSettings({ dinnerTime: 'soon', mealRule: 'lots', avoid: 'egg' })).toEqual(DEFAULT_SETTINGS)
+    expect(toSettings({ avoid: ['sesame', 'nuts', 'egg'] }).avoid).toEqual(['egg', 'sesame'])
   })
 })
 

@@ -3,7 +3,8 @@ import { dayOf, weekStartOf, type Day } from './week'
 
 export type Course = 'main' | 'side'
 
-export type RecipeIngredient = { name: string; qty: number | null; unit: string; note: string }
+/** `allergens`: what the ingredient usually contains (`ingredients.allergens`); missing means none known. */
+export type RecipeIngredient = { name: string; qty: number | null; unit: string; note: string; allergens?: string[] }
 export type RecipeStep = { text: string; timerMins: number | null }
 
 /** A household recipe with its ingredients and steps in order. */
@@ -33,7 +34,7 @@ export async function loadRecipes(householdId: string): Promise<Recipe[]> {
     .from('recipes')
     .select(
       'id, name, course, serves, active_mins, total_mins, provides, tags, source, rating, notes, is_example, created_at,' +
-        ' recipe_ingredients(position, qty, unit, note, ingredients(name)), recipe_steps(position, text, timer_mins)',
+        ' recipe_ingredients(position, qty, unit, note, ingredients(name, allergens)), recipe_steps(position, text, timer_mins)',
     )
     .eq('household_id', householdId)
     .overrideTypes<
@@ -51,7 +52,13 @@ export async function loadRecipes(householdId: string): Promise<Recipe[]> {
         notes: string
         is_example: boolean
         created_at: string
-        recipe_ingredients: { position: number; qty: number | null; unit: string; note: string; ingredients: { name: string } | null }[]
+        recipe_ingredients: {
+          position: number
+          qty: number | null
+          unit: string
+          note: string
+          ingredients: { name: string; allergens: string[] } | null
+        }[]
         recipe_steps: { position: number; text: string; timer_mins: number | null }[]
       }[],
       { merge: false }
@@ -78,6 +85,7 @@ export async function loadRecipes(householdId: string): Promise<Recipe[]> {
           qty: i.qty == null ? null : Number(i.qty),
           unit: i.unit,
           note: i.note,
+          allergens: i.ingredients?.allergens ?? [],
         })),
         steps: [...r.recipe_steps].sort(byPosition).map((s) => ({ text: s.text, timerMins: s.timer_mins })),
       }),

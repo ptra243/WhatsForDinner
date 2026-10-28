@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ALLERGENS, type Allergen } from '../lib/allergens'
 import {
   clearExamples,
   countExamples,
@@ -39,6 +40,7 @@ export function SettingsSheet({
     () => Object.fromEntries(DAYS.map((d) => [d, String(DEFAULT_HOUSEHOLD_SETTINGS.minutes[d])])) as Record<Day, string>,
   )
   const [mealRule, setMealRule] = useState<MealRule>(DEFAULT_HOUSEHOLD_SETTINGS.mealRule)
+  const [avoid, setAvoid] = useState<Allergen[]>(DEFAULT_HOUSEHOLD_SETTINGS.avoid)
   const [examples, setExamples] = useState(0)
   const [confirmClear, setConfirmClear] = useState(false)
   const [busy, setBusy] = useState<'save' | 'export' | 'clear'>()
@@ -55,6 +57,7 @@ export function SettingsSheet({
         setDinnerTime(s.dinnerTime)
         setMinutes(Object.fromEntries(DAYS.map((d) => [d, String(s.minutes[d])])) as Record<Day, string>)
         setMealRule(s.mealRule)
+        setAvoid(s.avoid)
         setExamples(n)
         setLoaded(true)
       },
@@ -80,6 +83,7 @@ export function SettingsSheet({
           }),
         ) as Record<Day, number>,
         mealRule,
+        avoid,
       })
       onChanged()
       onClose()
@@ -189,6 +193,23 @@ export function SettingsSheet({
           <option value="off">No check</option>
         </select>
       </div>
+      <fieldset className="stack tight plain">
+        <legend className="lab">Allergens to avoid</legend>
+        <div className="row wrap-row">
+          {ALLERGENS.map((a) => (
+            <button
+              key={a}
+              type="button"
+              className="chip"
+              aria-pressed={avoid.includes(a)}
+              onClick={() => setAvoid((v) => ALLERGENS.filter((x) => (x === a ? !v.includes(a) : v.includes(x))))}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+        <p className="small muted flat">Dishes with these show a warning until they are swapped. Always check the label.</p>
+      </fieldset>
       <button className="btn wide" type="button" disabled={!loaded || !!busy} onClick={save}>
         {busy === 'save' ? 'Saving…' : 'Save settings'}
       </button>

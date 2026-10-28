@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { DEFAULT_SETTINGS } from '../lib/plan'
 import type { Recipe } from '../lib/recipes'
 import { RecipesTab } from './RecipesTab'
 
@@ -11,6 +12,8 @@ const api = vi.hoisted(() => ({
   addToNight: vi.fn(async () => {}),
 }))
 vi.mock('../lib/recipes', async (actual) => ({ ...(await actual<typeof import('../lib/recipes')>()), ...api }))
+const plan = vi.hoisted(() => ({ loadSettings: vi.fn() }))
+vi.mock('../lib/plan', async (actual) => ({ ...(await actual<typeof import('../lib/plan')>()), ...plan }))
 
 const recipe = (r: Partial<Recipe> & Pick<Recipe, 'id' | 'name'>): Recipe => ({
   course: 'main',
@@ -43,6 +46,7 @@ const RECIPES = [
     ingredients: [
       { name: 'red lentil', qty: 0.5, unit: 'kg', note: '' },
       { name: 'onion', qty: 1, unit: 'each', note: 'diced' },
+      { name: 'ghee', qty: 2, unit: 'tbsp', note: '', allergens: ['milk'] },
       { name: 'salt', qty: null, unit: 'tsp', note: '' },
     ],
     steps: [
@@ -50,7 +54,15 @@ const RECIPES = [
       { text: 'Simmer the lentils.', timerMins: 25 },
     ],
   }),
-  recipe({ id: 'rice', name: 'Steamed rice', course: 'side', ingredients: [{ name: 'jasmine rice', qty: 300, unit: 'g', note: '' }] }),
+  recipe({
+    id: 'rice',
+    name: 'Rice pudding',
+    course: 'side',
+    ingredients: [
+      { name: 'jasmine rice', qty: 300, unit: 'g', note: '' },
+      { name: 'milk', qty: 1, unit: 'l', note: '', allergens: ['milk'] },
+    ],
+  }),
 ]
 
 const names = () =>
@@ -61,6 +73,7 @@ const names = () =>
 beforeEach(() => {
   vi.clearAllMocks()
   api.loadRecipes.mockResolvedValue(RECIPES.map((r) => ({ ...r })))
+  plan.loadSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, avoid: ['milk'] })
 })
 
 describe('Recipe list', () => {
@@ -70,7 +83,7 @@ describe('Recipe list', () => {
     expect(dal).toHaveTextContent('20 min hands-on · 1 h 30 total')
     expect(within(dal).getByLabelText('4 stars')).toBeInTheDocument()
     expect(within(dal).getByText('Example')).toBeInTheDocument()
-    expect(within(screen.getByRole('button', { name: /Steamed rice/ })).getByText('Side')).toBeInTheDocument()
+    expect(within(screen.getByRole('button', { name: /Rice pudding/ })).getByText('Side')).toBeInTheDocument()
     expect(api.loadRecipes).toHaveBeenCalledWith('h1')
   })
 
@@ -80,7 +93,7 @@ describe('Recipe list', () => {
     fireEvent.change(search, { target: { value: 'VEGETARIAN' } })
     expect(names()).toEqual(['Red lentil dal'])
     fireEvent.change(search, { target: { value: 'jasmine' } })
-    expect(names()).toEqual(['Steamed rice'])
+    expect(names()).toEqual(['Rice pudding'])
     fireEvent.change(search, { target: { value: 'pizza' } })
     expect(screen.getByText('No recipes match.')).toBeInTheDocument()
   })
@@ -88,7 +101,7 @@ describe('Recipe list', () => {
   it('filters by course', async () => {
     render(<RecipesTab householdId="h1" />)
     fireEvent.click(await screen.findByRole('button', { name: 'Sides' }))
-    expect(names()).toEqual(['Steamed rice'])
+    expect(names()).toEqual(['Rice pudding'])
     fireEvent.click(screen.getByRole('button', { name: 'Mains' }))
     expect(names()).toEqual(['Red lentil dal'])
     fireEvent.click(screen.getByRole('button', { name: 'All' }))
@@ -125,6 +138,25 @@ describe('Recipe view', () => {
     expect(ings).toHaveTextContent('saltas needed')
     const method = within(view).getByRole('region', { name: 'Method' })
     expect(within(method).getAllByRole('listitem')[1]).toHaveTextContent('Simmer the lentils. 25 min timer')
+  })
+
+  it('warns about allergens the household avoids, and only those', async () => {
+    const view = await open()
+    expect(within(view).getByRole('note', { name: 'Allergens' })).toHaveTextContent('Contains milk (ghee)Swap it or check the label.')
+    expect(plan.loadSettings).toHaveBeenCalledWith('h1')
+  })
+
+  it('shows no allergen warning when the household avoids none', async () => {
+    plan.loadSettings.mockResolvedValue(DEFAULT_SETTINGS)
+    const view = await open()
+    expect(within(view).queryByRole('note', { name: 'Allergens' })).not.toBeInTheDocument()
+  })
+
+  it('does not repeat an ingredient named for its allergen', async () => {
+    render(<RecipesTab householdId="h1" />)
+    fireEvent.click(await screen.findByRole('button', { name: /Rice pudding/ }))
+    const note = within(screen.getByRole('dialog', { name: 'Rice pudding' })).getByRole('note', { name: 'Allergens' })
+    expect(note).toHaveTextContent(/^Contains milkSwap it or check the label\.$/)
   })
 
   it('scales ingredients with the servings stepper', async () => {
@@ -173,7 +205,7 @@ describe('Recipe view', () => {
     fireEvent.click(within(view).getByRole('button', { name: 'Delete' }))
     expect(api.deleteRecipe).toHaveBeenCalledWith('dal')
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(names()).toEqual(['Steamed rice'])
+    expect(names()).toEqual(['Rice pudding'])
   })
 
   it('adds the recipe to a night of the shown week', async () => {

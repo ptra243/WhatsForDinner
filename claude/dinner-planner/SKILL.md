@@ -27,14 +27,14 @@ left join household_settings s on s.household_id = h.id
 where h.id <> private.template_household_id();
 ```
 
-`settings` holds `notes` (preferences such as spice level), `dinnerTime`, `minutes` (hands-on minutes per weekday, `mon`..`sun`), `equipment` (e.g. pressure cooker) and `mealRule` (`veg+carb`, `veg` or `off`).
+`settings` holds `notes` (preferences such as spice level), `dinnerTime`, `minutes` (hands-on minutes per weekday, `mon`..`sun`), `equipment` (e.g. pressure cooker), `mealRule` (`veg+carb`, `veg` or `off`) and `avoid` (allergens to avoid, from the list below; missing means none).
 
 ## Schema
 
 - `recipes`: household_id, slug (lowercase-hyphenated, unique in the household), name, course (`main` / `side`), serves, active_mins, total_mins, provides text[] (`protein`, `veg`, `carb`), spice 0–3, tags text[], source, rating 1–5 (null until rated), notes, is_example, created_by.
 - `recipe_ingredients`: recipe_id, position (from 0), ingredient_slug → `ingredients`, qty (null for "to taste"), unit, note.
 - `recipe_steps`: recipe_id, position (from 0), text, timer_mins (null unless the step involves waiting).
-- `ingredients`: slug (PK), name (unique), section. Shared by all households.
+- `ingredients`: slug (PK), name (unique), section, allergens text[] (below). Shared by all households.
 - `meal_plan_dishes`: household_id, week_start (always a Monday), day (`mon`..`sun`), position (order in the night, from 0), recipe_id, role (`main` / `side`), servings, swaps jsonb `[{"from", "to", "qty", "unit"}]`.
 - `household_settings`, `households`, `household_members`: read only for you.
 
@@ -57,6 +57,13 @@ The database rejects anything else.
   - `frozen`
   - `other`: only if nothing else fits
 
+## Allergens
+
+- The list (Australia's mandatory allergens; the database rejects anything else): `egg, milk, peanut, tree nut, sesame, soy, wheat, gluten, fish, crustacean, mollusc, lupin`.
+- Every time you add an ingredient, set `allergens` to what it usually contains, erring towards tagging. Names don't show hidden ones: `egg noodle`, `wonton wrapper`, mayonnaise, aioli, fresh pasta and brioche have egg; stock and most sauces have wheat and gluten (soy sauce also soy, oyster sauce mollusc, fish sauce fish, hoisin sesame); butter, cheese, cream and yoghurt milk; pesto milk and tree nut; tahini sesame. Most fresh produce, meat, rice and oils have none (`{}`).
+- If an existing ingredient's tags are clearly wrong or missing, fix them (`update ingredients set allergens = ... where name = ...`); they are shared, so only for what the ingredient usually contains.
+- Tags are generic, not per brand. Never promise a dish is safe; say "check the label".
+
 ## Planning
 
 1. Read the settings, the recipes (with when each was last cooked) and the week if anything is already planned.
@@ -65,8 +72,9 @@ The database rejects anything else.
 4. Keep each night's hands-on minutes (`active_mins` of its dishes) within that weekday's `minutes`. Put long cooks on weekends, or use the household's equipment (pressure cooker) on weeknights.
 5. Follow `mealRule`: with `veg+carb` every night covers a vegetable and a carb (from the main's `provides` or added sides); with `veg` just a vegetable; `off` no rule.
 6. Respect `notes`. Plan leftovers across the week where it helps (cook a big ragù Sunday, eat it again Tuesday).
-7. Servings are usually the recipe's `serves`; scale to the household.
-8. Propose the plan as a short day-by-day list and wait for approval before writing, unless asked to just do it. Then write each night and say it's saved.
+7. If `avoid` lists allergens, find the recipes containing them (query below). Plan one only if every ingredient bringing an avoided allergen gets a swap to an ingredient without it, and say so in the proposal ("Wonton noodle soup, egg noodles → rice noodles; check the label"). Otherwise leave it out. Save those swaps on the dish once the night is written (swap SQL below), then check the week (query below) returns nothing.
+8. Servings are usually the recipe's `serves`; scale to the household.
+9. Propose the plan as a short day-by-day list and wait for approval before writing, unless asked to just do it. Then write each night and say it's saved.
 
 ## Recipes
 
@@ -77,7 +85,8 @@ The database rejects anything else.
 ## Swaps at the shops
 
 - Suggest one good swap with a ratio and a tip (e.g. "light evaporated milk for cream, same amount; stir it in off the boil so it doesn't split").
-- When the user agrees, apply it to the planned dish only: add `{from, to, qty, unit}` to that dish's `swaps` (the recipe is unchanged). `from` and `to` are ingredient names; `qty` and `unit` replace the recipe's amount for the recipe's `serves` and are scaled by servings like it (null keeps the recipe's). Add `to` to `ingredients` if it's new, so the list puts it in the right section.
+- A swap never brings in an allergen the household avoids: check the `to` ingredient's `allergens` (or what it usually contains, if it's new).
+- When the user agrees, apply it to the planned dish only: add `{from, to, qty, unit}` to that dish's `swaps` (the recipe is unchanged). `from` and `to` are ingredient names; `qty` and `unit` replace the recipe's amount for the recipe's `serves` and are scaled by servings like it (null keeps the recipe's). Add `to` to `ingredients` (with its section and allergens) if it's new, so the list puts it in the right section and the app knows what it contains.
 
 ## Style
 
@@ -126,6 +135,21 @@ where r.household_id = '<household_id>' and r.slug = 'beef-ragu'
 order by ri.position;
 ```
 
+Recipes containing an allergen the household avoids, with the ingredients that bring it (each needs a swap before the recipe is planned):
+
+```sql
+select r.slug, r.name, i.name as ingredient,
+       array(select a from unnest(i.allergens) a
+             where a in (select jsonb_array_elements_text(coalesce(s.settings->'avoid', '[]')))) as avoided
+from recipes r
+join household_settings s on s.household_id = r.household_id
+join recipe_ingredients ri on ri.recipe_id = r.id
+join ingredients i on i.slug = ri.ingredient_slug
+where r.household_id = '<household_id>'
+  and i.allergens && array(select jsonb_array_elements_text(coalesce(s.settings->'avoid', '[]')))
+order by r.name, ri.position;
+```
+
 Read a week:
 
 ```sql
@@ -157,10 +181,10 @@ from (values
 Save a recipe with new ingredients. First add the ingredients it needs that aren't in `ingredients` yet (existing ones are left as they are):
 
 ```sql
-insert into ingredients (slug, name, section) values
-  ('fish-sauce', 'fish sauce', 'international'),
-  ('lemongrass', 'lemongrass', 'fruit and veg'),
-  ('chicken-thigh', 'chicken thigh', 'meat and seafood')
+insert into ingredients (slug, name, section, allergens) values
+  ('fish-sauce', 'fish sauce', 'international', array['fish']),
+  ('lemongrass', 'lemongrass', 'fruit and veg', '{}'),
+  ('chicken-thigh', 'chicken thigh', 'meat and seafood', '{}')
 on conflict do nothing;
 ```
 
@@ -196,7 +220,7 @@ from r, (values
 Apply a swap to one planned dish (replaces any earlier swap of the same ingredient in that dish). Add the new ingredient first if it isn't in `ingredients`:
 
 ```sql
-insert into ingredients (slug, name, section) values ('evaporated-milk', 'evaporated milk', 'pantry')
+insert into ingredients (slug, name, section, allergens) values ('evaporated-milk', 'evaporated milk', 'pantry', array['milk'])
 on conflict do nothing;
 ```
 
@@ -213,3 +237,24 @@ returning d.day, r.name, d.swaps;
 ```
 
 If the `update` returns no row, the dish isn't planned that night: read the week and check.
+
+Check a week for avoided allergens left after swaps (a swapped ingredient counts as what it was swapped to). Nothing returned means every planned dish is clear:
+
+```sql
+select d.day, r.name as dish, x.ingredient,
+       array(select a from unnest(x.allergens) a
+             where a in (select jsonb_array_elements_text(coalesce(s.settings->'avoid', '[]')))) as avoided
+from meal_plan_dishes d
+join household_settings s on s.household_id = d.household_id
+join recipes r on r.id = d.recipe_id
+join recipe_ingredients ri on ri.recipe_id = r.id
+join ingredients i on i.slug = ri.ingredient_slug
+left join lateral (select lower(trim(sw->>'to')) as name from jsonb_array_elements(d.swaps) sw
+                   where lower(trim(sw->>'from')) = i.name limit 1) swap on true
+left join ingredients t on t.name = swap.name
+cross join lateral (select coalesce(swap.name, i.name) as ingredient,
+                           case when swap.name is null then i.allergens else coalesce(t.allergens, '{}') end as allergens) x
+where d.household_id = '<household_id>' and d.week_start = '<week_start>'
+  and x.allergens && array(select jsonb_array_elements_text(coalesce(s.settings->'avoid', '[]')))
+order by array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day), d.position;
+```

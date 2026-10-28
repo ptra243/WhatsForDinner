@@ -38,3 +38,17 @@ begin
          or has_table_privilege('anon', c.oid, 'select, insert, update, delete'));
   if bad is not null then raise exception 'Tables without a select grant to authenticated, or open to anon: %', bad; end if;
 end $$;
+
+-- Ingredient allergens come from the fixed list (#62): an unknown one is refused.
+do $$
+begin
+  begin
+    insert into public.ingredients (slug, name, allergens) values ('check-allergen', 'check allergen', array['nuts']);
+    raise exception 'ingredients.allergens accepted an allergen not on the list';
+  exception when check_violation then null;
+  end;
+  if private.allergens() is distinct from array['egg','milk','peanut','tree nut','sesame','soy','wheat','gluten',
+                                                'fish','crustacean','mollusc','lupin'] then
+    raise exception 'private.allergens() changed: update the app, the skill and the docs with it';
+  end if;
+end $$;

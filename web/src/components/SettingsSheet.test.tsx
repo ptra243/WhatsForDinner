@@ -21,6 +21,7 @@ const SAVED: HouseholdSettings = {
   dinnerTime: '19:00',
   minutes: { ...DEFAULT_HOUSEHOLD_SETTINGS.minutes, tue: 30 },
   mealRule: 'veg',
+  avoid: ['egg'],
 }
 
 const props = { householdId: 'h1', email: 'cook@example.test', onChanged: vi.fn(), onClose: vi.fn() }
@@ -43,6 +44,8 @@ describe('SettingsSheet', () => {
     expect(screen.getByLabelText('Tue')).toHaveValue(30)
     expect(screen.getByLabelText('Sat')).toHaveValue(120)
     expect(screen.getByLabelText('Every night needs')).toHaveValue('veg')
+    expect(screen.getByRole('button', { name: 'egg' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'milk' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('saves every field, then closes', async () => {
@@ -53,6 +56,9 @@ describe('SettingsSheet', () => {
     fireEvent.change(screen.getByLabelText('Mon'), { target: { value: '25' } })
     fireEvent.change(screen.getByLabelText('Wed'), { target: { value: '' } })
     fireEvent.change(screen.getByLabelText('Every night needs'), { target: { value: 'off' } })
+    fireEvent.click(screen.getByRole('button', { name: 'egg' }))
+    fireEvent.click(screen.getByRole('button', { name: 'sesame' }))
+    fireEvent.click(screen.getByRole('button', { name: 'milk' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save settings' }))
     await vi.waitFor(() => expect(props.onClose).toHaveBeenCalled())
     expect(api.saveHouseholdSettings).toHaveBeenCalledWith('h1', {
@@ -61,6 +67,7 @@ describe('SettingsSheet', () => {
       dinnerTime: '18:15',
       minutes: { mon: 25, tue: 30, wed: 45, thu: 45, fri: 45, sat: 120, sun: 120 },
       mealRule: 'off',
+      avoid: ['milk', 'sesame'],
     })
     expect(props.onChanged).toHaveBeenCalled()
   })

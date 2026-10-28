@@ -519,3 +519,68 @@ describe('Ask Claude', () => {
     open.mockRestore()
   })
 })
+
+describe('Allergens to avoid', () => {
+  const SOUP = recipe({
+    id: 'soup',
+    name: 'Wonton noodle soup',
+    ingredients: [
+      { name: 'egg noodle', qty: 400, unit: 'g', note: '', allergens: ['egg', 'wheat', 'gluten'] },
+      { name: 'wonton wrapper', qty: 20, unit: 'each', note: '', allergens: ['egg', 'wheat', 'gluten'] },
+      { name: 'bok choy', qty: 2, unit: 'each', note: '', allergens: [] },
+    ],
+  })
+  const soupOnFriday = (swaps: Week['fri']['dishes'][number]['swaps'] = []) => {
+    api.loadRecipes.mockResolvedValue([...RECIPES, SOUP])
+    api.loadWeek.mockImplementation(async () => {
+      const w = emptyWeek()
+      w.fri.dishes = [{ id: 'f1', recipeId: 'soup', role: 'main', servings: 4, position: 0, swaps }]
+      return w
+    })
+  }
+
+  it('warns on the night and in the recipe view', async () => {
+    api.loadSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, avoid: ['egg'] })
+    soupOnFriday()
+    render(<WeekTab householdId="h1" />)
+    expect(await screen.findByText('Contains egg')).toBeInTheDocument()
+    expect(night(/^Fri 30/)).toHaveTextContent('Contains egg')
+    fireEvent.click(within(night(/^Fri 30/)).getByRole('button', { name: 'Wonton noodle soup' }))
+    const note = within(screen.getByRole('dialog')).getByRole('note', { name: 'Allergens' })
+    expect(note).toHaveTextContent('Contains egg (egg noodle, wonton wrapper)')
+    expect(note).toHaveTextContent('Swap them or check the labels.')
+  })
+
+  it('says nothing when the household avoids none of them', async () => {
+    soupOnFriday()
+    render(<WeekTab householdId="h1" />)
+    await screen.findByText('Wonton noodle soup')
+    expect(screen.queryByText(/Contains/)).not.toBeInTheDocument()
+  })
+
+  it('clears the warning once every egg ingredient is swapped', async () => {
+    api.loadSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, avoid: ['egg'] })
+    soupOnFriday([
+      { from: 'egg noodle', to: 'rice noodle', qty: null, unit: null, allergens: [] },
+      { from: 'wonton wrapper', to: 'egg-free wonton wrapper', qty: null, unit: null, allergens: ['wheat', 'gluten'] },
+    ])
+    render(<WeekTab householdId="h1" />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Wonton noodle soup' }))
+    expect(screen.getByRole('dialog', { name: 'Wonton noodle soup' })).toBeInTheDocument()
+    expect(screen.queryByText(/Contains/)).not.toBeInTheDocument()
+  })
+
+  it('still warns while one egg ingredient is unswapped, on the night sheet too', async () => {
+    api.loadSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, avoid: ['egg'] })
+    soupOnFriday([{ from: 'egg noodle', to: 'rice noodle', qty: null, unit: null, allergens: [] }])
+    render(<WeekTab householdId="h1" />)
+    expect(await screen.findByText('Contains egg')).toBeInTheDocument()
+    const sheet = await openNight(/^Fri 30, edit night/)
+    expect(sheet).toHaveTextContent('Contains egg')
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    fireEvent.click(within(night(/^Fri 30/)).getByRole('button', { name: 'Wonton noodle soup' }))
+    expect(within(screen.getByRole('dialog')).getByRole('note', { name: 'Allergens' })).toHaveTextContent(
+      'Contains egg (wonton wrapper)',
+    )
+  })
+})

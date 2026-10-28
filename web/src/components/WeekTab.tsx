@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type MouseEvent } from 'react'
+import { containsText, type TaggedSwap } from '../lib/allergens'
 import { nightPrompt, planWeekPrompt, weekPrompt } from '../lib/claude'
 import { mins } from '../lib/format'
 import {
@@ -29,8 +30,8 @@ import { WeekNav } from './WeekNav'
 
 const errorText = (e: unknown) => (e as { message?: string }).message ?? String(e)
 
-/** A dish to open from the card: its recipe at the night's servings. */
-type Opened = { recipeId: string; servings: number }
+/** A dish to open from the card: its recipe at the night's servings, with the night's swaps. */
+type Opened = { recipeId: string; servings: number; swaps?: TaggedSwap[] }
 
 /** Where a night's dinner can move: another night this week or next, with what is planned there. */
 type Target = { week: string; day: Day; night: Night }
@@ -184,7 +185,7 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
                   recipes={byId}
                   settings={settings}
                   onOpen={() => setOpenDay(d)}
-                  onView={(recipeId, servings) => setViewing({ recipeId, servings })}
+                  onView={(recipeId, servings, swaps) => setViewing({ recipeId, servings, swaps })}
                   onCook={(recipeId, servings) => {
                     setStatus(undefined)
                     setCooking({ recipeId, servings })
@@ -222,6 +223,8 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
           householdId={householdId}
           recipe={viewed}
           servings={viewing.servings}
+          avoid={settings.avoid}
+          swaps={viewing.swaps}
           onChange={changeRecipe}
           onDeleted={() => {
             setViewing(undefined)
@@ -269,7 +272,7 @@ function NightRow({
   recipes: Map<string, Recipe>
   settings: Settings
   onOpen: () => void
-  onView: (recipeId: string, servings: number) => void
+  onView: (recipeId: string, servings: number, swaps?: TaggedSwap[]) => void
   onCook: (recipeId: string, servings: number) => void
 }) {
   const i = nightInfo(night, day, recipes, settings)
@@ -277,7 +280,7 @@ function NightRow({
   /** A dish's name, a button to its recipe when the recipe is still there. */
   const dish = (d: (typeof i.dishes)[number], className?: string) =>
     d.recipe ? (
-      <button key={d.id} type="button" className={className} onClick={() => onView(d.recipeId, d.servings)}>
+      <button key={d.id} type="button" className={className} onClick={() => onView(d.recipeId, d.servings, d.swaps)}>
         {d.recipe.name}
       </button>
     ) : (
@@ -323,6 +326,7 @@ function NightRow({
           <span className="startby">Start by {startBy(i.total, settings.dinnerTime)}</span>
         )}
         {i.gaps.length > 0 && <span className="gap">No {i.gaps.join(' or ')} yet</span>}
+        {i.allergens.length > 0 && <span className="gap">{containsText(i.allergens)}</span>}
       </span>
       <span className="nt">
         {night.cooked && (
@@ -451,6 +455,9 @@ function NightSheet({
                 <div className="nm">
                   <span className="strong">{name}</span>
                   <span className="pill">{d === i.main ? 'Main' : 'Side'}</span>
+                  {d.allergens.length > 0 && (
+                    <span className="small warn">{containsText(d.allergens.map((w) => w.allergen))}</span>
+                  )}
                 </div>
                 <div className="stepper">
                   <button type="button" aria-label={`Fewer servings of ${name}`} onClick={() => step(-1)}>

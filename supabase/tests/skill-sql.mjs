@@ -19,6 +19,11 @@ const fill = (sql) =>
     .replaceAll("'<owner_id>'", ":'uid'")
     .replaceAll("'<week_start>'", ":'week'");
 
+// The two allergen queries, found by what they read, so their results can be checked.
+const avoidQueries = blocks.filter((b) => b.includes("settings->'avoid'"));
+if (avoidQueries.length !== 2) throw new Error(`Expected 2 allergen queries in SKILL.md, found ${avoidQueries.length}`);
+const [recipesWithAvoided, weekWithAvoided] = avoidQueries.map((b) => fill(b).replace(/;\s*$/, ''));
+
 console.log(`\\set QUIET on
 \\o /dev/null
 begin;
@@ -41,6 +46,7 @@ reset role;
 select '00000000-0000-4000-8000-0000000000c1' as uid \\gset
 select '2026-11-02' as week \\gset
 select count(*) as others from meal_plan_dishes \\gset
+update household_settings set settings = settings || '{"avoid": ["egg", "milk"]}' where household_id = :'hid';
 `);
 
 blocks.forEach((sql, i) => {
@@ -60,6 +66,19 @@ select pg_temp.expect('new recipe steps',
    where r.household_id = :'hid' and r.slug = 'lemongrass-chicken'), 3::bigint);
 select pg_temp.expect('new recipe owner',
   (select created_by from recipes where household_id = :'hid' and slug = 'lemongrass-chicken'), :'uid'::uuid);
+select pg_temp.expect('ingredient allergens saved',
+  (select allergens from ingredients where name = 'fish sauce'), array['fish']);
+select pg_temp.expect('recipes with avoided allergens',
+  (select count(*) from (${recipesWithAvoided}) q),
+  (select count(*) from recipe_ingredients ri join recipes r on r.id = ri.recipe_id
+   join ingredients i on i.slug = ri.ingredient_slug
+   where r.household_id = :'hid' and i.allergens && array['egg', 'milk']));
+select pg_temp.expect('week with avoided allergens: the swap to evaporated milk and the butter',
+  (select string_agg(ingredient, ', ' order by ingredient) from (${weekWithAvoided}) q), 'butter, evaporated milk');
+update meal_plan_dishes set swaps = '[{"from": "cream", "to": "coconut milk", "qty": null, "unit": null}]'
+where household_id = :'hid' and week_start = :'week' and day = 'mon' and role = 'main';
+select pg_temp.expect('week with avoided allergens: a swap without them clears it',
+  (select string_agg(ingredient, ', ' order by ingredient) from (${weekWithAvoided}) q), 'butter');
 select pg_temp.expect('other households untouched',
   (select count(*) from meal_plan_dishes where household_id <> :'hid'), :others::bigint);
 

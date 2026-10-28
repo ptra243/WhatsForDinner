@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { allergenWarnings, containsText, type TaggedSwap } from '../lib/allergens'
 import { recipePrompt } from '../lib/claude'
 import { mins, scaledQty } from '../lib/format'
 import { deleteRecipe, updateRecipe, type Recipe } from '../lib/recipes'
@@ -11,13 +12,26 @@ type Props = {
   recipe: Recipe
   /** Servings the ingredients start at; the recipe's own when left out. */
   servings?: number
+  /** Allergens the household avoids; the view warns about any the recipe still contains after `swaps`. */
+  avoid?: readonly string[]
+  /** The planned dish's swaps, when opened from a night. */
+  swaps?: TaggedSwap[]
   onChange: (recipe: Recipe) => void
   onDeleted: () => void
   onClose: () => void
 }
 
 /** Full-screen recipe: meta, ingredients scaled to the chosen servings, method, rating and notes. */
-export function RecipeView({ householdId, recipe: r, servings: startServings, onChange, onDeleted, onClose }: Props) {
+export function RecipeView({
+  householdId,
+  recipe: r,
+  servings: startServings,
+  avoid = [],
+  swaps,
+  onChange,
+  onDeleted,
+  onClose,
+}: Props) {
   const [servings, setServings] = useState(startServings ?? r.serves)
   const [notes, setNotes] = useState(r.notes)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -66,6 +80,8 @@ export function RecipeView({ householdId, recipe: r, servings: startServings, on
       onDeleted()
     })
 
+  const warnings = allergenWarnings(r.ingredients, avoid, swaps)
+
   const meta = [
     r.course === 'side' ? 'Side' : 'Main',
     r.activeMins ? `${r.activeMins} min hands-on` : '',
@@ -96,6 +112,19 @@ export function RecipeView({ householdId, recipe: r, servings: startServings, on
           </div>
           {r.source && <span className="small muted">From {r.source}</span>}
         </div>
+        {warnings.length > 0 && (
+          <div className="card gapcard" role="note" aria-label="Allergens">
+            {warnings.map((w) => (
+              <b key={w.allergen} className="small warn">
+                {containsText([w.allergen])}
+                {w.ingredients.join() !== w.allergen && ` (${w.ingredients.join(', ')})`}
+              </b>
+            ))}
+            <span className="small">
+              {new Set(warnings.flatMap((w) => w.ingredients)).size > 1 ? 'Swap them or check the labels.' : 'Swap it or check the label.'}
+            </span>
+          </div>
+        )}
 
         <div className="row">
           <button className="btn grow" type="button" onClick={() => setCooking(true)}>

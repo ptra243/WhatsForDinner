@@ -44,12 +44,20 @@ describe('toHouseholdSettings', () => {
       dinnerTime: '18:30',
       minutes: { mon: 45, tue: 45, wed: 45, thu: 45, fri: 45, sat: 120, sun: 120 },
       mealRule: 'veg+carb',
+      avoid: [],
     })
   })
 
   it('keeps what is stored and drops what is malformed', () => {
-    const s = toHouseholdSettings({ notes: 'mild', equipment: ['wok', 3], dinnerTime: '7pm', minutes: { fri: 20 }, mealRule: 'veg' })
-    expect(s).toMatchObject({ notes: 'mild', equipment: ['wok'], dinnerTime: '18:30', mealRule: 'veg' })
+    const s = toHouseholdSettings({
+      notes: 'mild',
+      equipment: ['wok', 3],
+      dinnerTime: '7pm',
+      minutes: { fri: 20 },
+      mealRule: 'veg',
+      avoid: ['sesame', 'nuts', 'egg'],
+    })
+    expect(s).toMatchObject({ notes: 'mild', equipment: ['wok'], dinnerTime: '18:30', mealRule: 'veg', avoid: ['egg', 'sesame'] })
     expect(s.minutes.fri).toBe(20)
   })
 })
