@@ -33,6 +33,8 @@ const db = vi.hoisted(() => {
   return { state, client }
 })
 vi.mock('./lib/supabase', () => ({ supabase: db.client }))
+// The Week tab has its own tests (components/WeekTab.test.tsx).
+vi.mock('./components/WeekTab', () => ({ WeekTab: () => null }))
 
 const signedIn = (memberships: { household_id: string }[] = [{ household_id: 'h1' }]) => {
   db.state.session = { user: { id: 'u1', email: 'cook@example.test' } }

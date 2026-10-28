@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { addToNight, loadWeekMains, type Recipe } from '../lib/recipes'
-import { addDays, DAY_NAMES, DAYS, dateOf, parseYmd, rangeLabel, weekStartOf, type Day } from '../lib/week'
+import { DAY_NAMES, DAYS, dateOf, parseYmd, weekStartOf, type Day } from '../lib/week'
 import { Sheet } from './Sheet'
+import { WeekNav } from './WeekNav'
 
 /** Sheet to plan a recipe on one night of a week; starts on this week. */
 export function AddToNight({
@@ -15,8 +16,7 @@ export function AddToNight({
   onAdded: (nightLabel: string) => void
   onClose: () => void
 }) {
-  const thisWeek = weekStartOf(new Date())
-  const [week, setWeek] = useState(thisWeek)
+  const [week, setWeek] = useState(() => weekStartOf(new Date()))
   const [mains, setMains] = useState<{ week: string; byDay: Partial<Record<Day, string>> }>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
@@ -32,7 +32,6 @@ export function AddToNight({
     }
   }, [householdId, week])
 
-  const tag = week === thisWeek ? 'This week' : week === addDays(thisWeek, 7) ? 'Next week' : ''
   const byDay = mains?.week === week ? mains.byDay : undefined
 
   const pick = async (day: Day) => {
@@ -49,18 +48,7 @@ export function AddToNight({
 
   return (
     <Sheet title={`Add ${recipe.name} to a night`} onClose={onClose}>
-      <div className="weeknav">
-        <button className="icon" type="button" aria-label="Previous week" onClick={() => setWeek(addDays(week, -7))}>
-          ‹
-        </button>
-        <div className="mid">
-          {rangeLabel(week)}
-          <small>{tag || ' '}</small>
-        </div>
-        <button className="icon" type="button" aria-label="Next week" onClick={() => setWeek(addDays(week, 7))}>
-          ›
-        </button>
-      </div>
+      <WeekNav week={week} onChange={setWeek} />
       {error && (
         <p className="small warn flat" role="alert">
           {error}

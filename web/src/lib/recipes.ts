@@ -124,10 +124,16 @@ export async function loadWeekMains(householdId: string, weekStart: string): Pro
 }
 
 /**
- * Plans the recipe on a night at its usual serves. A main goes first and the night's
- * other mains become sides; a side goes last.
+ * Plans the recipe on a night, at its usual serves unless `servings` is given. A main goes
+ * first and the night's other mains become sides; a side goes last.
  */
-export async function addToNight(householdId: string, recipe: Recipe, weekStart: string, day: Day): Promise<void> {
+export async function addToNight(
+  householdId: string,
+  recipe: Recipe,
+  weekStart: string,
+  day: Day,
+  servings = recipe.serves,
+): Promise<void> {
   const night = { household_id: householdId, week_start: weekStart, day }
   const { data: dishes, error } = await supabase
     .from('meal_plan_dishes')
@@ -149,7 +155,7 @@ export async function addToNight(householdId: string, recipe: Recipe, weekStart:
   }
   const { error: insertError } = await supabase
     .from('meal_plan_dishes')
-    .insert({ ...night, position, recipe_id: recipe.id, role: recipe.course, servings: recipe.serves })
+    .insert({ ...night, position, recipe_id: recipe.id, role: recipe.course, servings })
   if (insertError) throw insertError
 }
 
