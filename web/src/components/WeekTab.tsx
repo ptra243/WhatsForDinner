@@ -5,6 +5,7 @@ import {
   DEFAULT_SETTINGS,
   loadSettings,
   loadWeek,
+  moveNight,
   nightInfo,
   removeDish,
   setNightFlags,
@@ -12,13 +13,14 @@ import {
   startBy,
   subscribePlan,
   suggestSides,
+  swapDinners,
   withDish,
   type Night,
   type Settings,
   type Week,
 } from '../lib/plan'
 import { addToNight, loadRecipes, matches, type Course, type Recipe } from '../lib/recipes'
-import { DAY_FULL, DAY_NAMES, DAYS, dateOf, dayLabel, parseYmd, weekStartOf, ymd, type Day } from '../lib/week'
+import { DAY_FULL, DAY_NAMES, DAYS, addDays, dateOf, dayLabel, parseYmd, rangeLabel, weekStartOf, ymd, type Day } from '../lib/week'
 import { AskClaudeButton } from './AskClaude'
 import { CookMode } from './CookMode'
 import { RecipeView } from './RecipeView'
@@ -29,6 +31,9 @@ const errorText = (e: unknown) => (e as { message?: string }).message ?? String(
 
 /** A dish to open from the card: its recipe at the night's servings. */
 type Opened = { recipeId: string; servings: number }
+
+/** Where a night's dinner can move: another night this week or next, with what is planned there. */
+type Target = { week: string; day: Day; night: Night }
 
 /**
  * The Week tab: seven nights on a ruled card, starting on this week. Tapping a dish opens its
@@ -47,6 +52,7 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
   const [viewing, setViewing] = useState<Opened>()
   const [cooking, setCooking] = useState<Opened>()
   const [status, setStatus] = useState<string>()
+  const [failed, setFailed] = useState<string>()
   // Saves still on their way; reloads wait for them so a half-done save never replaces what is shown.
   const writing = useRef(0)
 
@@ -102,12 +108,45 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
   const patchNight = (day: Day, change: (n: Night) => Night) =>
     setPlan((p) => p && { ...p, nights: { ...p.nights, [day]: change(p.nights[day]) } })
 
+  /**
+   * Moves a night's dinner, showing it on the card straight away; a failed write puts both
+   * nights back and says why. A dinner moved into next week leaves this week's card.
+   */
+  const moveDinner = async (day: Day, to: Target) => {
+    if (!nights) return
+    const from = nights[day]
+    const [movedFrom, movedTo] = swapDinners(from, to.night)
+    const sameWeek = to.week === week
+    setOpenDay(undefined)
+    setStatus(undefined)
+    setFailed(undefined)
+    patchNight(day, () => movedFrom)
+    if (sameWeek) patchNight(to.day, () => movedTo)
+    const done = beginWrite()
+    const where = `${DAY_FULL[to.day]} ${dayLabel(dateOf(to.week, to.day))}`
+    try {
+      await moveNight(householdId, { week, day }, { week: to.week, day: to.day })
+      setStatus(`${DAY_FULL[day]}’s dinner ${to.night.dishes.length ? 'swapped with' : 'moved to'} ${where}.`)
+    } catch (e) {
+      patchNight(day, () => from)
+      if (sameWeek) patchNight(to.day, () => to.night)
+      setFailed(`Could not move ${DAY_FULL[day]}’s dinner to ${where}: ${errorText(e)}`)
+    } finally {
+      done()
+    }
+  }
+
   return (
     <>
       <WeekNav week={week} onChange={setWeek} />
       {error && (
         <p className="small warn" role="alert">
           Could not load the week: {error}
+        </p>
+      )}
+      {failed && (
+        <p className="small warn" role="alert">
+          {failed}
         </p>
       )}
       {status && (
@@ -170,8 +209,10 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
           night={nights[openDay]}
           recipes={recipes}
           settings={settings}
+          nights={nights}
           onPatch={(change) => patchNight(openDay, change)}
           onSaving={beginWrite}
+          onMove={(to) => moveDinner(openDay, to)}
           onClose={() => setOpenDay(undefined)}
         />
       )}
@@ -312,23 +353,29 @@ function NightSheet({
   weekStart,
   day,
   night,
+  nights,
   recipes,
   settings,
   onPatch,
   onSaving,
+  onMove,
   onClose,
 }: {
   householdId: string
   weekStart: string
   day: Day
   night: Night
+  /** The whole week on the card, for the nights the dinner can move to. */
+  nights: Week
   recipes: Recipe[]
   settings: Settings
   onPatch: (change: (n: Night) => Night) => void
   onSaving: () => () => void
+  onMove: (to: Target) => void
   onClose: () => void
 }) {
   const [picking, setPicking] = useState<Course>()
+  const [moving, setMoving] = useState(false)
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
@@ -453,7 +500,17 @@ function NightSheet({
         </div>
       )}
 
-      {picking ? (
+      {moving ? (
+        <MovePicker
+          householdId={householdId}
+          weekStart={weekStart}
+          day={day}
+          nights={nights}
+          recipes={recipes}
+          onPick={onMove}
+          onCancel={() => setMoving(false)}
+        />
+      ) : picking ? (
         <>
           <input
             className="search"
@@ -482,14 +539,24 @@ function NightSheet({
           </button>
         </>
       ) : (
-        <div className="row">
-          <button className="btn ghost grow" type="button" onClick={() => setPicking('main')}>
-            Add main
-          </button>
-          <button className="btn ghost grow" type="button" onClick={() => setPicking('side')}>
-            Add side
-          </button>
-        </div>
+        <>
+          <div className="row">
+            <button className="btn ghost grow" type="button" onClick={() => setPicking('main')}>
+              Add main
+            </button>
+            <button className="btn ghost grow" type="button" onClick={() => setPicking('side')}>
+              Add side
+            </button>
+          </div>
+          {night.dishes.length > 0 &&
+            (night.cooked ? (
+              <p className="small muted flat">Cooked, so it stays on {DAY_FULL[day]}.</p>
+            ) : (
+              <button className="btn ghost wide" type="button" disabled={busy} onClick={() => setMoving(true)}>
+                Move to another night
+              </button>
+            ))}
+        </>
       )}
 
       <div>
@@ -528,5 +595,96 @@ function NightSheet({
         Done
       </button>
     </Sheet>
+  )
+}
+
+/**
+ * The nights a dinner can move to: the rest of this week, then next week (loaded when the
+ * picker opens). A planned night swaps with it; cooked nights cannot be picked.
+ */
+function MovePicker({
+  householdId,
+  weekStart,
+  day,
+  nights,
+  recipes,
+  onPick,
+  onCancel,
+}: {
+  householdId: string
+  weekStart: string
+  day: Day
+  nights: Week
+  recipes: Recipe[]
+  onPick: (to: Target) => void
+  onCancel: () => void
+}) {
+  const thisWeek = weekStartOf(new Date())
+  const prevWeek = addDays(weekStart, -7)
+  const nextWeek = addDays(weekStart, 7)
+  // The week before only while it is not over, so a dinner moved into next week can come back.
+  const weeks = [...(prevWeek >= thisWeek ? [prevWeek] : []), weekStart, nextWeek]
+  const [loaded, setLoaded] = useState<Record<string, Week>>({})
+  const [error, setError] = useState<string>()
+  useEffect(() => {
+    let live = true
+    const others = [...(prevWeek >= thisWeek ? [prevWeek] : []), nextWeek]
+    Promise.all(others.map((w) => loadWeek(householdId, w))).then(
+      (ws) => live && setLoaded((l) => Object.assign({ ...l }, ...others.map((w, i) => ({ [w]: ws[i] })))),
+      (e) => live && setError(errorText(e)),
+    )
+    return () => {
+      live = false
+    }
+  }, [householdId, prevWeek, nextWeek, thisWeek])
+  const tag = (w: string) => (w === thisWeek ? 'This week, ' : w === addDays(thisWeek, 7) ? 'Next week, ' : '')
+
+  const byId = new Map(recipes.map((r) => [r.id, r]))
+  const option = (week: string, d: Day, n: Night) => {
+    const date = dateOf(week, d)
+    const main = n.dishes.find((x) => x.role === 'main') ?? n.dishes[0]
+    const what = n.cooked ? 'cooked' : main ? `swap with ${byId.get(main.recipeId)?.name ?? 'Missing recipe'}` : 'free'
+    return (
+      <button
+        key={date}
+        type="button"
+        aria-label={`${DAY_NAMES[d]} ${parseYmd(date).getDate()}, ${what}`}
+        disabled={n.cooked}
+        onClick={() => onPick({ week, day: d, night: n })}
+      >
+        <span>
+          {DAY_NAMES[d]} {parseYmd(date).getDate()}
+        </span>
+        <span className="small muted">{what}</span>
+      </button>
+    )
+  }
+
+  return (
+    <>
+      <div className="pick scroll" role="group" aria-label={`Move ${DAY_FULL[day]}’s dinner to`}>
+        {weeks.map((w) => {
+          const week = w === weekStart ? nights : loaded[w]
+          return (
+            <Fragment key={w}>
+              <b className="small">
+                {tag(w)}
+                {rangeLabel(w)}
+              </b>
+              {week ? (
+                DAYS.filter((d) => w !== weekStart || d !== day).map((d) => option(w, d, week[d]))
+              ) : error ? (
+                <p className="small warn flat">Could not load {rangeLabel(w)}: {error}</p>
+              ) : (
+                <p className="small muted flat">Loading {rangeLabel(w)}…</p>
+              )}
+            </Fragment>
+          )
+        })}
+      </div>
+      <button className="btn quiet" type="button" onClick={onCancel}>
+        Cancel
+      </button>
+    </>
   )
 }

@@ -34,6 +34,17 @@ export function withDish(night: Night, dish: Omit<Dish, 'position'>): Night {
   return { ...night, dishes: [...night.dishes, { ...dish, position }] }
 }
 
+/**
+ * Two nights after `move_night` swaps them: the dishes and the skip-check change places,
+ * each night keeps its own cooked flag. Moving to an empty night is a swap with nothing.
+ */
+export function swapDinners(from: Night, to: Night): [Night, Night] {
+  return [
+    { ...from, dishes: to.dishes, skipCheck: to.skipCheck },
+    { ...to, dishes: from.dishes, skipCheck: from.skipCheck },
+  ]
+}
+
 /** A planned dish with its recipe (undefined when the recipe is gone). */
 export type PlannedDish = Dish & { recipe?: Recipe }
 
@@ -148,6 +159,26 @@ export async function setServings(dishId: string, servings: number): Promise<voi
 
 export async function removeDish(dishId: string): Promise<void> {
   const { error } = await supabase.from('meal_plan_dishes').delete().eq('id', dishId)
+  if (error) throw error
+}
+
+/**
+ * Moves a night's dinner to another night in one write that succeeds or fails as a whole:
+ * the dishes keep their role, position, servings and swaps, and a planned target night swaps
+ * with it. The database refuses a cooked night either way.
+ */
+export async function moveNight(
+  householdId: string,
+  from: { week: string; day: Day },
+  to: { week: string; day: Day },
+): Promise<void> {
+  const { error } = await supabase.rpc('move_night', {
+    hid: householdId,
+    from_week: from.week,
+    from_day: from.day,
+    to_week: to.week,
+    to_day: to.day,
+  })
   if (error) throw error
 }
 

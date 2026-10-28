@@ -10,6 +10,7 @@ const api = vi.hoisted(() => ({
   setServings: vi.fn(async () => {}),
   removeDish: vi.fn(async () => {}),
   setNightFlags: vi.fn(async () => {}),
+  moveNight: vi.fn(async () => {}),
   subscribePlan: vi.fn(),
   loadRecipes: vi.fn(),
   addToNight: vi.fn(async () => {}),
@@ -378,6 +379,118 @@ describe('Night sheet', () => {
     const sheet = await openNight(/^Wed 28/)
     fireEvent.click(within(sheet).getByRole('button', { name: 'Remove Chicken curry' }))
     expect(await within(sheet).findByRole('alert')).toHaveTextContent('permission denied')
+  })
+})
+
+describe('Moving a dinner', () => {
+  const THIS = '2026-10-26'
+  const NEXT = '2026-11-02'
+  const dinner = (day: RegExp) => within(night(day)).queryAllByRole('button', { name: /^(Chicken curry|Beef stew|Steamed rice)$/ }).map((b) => b.textContent)
+  /** Opens a night's sheet, taps Move and waits for next week to load. */
+  const openMove = async (day: RegExp) => {
+    const sheet = await openNight(day)
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Move to another night' }))
+    const picker = within(sheet).getByRole('group', { name: /dinner to$/ })
+    await within(picker).findByText('Next week, 2 Nov to 8 Nov')
+    await waitFor(() => expect(within(picker).queryByText(/^Loading/)).not.toBeInTheDocument())
+    return picker
+  }
+
+  it('offers the rest of this week and next week, and this week again from next week', async () => {
+    render(<WeekTab householdId="h1" />)
+    const picker = await openMove(/^Thu 29/)
+    expect(within(picker).getAllByText(/ to /).map((h) => h.textContent)).toEqual([
+      'This week, 26 Oct to 1 Nov',
+      'Next week, 2 Nov to 8 Nov',
+    ])
+    expect(api.loadWeek).not.toHaveBeenCalledWith('h1', '2026-10-19')
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+
+    api.loadWeek.mockImplementation(async (_h: string, week: string) => {
+      const w = week === THIS ? plan() : emptyWeek()
+      if (week === NEXT) w.tue.dishes = [{ id: 'n1', recipeId: 'curry', role: 'main', servings: 2, position: 0 }]
+      return w
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Next week' }))
+    const sheet = await openNight(/^Tue 3/)
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Move to another night' }))
+    const back = within(sheet).getByRole('group', { name: /dinner to$/ })
+    fireEvent.click(await within(back).findByRole('button', { name: 'Fri 30, free' }))
+    expect(api.moveNight).toHaveBeenCalledWith('h1', { week: NEXT, day: 'tue' }, { week: THIS, day: 'fri' })
+    expect(night(/^Tue 3/)).toHaveTextContent('Nothing planned')
+  })
+
+  it('moves a dinner to an empty night with all its dishes', async () => {
+    render(<WeekTab householdId="h1" />)
+    const picker = await openMove(/^Thu 29/)
+    expect(within(picker).queryByRole('button', { name: /^Thu 29/ })).not.toBeInTheDocument()
+    fireEvent.click(within(picker).getByRole('button', { name: 'Sat 31, free' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(dinner(/^Sat 31/)).toEqual(['Beef stew', 'Steamed rice'])
+    expect(night(/^Thu 29/)).toHaveTextContent('Nothing planned')
+    expect(api.moveNight).toHaveBeenCalledWith('h1', { week: THIS, day: 'thu' }, { week: THIS, day: 'sat' })
+    expect(await screen.findByRole('status')).toHaveTextContent('Thursday’s dinner moved to Saturday 31 Oct.')
+  })
+
+  it('swaps with a night that already has a dinner', async () => {
+    render(<WeekTab householdId="h1" />)
+    const picker = await openMove(/^Thu 29/)
+    fireEvent.click(within(picker).getByRole('button', { name: 'Wed 28, swap with Chicken curry' }))
+    expect(dinner(/^Wed 28/)).toEqual(['Beef stew', 'Steamed rice'])
+    expect(dinner(/^Thu 29/)).toEqual(['Chicken curry'])
+    expect(api.moveNight).toHaveBeenCalledWith('h1', { week: THIS, day: 'thu' }, { week: THIS, day: 'wed' })
+    expect(await screen.findByRole('status')).toHaveTextContent('Thursday’s dinner swapped with Wednesday 28 Oct.')
+  })
+
+  it('moves a dinner into next week, bringing that night’s dinner back', async () => {
+    api.loadWeek.mockImplementation(async (_h: string, week: string) => {
+      if (week === THIS) return plan()
+      const w = emptyWeek()
+      w.tue.dishes = [{ id: 'n1', recipeId: 'curry', role: 'main', servings: 2, position: 0 }]
+      return w
+    })
+    render(<WeekTab householdId="h1" />)
+    const picker = await openMove(/^Thu 29/)
+    expect(api.loadWeek).toHaveBeenCalledWith('h1', NEXT)
+    fireEvent.click(within(picker).getByRole('button', { name: 'Mon 2, free' }))
+    expect(night(/^Thu 29/)).toHaveTextContent('Nothing planned')
+    expect(api.moveNight).toHaveBeenCalledWith('h1', { week: THIS, day: 'thu' }, { week: NEXT, day: 'mon' })
+
+    const again = await openMove(/^Wed 28/)
+    fireEvent.click(within(again).getByRole('button', { name: 'Tue 3, swap with Chicken curry' }))
+    expect(dinner(/^Wed 28/)).toEqual(['Chicken curry'])
+    expect(api.moveNight).toHaveBeenLastCalledWith('h1', { week: THIS, day: 'wed' }, { week: NEXT, day: 'tue' })
+  })
+
+  it('keeps cooked nights where they are', async () => {
+    render(<WeekTab householdId="h1" />)
+    const sheet = await openNight(/^Mon 26/)
+    expect(within(sheet).queryByRole('button', { name: 'Move to another night' })).not.toBeInTheDocument()
+    expect(sheet).toHaveTextContent('Cooked, so it stays on Monday.')
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Done' }))
+    const picker = await openMove(/^Thu 29/)
+    expect(within(picker).getByRole('button', { name: 'Mon 26, cooked' })).toBeDisabled()
+  })
+
+  it('has nothing to move on an empty night', async () => {
+    render(<WeekTab householdId="h1" />)
+    const sheet = await openNight(/^Fri 30/)
+    expect(within(sheet).queryByRole('button', { name: 'Move to another night' })).not.toBeInTheDocument()
+  })
+
+  it('puts both nights back and says why when the move fails', async () => {
+    let fail: (e: unknown) => void = () => {}
+    api.moveNight.mockReturnValueOnce(new Promise<void>((_, reject) => (fail = reject)))
+    render(<WeekTab householdId="h1" />)
+    const picker = await openMove(/^Thu 29/)
+    fireEvent.click(within(picker).getByRole('button', { name: 'Wed 28, swap with Chicken curry' }))
+    expect(dinner(/^Wed 28/)).toEqual(['Beef stew', 'Steamed rice'])
+    await act(async () => fail({ message: 'network down' }))
+    expect(dinner(/^Wed 28/)).toEqual(['Chicken curry'])
+    expect(dinner(/^Thu 29/)).toEqual(['Beef stew', 'Steamed rice'])
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not move Thursday’s dinner to Wednesday 28 Oct: network down')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })
 

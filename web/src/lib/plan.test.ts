@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SETTINGS, nightInfo, startBy, suggestSides, toSettings, withDish, type Night } from './plan'
+import { DEFAULT_SETTINGS, nightInfo, startBy, suggestSides, swapDinners, toSettings, withDish, type Night } from './plan'
 import type { Recipe } from './recipes'
 
 const recipe = (r: Partial<Recipe> & Pick<Recipe, 'id' | 'name'>): Recipe => ({
@@ -121,5 +121,19 @@ describe('settings', () => {
     expect(s.minutes.sat).toBe(120)
     expect(s.mealRule).toBe('veg')
     expect(toSettings({ dinnerTime: 'soon', mealRule: 'lots' })).toEqual(DEFAULT_SETTINGS)
+  })
+})
+
+describe('swapDinners', () => {
+  it('swaps the dishes and skip-check and keeps each night’s cooked flag', () => {
+    const from = night([['curry', 'main'], ['rice', 'side']], { skipCheck: true })
+    const to = night([], { cooked: false })
+    const [a, b] = swapDinners(from, to)
+    expect(a).toEqual({ dishes: [], cooked: false, skipCheck: false })
+    expect(b.dishes).toBe(from.dishes)
+    expect(b.skipCheck).toBe(true)
+    const [c, d] = swapDinners(b, night([['salad', 'main']]))
+    expect(c.dishes.map((x) => x.recipeId)).toEqual(['salad'])
+    expect(d.dishes.map((x) => x.recipeId)).toEqual(['curry', 'rice'])
   })
 })

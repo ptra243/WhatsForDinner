@@ -251,6 +251,9 @@ isOneToOne: false
           Functions: {
             "create_household":
 { Args: { "household_name": string }; Returns: string
+                           },
+"move_night":
+{ Args: { "from_day": string,"from_week": string,"hid": string,"to_day": string,"to_week": string }; Returns: undefined
                            }
           }
           Enums: {

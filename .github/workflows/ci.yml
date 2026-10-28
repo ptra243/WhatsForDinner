@@ -30,6 +30,8 @@ jobs:
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 $(node supabase/tests/seed-counts.mjs) -f supabase/tests/seed.sql
       - name: New households get their own copy of the examples
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 $(node supabase/tests/seed-counts.mjs) -f supabase/tests/households.sql
+      - name: Moving a night's dinner swaps whole nights
+        run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/move_night.sql
       - name: Dinner Planner skill SQL examples run
         run: node supabase/tests/skill-sql.mjs | psql "$DB_URL" -v ON_ERROR_STOP=1
 
