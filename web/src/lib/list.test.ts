@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deriveList, itemDetail, itemQty, type ListDish } from './list'
+import { deriveList, itemDetail, itemQty, rowQty, shopList, swapPrompt, NO_MARK, type ListDish, type Mark } from './list'
 import type { RecipeIngredient } from './recipes'
 
 const ing = (name: string, qty: number | null, unit: string): RecipeIngredient => ({ name, qty, unit, note: '' })
@@ -116,5 +116,72 @@ describe('deriveList', () => {
     const items = deriveList([dish('mon', r, 2)], sections)
     expect(itemQty(find(items, 'beef mince|g')!)).toBe('267 g')
     expect(itemQty(find(items, 'salt|tsp')!)).toBe('0.75 tsp')
+  })
+})
+
+describe('shopList', () => {
+  const items = deriveList([dish('mon', bolognese, 4), dish('thu', salad, 2)], sections, [
+    { id: 'x1', name: 'milk', qty: 2, unit: 'l', section: 'dairy and fridge' },
+  ])
+  const m = (change: Partial<Mark>): Mark => ({ ...NO_MARK, ...change })
+
+  it('groups by section in walking order', () => {
+    const v = shopList(items, {})
+    expect(v.sections.map((s) => s.section)).toEqual(['fruit and veg', 'meat and seafood', 'dairy and fridge', 'canned veg', 'herbs and spices'])
+    expect(v.sections[0].rows.map((r) => r.name)).toEqual(['lettuce', 'onion'])
+    expect(v).toMatchObject({ ticked: 0, total: 6, have: [] })
+  })
+
+  it('puts ticked rows last in their section and counts them', () => {
+    const v = shopList(items, { 'lettuce|each': m({ ticked: true }) })
+    expect(v.sections[0].rows.map((r) => r.name)).toEqual(['onion', 'lettuce'])
+    expect(v.ticked).toBe(1)
+  })
+
+  it('hides ticked rows and empty sections when asked, still counting them', () => {
+    const v = shopList(items, { 'beef mince|g': m({ ticked: true }) }, true)
+    expect(v.sections.map((s) => s.section)).not.toContain('meat and seafood')
+    expect(v).toMatchObject({ ticked: 1, total: 6 })
+  })
+
+  it('sets already-have items apart, out of the progress', () => {
+    const v = shopList(items, { 'salt|tsp': m({ haveIt: true, ticked: true }) })
+    expect(v.have.map((r) => r.name)).toEqual(['salt'])
+    expect(v.sections.map((s) => s.section)).not.toContain('herbs and spices')
+    expect(v).toMatchObject({ ticked: 0, total: 5 })
+  })
+
+  it('ignores marks for items no longer on the list', () => {
+    expect(shopList(items, { 'carrot|each': m({ ticked: true }) })).toMatchObject({ ticked: 0, total: 6 })
+  })
+})
+
+describe('rowQty', () => {
+  const [milk] = deriveList([], sections, [{ id: 'x1', name: 'milk', qty: 2, unit: 'l', section: '' }])
+
+  it('shows what is needed until it is ticked with an amount', () => {
+    expect(rowQty({ ...milk, mark: { ...NO_MARK, boughtQty: 3, boughtUnit: 'l' } })).toBe('2 l')
+    expect(rowQty({ ...milk, mark: { ...NO_MARK, ticked: true } })).toBe('2 l')
+    expect(rowQty({ ...milk, mark: { ...NO_MARK, ticked: true, boughtQty: 3, boughtUnit: 'l' } })).toBe('3 l')
+    expect(rowQty({ ...milk, mark: { ...NO_MARK, ticked: true, boughtQty: 500, boughtUnit: null } })).toBe('500 ml')
+  })
+})
+
+describe('swapPrompt', () => {
+  it('names the item, its amount, the dishes that use it and the week', () => {
+    const dishes = [dish('thu', { ...salad, name: 'Green salad' }, 2), dish('mon', { ...bolognese, name: 'Bolognese' }, 4)]
+    const onion = find(deriveList(dishes, sections), 'onion|each')!
+    expect(swapPrompt(onion, dishes, '2026-10-26')).toBe(
+      "I'm at the shops and couldn't get onion (1.5 each) for Bolognese on Mon, Green salad on Thu, week starting 2026-10-26. " +
+        "What can I swap it for? If it's a good swap, update the plan and list.",
+    )
+  })
+
+  it('follows swaps', () => {
+    const swap = { from: 'onion', to: 'red onion', qty: null, unit: null }
+    const dishes = [dish('mon', { ...bolognese, name: 'Bolognese' }, 4, [swap]), dish('thu', { ...salad, name: 'Green salad' }, 2)]
+    const items = deriveList(dishes, sections)
+    expect(swapPrompt(find(items, 'red onion|each')!, dishes, '2026-10-26')).toContain('for Bolognese on Mon,')
+    expect(swapPrompt(find(items, 'onion|each')!, dishes, '2026-10-26')).toContain('for Green salad on Thu,')
   })
 })
