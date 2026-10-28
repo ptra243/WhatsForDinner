@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Header } from './components/Header'
+import { SignIn } from './components/SignIn'
 import { Sheet } from './components/Sheet'
 import { Tabs } from './components/Tabs'
+import { useHousehold, useSession } from './lib/auth'
+import { supabase } from './lib/supabase'
 import { TABS, type Tab } from './tabs'
 
 const TITLES: Record<Tab, string> = { week: 'This week', list: 'Shopping list', recipes: 'Recipes' }
@@ -18,6 +21,41 @@ function tabFromHash(): Tab {
 }
 
 export default function App() {
+  const session = useSession()
+  const household = useHousehold(session?.user.id)
+
+  if (session === undefined) return <Notice text="Loading…" />
+  if (!session) return <SignIn />
+  if (household.error) {
+    return (
+      <Notice text={`Could not set up your household: ${household.error}`}>
+        <button className="btn ghost" type="button" onClick={() => supabase.auth.signOut()}>
+          Sign out
+        </button>
+      </Notice>
+    )
+  }
+  if (!household.id) return <Notice text="Setting up your household…" />
+  return <Shell email={session.user.email ?? ''} />
+}
+
+/** Full-page message while signing in or setting up. */
+function Notice({ text, children }: { text: string; children?: ReactNode }) {
+  return (
+    <main>
+      <div className="wrap sign-in">
+        <h1>What’s for Dinner</h1>
+        <p className="muted" role="status">
+          {text}
+        </p>
+        {children}
+      </div>
+    </main>
+  )
+}
+
+/** The signed-in app: tabs, header and the settings sheet. */
+function Shell({ email }: { email: string }) {
   const [tab, setTab] = useState<Tab>(tabFromHash)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
@@ -57,7 +95,10 @@ export default function App() {
       <Tabs current={tab} onChange={changeTab} />
       {settingsOpen && (
         <Sheet title="Household settings" onClose={() => setSettingsOpen(false)}>
-          <p className="muted small">Settings arrive with sign-in.</p>
+          <p className="muted small">Signed in as {email}</p>
+          <button className="btn ghost wide" type="button" onClick={() => supabase.auth.signOut()}>
+            Sign out
+          </button>
           <button className="btn wide" type="button" onClick={() => setSettingsOpen(false)}>
             Done
           </button>

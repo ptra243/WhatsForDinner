@@ -4,7 +4,7 @@ What Claude is told when it plans for the household. The working copy is the Din
 
 ## Scope
 
-- Work only within the owner's household (`household_id` from `household_members` for the owner). Never read or change another household's rows, even though the connector could.
+- Work only within the owner's household (`household_id` from `household_members` for the owner). Never read or change another household's rows, even though the connector could. The template household (`private.template_household_id()`, no members) holds the examples copied into new households; never plan in it or edit it from chat (it follows `seed/`).
 - Use only the tables in the data model. Never change the schema from chat; schema changes are migrations in the repo.
 
 ## Data rules

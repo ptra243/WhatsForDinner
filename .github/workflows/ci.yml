@@ -28,6 +28,8 @@ jobs:
           git diff --exit-code supabase/seed/seed.sql
       - name: Seed loads once and keeps household edits
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 $(node supabase/tests/seed-counts.mjs) -f supabase/tests/seed.sql
+      - name: New households get their own copy of the examples
+        run: psql "$DB_URL" -v ON_ERROR_STOP=1 $(node supabase/tests/seed-counts.mjs) -f supabase/tests/households.sql
 
   web:
     name: web
