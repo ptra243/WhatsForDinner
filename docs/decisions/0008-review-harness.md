@@ -1,6 +1,6 @@
 # 0008 · Separate author and reviewer sessions; CI gates merges
 
-**Date:** 2026-10-28 · **Status:** accepted; amends [0007](0007-repo-workflow.md)
+**Date:** 2026-10-28 · **Status:** accepted; amends [0007](0007-repo-workflow.md); milestone order amended by [0009](0009-parallel-waves-and-used-reviews.md)
 
 **Context.** The repo has one human, and GitHub does not let a PR's author approve it, so "features go through a PR" had no review behind it. The owner wants Claude sessions to merge without waiting on them, but a session should never merge its own work.
 
