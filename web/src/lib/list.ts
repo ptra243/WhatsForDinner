@@ -20,7 +20,10 @@ export const SECTIONS = [
 ] as const
 export type Section = (typeof SECTIONS)[number]
 
-const asSection = (s: string | null | undefined): Section =>
+/** Units as the database allows them (docs/data-model.md). */
+export const UNITS = ['g', 'kg', 'ml', 'l', 'each', 'tsp', 'tbsp', 'bunch', 'tin'] as const
+
+const asSection =(s: string | null | undefined): Section =>
   (SECTIONS as readonly string[]).includes(s ?? '') ? (s as Section) : 'other'
 
 /** One ingredient swapped for another in one planned dish (`meal_plan_dishes.swaps`). Null qty or unit keeps the recipe's. */
@@ -31,7 +34,7 @@ export type ListDish = {
   day: Day
   servings: number
   swaps: Swap[]
-  recipe?: { serves: number; ingredients: RecipeIngredient[] }
+  recipe?: { name?: string; serves: number; ingredients: RecipeIngredient[] }
 }
 
 /** A hand-added item (`list_extras`). */
@@ -112,3 +115,66 @@ export const itemQty = (item: ListItem) => fmtQty(item.qty, item.unit)
 /** The line under an item's name: its notes, then the nights that use it ("Swap for onion · Mon, Thu"). */
 export const itemDetail = (item: ListItem) =>
   [...item.notes, ...(item.nights.length ? [item.nights.map((d) => DAY_NAMES[d]).join(', ')] : [])].join(' · ')
+
+/** What the shopper did with an item (`list_marks`). */
+export type Mark = { ticked: boolean; boughtQty: number | null; boughtUnit: string | null; missing: boolean; haveIt: boolean }
+
+export const NO_MARK: Mark = { ticked: false, boughtQty: null, boughtUnit: null, missing: false, haveIt: false }
+
+export type ShopRow = ListItem & { mark: Mark }
+
+export type ShopList = {
+  /** Sections in walking order with their rows, unticked first; empty sections left out. */
+  sections: { section: Section; rows: ShopRow[] }[]
+  /** Items marked already have, at the bottom; they do not count towards progress. */
+  have: ShopRow[]
+  ticked: number
+  total: number
+}
+
+/**
+ * The list as the shopper sees it: marks laid over the items, grouped by section in walking
+ * order, already-have items set apart. Marks for items no longer on the list are ignored.
+ */
+export function shopList(items: ListItem[], marks: Record<string, Mark>, hideTicked = false): ShopList {
+  const rows = items.map((i) => ({ ...i, mark: marks[i.key] ?? NO_MARK }))
+  const need = rows.filter((r) => !r.mark.haveIt)
+  const sections: ShopList['sections'] = []
+  for (const section of SECTIONS) {
+    const inSection = need
+      .filter((r) => r.section === section && !(hideTicked && r.mark.ticked))
+      .sort((a, b) => Number(a.mark.ticked) - Number(b.mark.ticked) || a.name.localeCompare(b.name))
+    if (inSection.length) sections.push({ section, rows: inSection })
+  }
+  return {
+    sections,
+    have: rows.filter((r) => r.mark.haveIt).sort((a, b) => a.name.localeCompare(b.name)),
+    ticked: need.filter((r) => r.mark.ticked).length,
+    total: need.length,
+  }
+}
+
+/** The amount on a row: what was bought once it is ticked with an amount, otherwise what is needed. */
+export function rowQty(row: ShopRow): string {
+  const { ticked, boughtQty, boughtUnit } = row.mark
+  if (!ticked || boughtQty == null) return itemQty(row)
+  const b = toBase(boughtQty, boughtUnit || row.unit)
+  return fmtQty(b.qty, b.unit)
+}
+
+/** The question for Claude when an item could not be bought: what it is for, and to update the plan if the swap is good. */
+export function swapPrompt(item: ListItem, dishes: ListDish[], weekStart: string): string {
+  const uses: string[] = []
+  for (const d of [...dishes].sort((a, b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day))) {
+    const r = d.recipe
+    const is = (name: string) => name.toLowerCase().trim() === item.name
+    const usesIt =
+      (r?.ingredients.some((i) => is(i.name)) && !d.swaps.some((s) => is(s.from))) || d.swaps.some((s) => is(s.to))
+    const use = `${r?.name ?? 'a dish'} on ${DAY_NAMES[d.day]}`
+    if (r && usesIt && !uses.includes(use)) uses.push(use)
+  }
+  return (
+    `I'm at the shops and couldn't get ${item.name} (${itemQty(item)})${uses.length ? ` for ${uses.join(', ')}` : ''}, ` +
+    `week starting ${weekStart}. What can I swap it for? If it's a good swap, update the plan and list.`
+  )
+}

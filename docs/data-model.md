@@ -31,7 +31,7 @@ Table privileges are granted explicitly, because the live project gives `anon` a
 
 ## Derived shopping list
 
-For a household and week: for each planned dish, scale each recipe ingredient by `servings / recipes.serves`, apply the dish's swaps, normalise `kg → g` and `l → ml`, then sum by `(ingredient, unit)`. The item key is `name|unit` (or `extra:<id>`). `list_marks` overlay ticks, bought amounts, missing and already-have. Logic lives in `web/src/lib/list.ts` with Vitest tests.
+For a household and week: for each planned dish, scale each recipe ingredient by `servings / recipes.serves`, apply the dish's swaps, normalise `kg → g` and `l → ml`, then sum by `(ingredient, unit)`. The item key is `name|unit` (or `extra:<id>`). `list_marks` overlay ticks, bought amounts, missing and already-have. Logic lives in `web/src/lib/list.ts` with Vitest tests; loading and saving in `web/src/lib/shop.ts`. Marks are written column by column, so two shoppers ticking at once do not undo each other. Moving a planned item to another section changes `ingredients.section` for every list (an ingredient only known from a swap is added); moving a hand-added item changes only its `list_extras` row.
 
 ## Seed data
 

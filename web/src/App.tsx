@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Header } from './components/Header'
+import { ListTab } from './components/ListTab'
 import { RecipesTab } from './components/RecipesTab'
 import { SignIn } from './components/SignIn'
 import { Sheet } from './components/Sheet'
@@ -10,8 +11,6 @@ import { supabase } from './lib/supabase'
 import { TABS, type Tab } from './tabs'
 
 const TITLES: Record<Tab, string> = { week: 'This week', list: 'Shopping list', recipes: 'Recipes' }
-
-const EMPTY_LIST = { heading: 'Nothing to buy yet', body: 'The shopping list is made from the week’s plan.' }
 
 function tabFromHash(): Tab {
   const h = window.location.hash.slice(1)
@@ -56,6 +55,7 @@ function Notice({ text, children }: { text: string; children?: ReactNode }) {
 function Shell({ email, householdId }: { email: string; householdId: string }) {
   const [tab, setTab] = useState<Tab>(tabFromHash)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [adding, setAdding] = useState(false)
 
   useEffect(() => {
     const onHash = () => setTab(tabFromHash())
@@ -79,9 +79,15 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
     </button>
   )
 
+  const addButton = (
+    <button className="btn ghost" type="button" onClick={() => setAdding(true)}>
+      Add item
+    </button>
+  )
+
   return (
     <>
-      <Header title={TITLES[tab]} action={tab === 'week' ? settingsButton : undefined} />
+      <Header title={TITLES[tab]} action={tab === 'week' ? settingsButton : tab === 'list' ? addButton : undefined} />
       <main>
         <div className="wrap">
           {tab === 'recipes' ? (
@@ -89,10 +95,7 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
           ) : tab === 'week' ? (
             <WeekTab householdId={householdId} />
           ) : (
-            <div className="empty-state">
-              <h2>{EMPTY_LIST.heading}</h2>
-              <p className="muted">{EMPTY_LIST.body}</p>
-            </div>
+            <ListTab householdId={householdId} adding={adding} onAddClose={() => setAdding(false)} />
           )}
         </div>
       </main>

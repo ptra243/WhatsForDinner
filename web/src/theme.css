@@ -171,3 +171,25 @@ ol.steps .tm{color:var(--warn);font-family:var(--display);font-weight:700;font-s
 .pick.scroll{max-height:300px;overflow:auto}
 .toggle{display:flex;align-items:center;gap:12px;min-height:44px;font-size:15px}
 .toggle input{width:22px;height:22px;accent-color:var(--accent);margin:0}
+
+/* Shopping list: sections in walking order on ruled cards, the tick in the margin */
+.listbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.listbar .toggle{min-height:36px;font-size:13px}
+.progress{height:4px;background:var(--line);overflow:hidden;margin-bottom:10px}
+.progress span{display:block;height:100%;background:var(--accent)}
+h3.aisle{margin:18px 0 6px}
+.items{border-radius:3px;overflow:hidden;background:linear-gradient(var(--margin),var(--margin)) no-repeat 50px 0/2px 100%,var(--tex),var(--surface);box-shadow:inset 0 0 30px var(--vignette),0 1px 0 var(--line),0 8px 18px var(--shadow)}
+.item{display:flex;align-items:center;gap:4px;border-bottom:1.5px solid var(--line);min-height:52px}
+.items>:last-child{border-bottom:0}
+.item label{flex:1;min-width:0;display:flex;align-items:center;gap:26px;padding:8px 0 8px 14px;cursor:pointer;min-height:52px}
+.item input[type=checkbox]{width:22px;height:22px;flex:none;accent-color:var(--accent);margin:0}
+.item .nm{display:flex;flex-direction:column;min-width:0}
+.item .nm b{font-family:var(--display);font-weight:700;font-size:16.5px;color:var(--accent);line-height:1.2}
+.item .nm small{font-size:12.5px;color:var(--muted)}
+.item.done .nm b{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--warn);text-decoration-thickness:2px}
+.item .qty{min-height:44px;min-width:72px;padding:0 14px;border:0;background:transparent;font-variant-numeric:tabular-nums;font-size:14px;color:var(--muted);text-align:right;text-decoration:underline dotted;text-underline-offset:4px}
+.item .tag{font-size:12px;font-weight:700;color:var(--warn)}
+.item.miss,.swaprow{background:var(--hl)}
+.swaprow{padding:0 14px 12px 64px;border-bottom:1.5px solid var(--line)}
+.lab{font-size:13px;font-weight:700}
+select.field{padding-right:8px}
