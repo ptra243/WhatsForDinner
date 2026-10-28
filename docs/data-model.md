@@ -6,6 +6,8 @@ Supabase Postgres. Relational for anything Claude writes or the list adds up; JS
 
 All tables have `id uuid` (except where noted), `created_at`, `updated_at`. Every household-owned table has `household_id` and Row Level Security: a user sees and changes only rows of households they belong to.
 
+Table privileges are granted explicitly, because the live project gives `anon` and `authenticated` none by default: `authenticated` gets the operations its policies allow, `anon` gets nothing. A new table needs its own `grant` in the migration that creates it; CI checks this in `supabase/tests/checks.sql`.
+
 | Table | Key columns | Notes |
 | --- | --- | --- |
 | `households` | name | One per home |
