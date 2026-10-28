@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SETTINGS, nightInfo, startBy, suggestSides, toSettings, type Night } from './plan'
+import { DEFAULT_SETTINGS, nightInfo, startBy, suggestSides, toSettings, withDish, type Night } from './plan'
 import type { Recipe } from './recipes'
 
 const recipe = (r: Partial<Recipe> & Pick<Recipe, 'id' | 'name'>): Recipe => ({
@@ -64,6 +64,32 @@ describe('a night', () => {
     const i = nightInfo(night([['rice', 'side'], ['gone', 'side']]), 'mon', RECIPES, DEFAULT_SETTINGS)
     expect(i.main?.recipeId).toBe('rice')
     expect(i.sides[0].recipe).toBeUndefined()
+  })
+})
+
+describe('adding a dish', () => {
+  const night: Night = {
+    dishes: [
+      { id: 'a', recipeId: 'stew', role: 'main', servings: 4, position: 0 },
+      { id: 'b', recipeId: 'rice', role: 'side', servings: 4, position: 3 },
+    ],
+    cooked: false,
+    skipCheck: false,
+  }
+
+  it('puts a main first and makes the other dishes sides', () => {
+    expect(withDish(night, { id: 'n', recipeId: 'curry', role: 'main', servings: 2 }).dishes).toEqual([
+      { id: 'n', recipeId: 'curry', role: 'main', servings: 2, position: 0 },
+      { id: 'a', recipeId: 'stew', role: 'side', servings: 4, position: 1 },
+      { id: 'b', recipeId: 'rice', role: 'side', servings: 4, position: 4 },
+    ])
+  })
+
+  it('puts a side last and leaves the others alone', () => {
+    const { dishes } = withDish(night, { id: 'n', recipeId: 'naan', role: 'side', servings: 4 })
+    expect(dishes.slice(0, 2)).toEqual(night.dishes)
+    expect(dishes[2]).toEqual({ id: 'n', recipeId: 'naan', role: 'side', servings: 4, position: 4 })
+    expect(withDish({ ...night, dishes: [] }, { id: 'n', recipeId: 'naan', role: 'side', servings: 4 }).dishes[0].position).toBe(0)
   })
 })
 

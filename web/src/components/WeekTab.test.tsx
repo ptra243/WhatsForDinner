@@ -259,7 +259,7 @@ describe('Night sheet', () => {
     const chips = within(sheet).getAllByRole('button', { name: /^\+ / })
     expect(chips.map((c) => c.textContent)).toEqual(['+ Naan', '+ Steamed rice'])
     fireEvent.click(chips[0])
-    await waitFor(() => expect(api.addToNight).toHaveBeenCalledWith('h1', RECIPES[3], '2026-10-26', 'wed', 4))
+    await waitFor(() => expect(api.addToNight).toHaveBeenCalledWith('h1', RECIPES[3], '2026-10-26', 'wed', 4, expect.any(String)))
   })
 
   it('adds a main or side from a searchable picker', async () => {
@@ -272,7 +272,7 @@ describe('Night sheet', () => {
     fireEvent.change(search, { target: { value: 'slow' } })
     expect(within(sheet).queryByRole('button', { name: /Chicken curry/ })).not.toBeInTheDocument()
     fireEvent.click(within(sheet).getByRole('button', { name: /Beef stew/ }))
-    await waitFor(() => expect(api.addToNight).toHaveBeenCalledWith('h1', RECIPES[1], '2026-10-26', 'fri', undefined))
+    await waitFor(() => expect(api.addToNight).toHaveBeenCalledWith('h1', RECIPES[1], '2026-10-26', 'fri', 4, expect.any(String)))
     await waitFor(() => expect(api.loadWeek.mock.calls.length).toBeGreaterThan(1))
 
     fireEvent.click(await within(sheet).findByRole('button', { name: 'Add side' }))
@@ -288,6 +288,88 @@ describe('Night sheet', () => {
     fireEvent.click(within(sheet).getByLabelText('Skip the veg and carb check this night'))
     expect(api.setNightFlags).toHaveBeenCalledWith('h1', '2026-10-26', 'wed', { skip_check: true })
     await waitFor(() => expect(within(sheet).queryByText('No carb yet')).not.toBeInTheDocument())
+  })
+
+  /** A write that waits until the test lets it finish (or fail). */
+  const held = () => {
+    let finish: (error?: unknown) => void = () => {}
+    const write = new Promise<void>((resolve, reject) => {
+      finish = (error) => (error ? reject(error) : resolve())
+    })
+    return { write, finish }
+  }
+  const pickMain = (sheet: HTMLElement, name: RegExp) => {
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Add main' }))
+    fireEvent.click(within(sheet).getByRole('button', { name }))
+  }
+  const names = (day: RegExp) => within(night(day)).getAllByRole('button', { name: /curry|stew|rice/i }).map((b) => b.textContent)
+
+  it('shows a chosen main on the night before the write finishes, and reloads once after', async () => {
+    const { write, finish } = held()
+    api.addToNight.mockReturnValueOnce(write)
+    render(<WeekTab householdId="h1" />)
+    const sheet = await openNight(/^Thu 29/)
+    const loads = api.loadWeek.mock.calls.length
+    pickMain(sheet, /Chicken curry/)
+
+    // Straight away: curry first as the main, the old main and rice now sides; the picker is closed.
+    expect(names(/^Thu 29/)).toEqual(['Chicken curry', 'Beef stew', 'Steamed rice'])
+    expect(within(sheet).getAllByText('Side')).toHaveLength(2)
+    expect(within(sheet).queryByLabelText('Choose a main')).not.toBeInTheDocument()
+
+    // Realtime changes from the write in progress do not reload over it.
+    act(() => realtime())
+    await act(() => new Promise((r) => setTimeout(r, 300)))
+    expect(api.loadWeek.mock.calls.length).toBe(loads)
+    expect(names(/^Thu 29/)).toEqual(['Chicken curry', 'Beef stew', 'Steamed rice'])
+
+    const id = (api.addToNight.mock.calls.at(-1) as unknown[])[5] as string
+    api.loadWeek.mockImplementation(async () => {
+      const w = plan()
+      w.thu.dishes = [
+        { id, recipeId: 'curry', role: 'main', servings: 4, position: 0 },
+        { id: 't1', recipeId: 'stew', role: 'side', servings: 4, position: 1 },
+        { id: 't2', recipeId: 'rice', role: 'side', servings: 4, position: 2 },
+      ]
+      return w
+    })
+    await act(async () => finish())
+    await waitFor(() => expect(api.loadWeek.mock.calls.length).toBe(loads + 1))
+    expect(names(/^Thu 29/)).toEqual(['Chicken curry', 'Beef stew', 'Steamed rice'])
+    expect(within(sheet).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('keeps a later change shown while the reload from an earlier save comes back without it', async () => {
+    const first = held()
+    const second = held()
+    api.addToNight.mockReturnValueOnce(first.write)
+    api.setServings.mockReturnValueOnce(second.write)
+    render(<WeekTab householdId="h1" />)
+    const sheet = await openNight(/^Fri 30/)
+    pickMain(sheet, /Chicken curry/)
+    fireEvent.click(within(sheet).getByRole('button', { name: 'More servings of Chicken curry' }))
+    expect(within(sheet).getByText('5 serves')).toBeInTheDocument()
+    const loads = api.loadWeek.mock.calls.length
+    await act(async () => first.finish())
+    // Nothing reloads under the servings save still going; it reloads once when that finishes.
+    expect(api.loadWeek.mock.calls.length).toBe(loads)
+    expect(names(/^Fri 30/)).toEqual(['Chicken curry'])
+    expect(within(sheet).getByText('5 serves')).toBeInTheDocument()
+    await act(async () => second.finish())
+    await waitFor(() => expect(api.loadWeek.mock.calls.length).toBe(loads + 1))
+  })
+
+  it('takes a chosen main back off the night and says why when the write fails', async () => {
+    const { write, finish } = held()
+    api.addToNight.mockReturnValueOnce(write)
+    render(<WeekTab householdId="h1" />)
+    const sheet = await openNight(/^Thu 29/)
+    pickMain(sheet, /Chicken curry/)
+    expect(names(/^Thu 29/)).toEqual(['Chicken curry', 'Beef stew', 'Steamed rice'])
+    await act(async () => finish({ message: 'network down' }))
+    expect(names(/^Thu 29/)).toEqual(['Beef stew', 'Steamed rice'])
+    expect(within(sheet).getByText('Main').closest('.dish')).toHaveTextContent('Beef stew')
+    expect(within(sheet).getByRole('alert')).toHaveTextContent('network down')
   })
 
   it('shows a failed save', async () => {

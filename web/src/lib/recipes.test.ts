@@ -64,4 +64,9 @@ describe('addToNight', () => {
     expect(db.state.updates).toEqual([])
     expect(db.state.inserts).toEqual([expect.objectContaining({ position: 4, role: 'side' })])
   })
+
+  it('gives the dish the id it is asked to', async () => {
+    await addToNight('h1', recipe('side'), '2026-11-02', 'wed', 2, 'd1')
+    expect(db.state.inserts).toEqual([{ ...night, id: 'd1', position: 0, recipe_id: 'r1', role: 'side', servings: 2 }])
+  })
 })
