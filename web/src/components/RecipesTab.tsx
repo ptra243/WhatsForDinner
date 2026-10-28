@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { addRecipePrompt } from '../lib/claude'
+import type { Allergen } from '../lib/allergens'
 import { mins } from '../lib/format'
+import { loadSettings } from '../lib/plan'
 import { loadRecipes, matches, type Course, type Recipe } from '../lib/recipes'
 import { AskClaudeButton } from './AskClaude'
 import { RecipeView } from './RecipeView'
@@ -18,12 +20,18 @@ export function RecipesTab({ householdId }: { householdId: string }) {
   const [query, setQuery] = useState('')
   const [course, setCourse] = useState<Course | 'all'>('all')
   const [openId, setOpenId] = useState<string>()
+  const [avoid, setAvoid] = useState<Allergen[]>([])
 
   useEffect(() => {
     let live = true
     loadRecipes(householdId).then(
       (rs) => live && setRecipes(rs),
       (e: { message?: string }) => live && setError(e.message ?? String(e)),
+    )
+    // Only for the allergen warning in the recipe view, so the list shows without it.
+    loadSettings(householdId).then(
+      (s) => live && setAvoid(s.avoid),
+      () => {},
     )
     return () => {
       live = false
@@ -89,6 +97,7 @@ export function RecipesTab({ householdId }: { householdId: string }) {
           key={open.id}
           householdId={householdId}
           recipe={open}
+          avoid={avoid}
           onChange={(next) => setRecipes(recipes.map((r) => (r.id === next.id ? next : r)))}
           onDeleted={() => {
             setOpenId(undefined)

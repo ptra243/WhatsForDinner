@@ -90,7 +90,10 @@
     },
     "white-fish-fillet": {
       "name": "white fish fillet",
-      "aisle": "meat and seafood"
+      "aisle": "meat and seafood",
+      "allergens": [
+        "fish"
+      ]
     },
     "beef-chuck": {
       "name": "beef chuck",
@@ -102,39 +105,69 @@
     },
     "cream": {
       "name": "cream",
-      "aisle": "dairy and fridge"
+      "aisle": "dairy and fridge",
+      "allergens": [
+        "milk"
+      ]
     },
     "feta": {
       "name": "feta",
-      "aisle": "dairy and fridge"
+      "aisle": "dairy and fridge",
+      "allergens": [
+        "milk"
+      ]
     },
     "greek-yoghurt": {
       "name": "greek yoghurt",
-      "aisle": "dairy and fridge"
+      "aisle": "dairy and fridge",
+      "allergens": [
+        "milk"
+      ]
     },
     "butter": {
       "name": "butter",
-      "aisle": "dairy and fridge"
+      "aisle": "dairy and fridge",
+      "allergens": [
+        "milk"
+      ]
     },
     "parmesan": {
       "name": "parmesan",
-      "aisle": "dairy and fridge"
+      "aisle": "dairy and fridge",
+      "allergens": [
+        "milk"
+      ]
     },
     "egg": {
       "name": "egg",
-      "aisle": "dairy and fridge"
+      "aisle": "dairy and fridge",
+      "allergens": [
+        "egg"
+      ]
     },
     "tortilla": {
       "name": "tortilla",
-      "aisle": "international"
+      "aisle": "international",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
     },
     "crusty-loaf": {
       "name": "crusty loaf",
-      "aisle": "bakery"
+      "aisle": "bakery",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
     },
     "chicken-stock": {
       "name": "chicken stock",
-      "aisle": "pantry"
+      "aisle": "pantry",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
     },
     "olive-oil": {
       "name": "olive oil",
@@ -162,15 +195,31 @@
     },
     "soy-sauce": {
       "name": "soy sauce",
-      "aisle": "international"
+      "aisle": "international",
+      "allergens": [
+        "soy",
+        "wheat",
+        "gluten"
+      ]
     },
     "hoisin-sauce": {
       "name": "hoisin sauce",
-      "aisle": "international"
+      "aisle": "international",
+      "allergens": [
+        "soy",
+        "wheat",
+        "gluten",
+        "sesame"
+      ]
     },
     "egg-noodle": {
       "name": "egg noodle",
-      "aisle": "international"
+      "aisle": "international",
+      "allergens": [
+        "egg",
+        "wheat",
+        "gluten"
+      ]
     },
     "smoked-paprika": {
       "name": "smoked paprika",
@@ -178,7 +227,11 @@
     },
     "chipotle-in-adobo": {
       "name": "chipotle in adobo",
-      "aisle": "international"
+      "aisle": "international",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
     },
     "red-wine": {
       "name": "red wine",
@@ -186,7 +239,11 @@
     },
     "beef-stock": {
       "name": "beef stock",
-      "aisle": "pantry"
+      "aisle": "pantry",
+      "allergens": [
+        "wheat",
+        "gluten"
+      ]
     },
     "tomato-paste": {
       "name": "tomato paste",
@@ -202,7 +259,12 @@
     },
     "pappardelle": {
       "name": "pappardelle",
-      "aisle": "pantry"
+      "aisle": "pantry",
+      "allergens": [
+        "egg",
+        "wheat",
+        "gluten"
+      ]
     },
     "honey": {
       "name": "honey",

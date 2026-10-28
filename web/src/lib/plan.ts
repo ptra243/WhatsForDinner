@@ -1,20 +1,24 @@
 // A week's plan: nights, their dishes and the checks the prototype shows (prototype/dinner-planner.html).
+import { allergenWarnings, toAllergens, type Allergen, type AllergenWarning, type TaggedSwap } from './allergens'
 import type { Course, Recipe } from './recipes'
+import { toSwaps } from './shop'
 import { supabase } from './supabase'
 import { DAYS, type Day } from './week'
 
 export type MealRule = 'veg+carb' | 'veg' | 'off'
 
 /** The household settings the week uses; missing values fall back to the defaults. */
-export type Settings = { dinnerTime: string; minutes: Record<Day, number>; mealRule: MealRule }
+export type Settings = { dinnerTime: string; minutes: Record<Day, number>; mealRule: MealRule; avoid: Allergen[] }
 
 export const DEFAULT_SETTINGS: Settings = {
   dinnerTime: '18:30',
   minutes: { mon: 45, tue: 45, wed: 45, thu: 45, fri: 45, sat: 120, sun: 120 },
   mealRule: 'veg+carb',
+  avoid: [],
 }
 
-export type Dish = { id: string; recipeId: string; role: Course; servings: number; position: number }
+/** `swaps` (none when missing) carry the allergens of what each swaps to. */
+export type Dish = { id: string; recipeId: string; role: Course; servings: number; position: number; swaps?: TaggedSwap[] }
 export type Night = { dishes: Dish[]; cooked: boolean; skipCheck: boolean }
 export type Week = Record<Day, Night>
 
@@ -45,8 +49,8 @@ export function swapDinners(from: Night, to: Night): [Night, Night] {
   ]
 }
 
-/** A planned dish with its recipe (undefined when the recipe is gone). */
-export type PlannedDish = Dish & { recipe?: Recipe }
+/** A planned dish with its recipe (undefined when the recipe is gone) and the avoided allergens it still contains. */
+export type PlannedDish = Dish & { recipe?: Recipe; allergens: AllergenWarning[] }
 
 export type NightInfo = {
   dishes: PlannedDish[]
@@ -60,11 +64,17 @@ export type NightInfo = {
   gaps: ('veg' | 'carb')[]
   budget: number
   over: boolean
+  /** Avoided allergens some dish still contains (no swap clears them), in list order. */
+  allergens: Allergen[]
 }
 
-/** Times, gaps and the hands-on budget for one night. */
+/** Times, gaps, the hands-on budget and avoided allergens for one night. */
 export function nightInfo(night: Night, day: Day, recipes: Map<string, Recipe>, settings: Settings): NightInfo {
-  const dishes = night.dishes.map((d) => ({ ...d, recipe: recipes.get(d.recipeId) }))
+  const dishes = night.dishes.map((d) => {
+    const recipe = recipes.get(d.recipeId)
+    return { ...d, recipe, allergens: recipe ? allergenWarnings(recipe.ingredients, settings.avoid, d.swaps) : [] }
+  })
+  const allergens = toAllergens(dishes.flatMap((d) => d.allergens.map((w) => w.allergen)))
   const main = dishes.find((d) => d.role === 'main') ?? dishes[0]
   const sides = dishes.filter((d) => d !== main)
   const provides = new Set<string>()
@@ -82,7 +92,7 @@ export function nightInfo(night: Night, day: Day, recipes: Map<string, Recipe>, 
     if (settings.mealRule === 'veg+carb' && !provides.has('carb')) gaps.push('carb')
   }
   const budget = settings.minutes[day]
-  return { dishes, main, sides, active, total, gaps, budget, over: !!budget && active > budget }
+  return { dishes, main, sides, active, total, gaps, budget, over: !!budget && active > budget, allergens }
 }
 
 /** When to start cooking to eat at dinner time: "5:45 pm". */
@@ -115,6 +125,7 @@ export function toSettings(raw: unknown): Settings {
     dinnerTime: typeof s.dinnerTime === 'string' && /^\d\d:\d\d$/.test(s.dinnerTime) ? s.dinnerTime : DEFAULT_SETTINGS.dinnerTime,
     minutes,
     mealRule: s.mealRule === 'veg' || s.mealRule === 'off' || s.mealRule === 'veg+carb' ? s.mealRule : DEFAULT_SETTINGS.mealRule,
+    avoid: toAllergens(s.avoid),
   }
 }
 
@@ -124,12 +135,12 @@ export async function loadSettings(householdId: string): Promise<Settings> {
   return toSettings(data?.settings)
 }
 
-/** Every night of a week with its dishes in order. */
+/** Every night of a week with its dishes in order, each swap tagged with the allergens of what it swaps to. */
 export async function loadWeek(householdId: string, weekStart: string): Promise<Week> {
   const [dishes, nights] = await Promise.all([
     supabase
       .from('meal_plan_dishes')
-      .select('id, day, position, recipe_id, role, servings')
+      .select('id, day, position, recipe_id, role, servings, swaps')
       .eq('household_id', householdId)
       .eq('week_start', weekStart)
       .order('position')
@@ -138,6 +149,14 @@ export async function loadWeek(householdId: string, weekStart: string): Promise<
   ])
   if (dishes.error) throw dishes.error
   if (nights.error) throw nights.error
+  const swaps = new Map(dishes.data.map((d) => [d.id, toSwaps(d.swaps)]))
+  const targets = [...new Set([...swaps.values()].flat().map((s) => s.to.toLowerCase().trim()))]
+  const tags = new Map<string, string[]>()
+  if (targets.length) {
+    const { data, error } = await supabase.from('ingredients').select('name, allergens').in('name', targets)
+    if (error) throw error
+    for (const i of data) tags.set(i.name, i.allergens)
+  }
   const week = emptyWeek()
   for (const d of dishes.data) {
     week[d.day as Day].dishes.push({
@@ -146,6 +165,7 @@ export async function loadWeek(householdId: string, weekStart: string): Promise<
       role: d.role as Course,
       servings: Number(d.servings),
       position: d.position,
+      swaps: swaps.get(d.id)!.map((s) => ({ ...s, allergens: tags.get(s.to.toLowerCase().trim()) ?? [] })),
     })
   }
   for (const n of nights.data) Object.assign(week[n.day as Day], { cooked: n.cooked, skipCheck: n.skip_check })
