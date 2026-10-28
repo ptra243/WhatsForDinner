@@ -21,7 +21,7 @@ Every session in the workflow is titled `#<issue> - <what it is doing>` so the o
 
 ## Waves
 
-An issue is **ready** when it is open, has acceptance criteria, and every issue under "Depends on" is closed or has a merged PR (an issue with owner checks stays open after its PR merges; that counts as done). If "Depends on" names an owner decision, ask the owner first. An issue that is unclear or not ready for another reason: tell the owner why and leave it out.
+An issue is **ready** when it is open, has acceptance criteria, and every issue under "Depends on" is closed or has a merged PR (an issue with owner checks stays open after its PR merges; that counts as done). If "Depends on" names an owner decision, ask the owner first. An issue whose dependencies are still in flight waits for a later slot (single issue: tell the owner which dependency is open and stop). An issue that is unclear or not ready for another reason: tell the owner why and leave it out.
 
 Keep up to **3 issues in flight**, taking ready issues in the build order in `docs/roadmap.md`, except:
 
@@ -33,7 +33,7 @@ Whenever an issue merges, fill the free slot.
 ## Per issue
 
 1. **Start the author.** `start_session`: initiation `user_asked`, context `fresh`, `use_worktree: true`, title `#N - author: <issue title>`, prompt `/implement-issue N`. Nothing else in the prompt.
-2. **Find the PR** when the author's note arrives: `gh pr list --state open --search "N in:body"`. No PR means the author is blocked; pass its question to the owner.
+2. **Find the PR** by its branch, which `/implement-issue` names `issue-N-<slug>`: `gh pr list --state open --json number,headRefName --jq '.[] | select(.headRefName | startswith("issue-N-")) | .number'`. (Not a body search: other PRs name #N under "Depends on".) An author that has ended its turn with no PR is blocked; pass its question to the owner.
 3. **Start the reviewer.** `start_session`: initiation `user_asked`, context `fresh`, `use_worktree: true`, title `#N - review PR #P`, prompt `/review-pr P`. Nothing else in the prompt: the reviewer's brief is its skill, never your summary.
 4. **Relay** each time the reviewer ends a turn. Read the newest PR comment starting `Review:` (`gh api repos/ptra243/WhatsForDinner/issues/P/comments`):
    - `Review: APPROVE` and the PR is merged: tell the owner in one line (`#N merged as PR #P`), then fill the slot.
@@ -48,6 +48,8 @@ Notes can arrive late or not at all: the app holds them after a long run of note
 
 - an in-flight issue with an open PR and no reviewer session: start the reviewer;
 - a `Review:` comment newer than your last relay: relay it;
+- after `CHANGES REQUESTED`, an author push or PR comment newer than the newest `Review:` comment, and the reviewer not yet asked: send it `Author updated PR #P; re-review.`;
+- an author session that is idle with no PR: pass its question to the owner;
 - a merged PR whose slot is still empty: fill it.
 
 **When a start is refused** (the app does not let you start sessions in a turn another session's message or an automated event started): send the owner a push notification if the tool is available, and end your turn with one line naming each waiting step, for example `PR #50 is ready for review; reply "go" to start the reviewer.` The owner's reply is your next turn; the sweep starts it.
