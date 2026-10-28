@@ -4,16 +4,14 @@ import { RecipesTab } from './components/RecipesTab'
 import { SignIn } from './components/SignIn'
 import { Sheet } from './components/Sheet'
 import { Tabs } from './components/Tabs'
+import { WeekTab } from './components/WeekTab'
 import { useHousehold, useSession } from './lib/auth'
 import { supabase } from './lib/supabase'
 import { TABS, type Tab } from './tabs'
 
 const TITLES: Record<Tab, string> = { week: 'This week', list: 'Shopping list', recipes: 'Recipes' }
 
-const EMPTY: Record<Exclude<Tab, 'recipes'>, { heading: string; body: string }> = {
-  week: { heading: 'No plan yet', body: 'Your week of dinners will show here.' },
-  list: { heading: 'Nothing to buy yet', body: 'The shopping list is made from the week’s plan.' },
-}
+const EMPTY_LIST = { heading: 'Nothing to buy yet', body: 'The shopping list is made from the week’s plan.' }
 
 function tabFromHash(): Tab {
   const h = window.location.hash.slice(1)
@@ -88,10 +86,12 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
         <div className="wrap">
           {tab === 'recipes' ? (
             <RecipesTab householdId={householdId} />
+          ) : tab === 'week' ? (
+            <WeekTab householdId={householdId} />
           ) : (
             <div className="empty-state">
-              <h2>{EMPTY[tab].heading}</h2>
-              <p className="muted">{EMPTY[tab].body}</p>
+              <h2>{EMPTY_LIST.heading}</h2>
+              <p className="muted">{EMPTY_LIST.body}</p>
             </div>
           )}
         </div>
