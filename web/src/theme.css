@@ -1,4 +1,4 @@
-/* Recipe-card theme, ported from the prototype (app/dinner-planner.html).
+/* Recipe-card theme, ported from the prototype (prototype/dinner-planner.html).
    Worn paper: ruled cards with a red margin, blue-ink handwriting (Kalam) for names,
    typewriter (Courier Prime) for details. Light by default, dark from the system or data-theme. */
 :root{

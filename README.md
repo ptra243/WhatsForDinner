@@ -7,9 +7,10 @@ A household dinner planner: plan the week's dinners with Claude, shop from one l
 
 ## Status
 
-M1 is in progress: a React app on GitHub Pages backed by Supabase, with planning in Claude chat. Until it ships, the working prototype is a Claude-hosted page:
+M1 is in real use: a React app on GitHub Pages backed by Supabase (https://ptra243.github.io/WhatsForDinner/), with planning in Claude chat.
 
-- Prototype: https://claude.ai/artifact/DkAY7CjiQxYSsiBbVg4Q1S (private to the owner), source `app/dinner-planner.html`
+The v1 prototype is retired. Its link (https://claude.ai/artifact/DkAY7CjiQxYSsiBbVg4Q1S) now shows a "moved" note pointing to the app, published from `prototype/moved.html`. The old page is kept in `prototype/dinner-planner.html` for reference only; it held example data, so nothing was migrated.
+
 - Design canvas (flows and themes): https://claude.ai/artifact/YTiV4wYFV5LzvxjRKFNXpm
 
 ## Layout
@@ -17,7 +18,7 @@ M1 is in progress: a React app on GitHub Pages backed by Supabase, with planning
 | Path | What it is |
 | --- | --- |
 | `web/` | The app: Vite + React + TypeScript, deployed to GitHub Pages from `master` |
-| `app/dinner-planner.html` | v1 prototype (retired at the end of M1) |
+| `prototype/` | Retired v1 prototype (`dinner-planner.html`) and the "moved" note now published at its link (`moved.html`) |
 | `seed/` | Example recipes, ingredient sections and a sample week, loaded as starting data |
 | `supabase/migrations/` | Database schema (schema of record) |
 | `supabase/seed/` | `seed.sql` loads `seed/` into the template household that new households copy; rebuild it with `node supabase/seed/build.mjs` |

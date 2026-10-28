@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dinner Planner</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@700&family=Courier+Prime:wght@400;700&display=swap">
+<style>
+/* What the prototype's link shows once it is retired (issue #15): one note pointing to the app. */
+:root{
+  --bg:#D9D4C8; --surface:#F1EBDC; --ink:#2E3650; --muted:#545868; --line:#C8CFD3;
+  --accent:#33497F; --accent-ink:#FFFFFF;
+  --display:Kalam, 'Segoe Print', 'Comic Sans MS', cursive; --body:'Courier Prime', 'Courier New', ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#10141C; --surface:#1A2030; --ink:#DDE6F5; --muted:#A1AEC6; --line:#33415E;
+  --accent:#9DB8F2; --accent-ink:#0E1424; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#10141C; --surface:#1A2030; --ink:#DDE6F5; --muted:#A1AEC6; --line:#33415E;
+  --accent:#9DB8F2; --accent-ink:#0E1424; color-scheme:dark }
+*{box-sizing:border-box}
+html,body{background:var(--bg);margin:0}
+body{color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;min-height:100vh;display:grid;place-items:center;padding:24px 16px}
+main{max-width:420px;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px}
+h1{font-family:var(--display);font-size:28px;line-height:1.1;margin:0 0 12px}
+p{margin:0 0 16px;color:var(--muted)}
+a.go{display:block;text-align:center;background:var(--accent);color:var(--accent-ink);text-decoration:none;font-weight:700;padding:12px 16px;border-radius:10px}
+a.go:focus-visible{outline:2.5px solid var(--accent);outline-offset:3px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Dinner Planner has moved</h1>
+  <p>The planner is now its own app. Your recipes, week and shopping list live there, and planning happens in Claude chat with the Dinner Planner skill.</p>
+  <a class="go" href="https://ptra243.github.io/WhatsForDinner/" target="_blank" rel="noopener">Open the new app</a>
+</main>
+</body>
+</html>
