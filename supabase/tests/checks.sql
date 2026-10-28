@@ -25,3 +25,16 @@ begin
                       and c.column_name = 'household_id');
   if bad is not null then raise exception 'Tables without household_id: %', bad; end if;
 end $$;
+
+-- The app's role can read every public table and anon can touch none. The live project
+-- gives no default table privileges, so a table without an explicit grant is unusable there.
+do $$
+declare bad text;
+begin
+  select string_agg(c.relname, ', ' order by c.relname) into bad
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public' and c.relkind = 'r'
+    and (not has_table_privilege('authenticated', c.oid, 'select')
+         or has_table_privilege('anon', c.oid, 'select, insert, update, delete'));
+  if bad is not null then raise exception 'Tables without a select grant to authenticated, or open to anon: %', bad; end if;
+end $$;

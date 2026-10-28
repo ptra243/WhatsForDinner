@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Header } from './components/Header'
+import { RecipesTab } from './components/RecipesTab'
 import { SignIn } from './components/SignIn'
 import { Sheet } from './components/Sheet'
 import { Tabs } from './components/Tabs'
@@ -9,10 +10,9 @@ import { TABS, type Tab } from './tabs'
 
 const TITLES: Record<Tab, string> = { week: 'This week', list: 'Shopping list', recipes: 'Recipes' }
 
-const EMPTY: Record<Tab, { heading: string; body: string }> = {
+const EMPTY: Record<Exclude<Tab, 'recipes'>, { heading: string; body: string }> = {
   week: { heading: 'No plan yet', body: 'Your week of dinners will show here.' },
   list: { heading: 'Nothing to buy yet', body: 'The shopping list is made from the week’s plan.' },
-  recipes: { heading: 'No recipes yet', body: 'Your household’s recipes will show here.' },
 }
 
 function tabFromHash(): Tab {
@@ -36,7 +36,7 @@ export default function App() {
     )
   }
   if (!household.id) return <Notice text="Setting up your household…" />
-  return <Shell email={session.user.email ?? ''} />
+  return <Shell email={session.user.email ?? ''} householdId={household.id} />
 }
 
 /** Full-page message while signing in or setting up. */
@@ -55,7 +55,7 @@ function Notice({ text, children }: { text: string; children?: ReactNode }) {
 }
 
 /** The signed-in app: tabs, header and the settings sheet. */
-function Shell({ email }: { email: string }) {
+function Shell({ email, householdId }: { email: string; householdId: string }) {
   const [tab, setTab] = useState<Tab>(tabFromHash)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
@@ -86,10 +86,14 @@ function Shell({ email }: { email: string }) {
       <Header title={TITLES[tab]} action={tab === 'week' ? settingsButton : undefined} />
       <main>
         <div className="wrap">
-          <div className="empty-state">
-            <h2>{EMPTY[tab].heading}</h2>
-            <p className="muted">{EMPTY[tab].body}</p>
-          </div>
+          {tab === 'recipes' ? (
+            <RecipesTab householdId={householdId} />
+          ) : (
+            <div className="empty-state">
+              <h2>{EMPTY[tab].heading}</h2>
+              <p className="muted">{EMPTY[tab].body}</p>
+            </div>
+          )}
         </div>
       </main>
       <Tabs current={tab} onChange={changeTab} />
