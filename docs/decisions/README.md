@@ -12,3 +12,4 @@ Short records of settled decisions: the context, the decision and what it costs.
 | [0006](0006-frontend-stack.md) | Vite + React + TypeScript + Vitest on GitHub Pages; magic-link login | 2026-10-28 |
 | [0007](0007-repo-workflow.md) | Repo is the source of truth; docs in `docs/`, tickets in GitHub Issues | 2026-10-28 |
 | [0008](0008-review-harness.md) | Separate author and reviewer sessions; CI gates merges | 2026-10-28 |
+| [0009](0009-parallel-waves-and-used-reviews.md) | Ship milestones in waves; reviewers use the app | 2026-10-28 |
