@@ -1,4 +1,4 @@
-// A week's plan: nights, their dishes and the checks the prototype shows (app/dinner-planner.html).
+// A week's plan: nights, their dishes and the checks the prototype shows (prototype/dinner-planner.html).
 import type { Course, Recipe } from './recipes'
 import { supabase } from './supabase'
 import { DAYS, type Day } from './week'

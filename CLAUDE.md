@@ -20,4 +20,4 @@ Read `docs/` before changing anything: `vision.md`, `architecture.md`, `data-mod
 
 ## Prototype
 
-`app/dinner-planner.html` is the v1 Claude-hosted prototype, published to https://claude.ai/artifact/DkAY7CjiQxYSsiBbVg4Q1S. It is retired at the end of M1; do not add features to it.
+The v1 Claude-hosted prototype is retired. Its link, https://claude.ai/artifact/DkAY7CjiQxYSsiBbVg4Q1S, shows `prototype/moved.html`, a note pointing to the app. The old page is kept in `prototype/dinner-planner.html` for reference; do not change it or publish it again.

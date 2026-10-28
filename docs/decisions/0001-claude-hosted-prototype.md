@@ -1,6 +1,6 @@
 # 0001 · Build v1 as a Claude-hosted prototype first
 
-**Date:** 2026-10-27 · **Status:** accepted; superseded for the long term by [0002](0002-supabase-early-hybrid.md)
+**Date:** 2026-10-27 · **Status:** accepted; superseded for the long term by [0002](0002-supabase-early-hybrid.md); retired 2026-10-28 (source kept in `prototype/`)
 
 **Context.** We wanted to try the planner quickly, with an in-app chat that runs on the owner's Claude subscription.
 

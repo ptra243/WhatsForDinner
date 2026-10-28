@@ -1,4 +1,4 @@
-// Quantities and times as the prototype shows them (app/dinner-planner.html).
+// Quantities and times as the prototype shows them (prototype/dinner-planner.html).
 
 /** Minutes as "45 min" or "1 h 30"; empty for none. */
 export function mins(m: number | null | undefined): string {
