@@ -193,3 +193,9 @@ h3.aisle{margin:18px 0 6px}
 .swaprow{padding:0 14px 12px 64px;border-bottom:1.5px solid var(--line)}
 .lab{font-size:13px;font-weight:700}
 select.field{padding-right:8px}
+
+/* Settings sheet */
+fieldset.plain{border:0;margin:0;padding:0;min-width:0}
+fieldset.plain legend{padding:0;margin-bottom:6px}
+.minutes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.minutes .field{width:100%;min-width:0}

@@ -3,7 +3,7 @@ import { Header } from './components/Header'
 import { ListTab } from './components/ListTab'
 import { RecipesTab } from './components/RecipesTab'
 import { SignIn } from './components/SignIn'
-import { Sheet } from './components/Sheet'
+import { SettingsSheet } from './components/SettingsSheet'
 import { Tabs } from './components/Tabs'
 import { WeekTab } from './components/WeekTab'
 import { useHousehold, useSession } from './lib/auth'
@@ -56,6 +56,7 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
   const [tab, setTab] = useState<Tab>(tabFromHash)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [settingsVersion, setSettingsVersion] = useState(0)
 
   useEffect(() => {
     const onHash = () => setTab(tabFromHash())
@@ -93,7 +94,7 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
           {tab === 'recipes' ? (
             <RecipesTab householdId={householdId} />
           ) : tab === 'week' ? (
-            <WeekTab householdId={householdId} />
+            <WeekTab householdId={householdId} settingsVersion={settingsVersion} />
           ) : (
             <ListTab householdId={householdId} adding={adding} onAddClose={() => setAdding(false)} />
           )}
@@ -101,15 +102,12 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
       </main>
       <Tabs current={tab} onChange={changeTab} />
       {settingsOpen && (
-        <Sheet title="Household settings" onClose={() => setSettingsOpen(false)}>
-          <p className="muted small">Signed in as {email}</p>
-          <button className="btn ghost wide" type="button" onClick={() => supabase.auth.signOut()}>
-            Sign out
-          </button>
-          <button className="btn wide" type="button" onClick={() => setSettingsOpen(false)}>
-            Done
-          </button>
-        </Sheet>
+        <SettingsSheet
+          householdId={householdId}
+          email={email}
+          onChanged={() => setSettingsVersion((v) => v + 1)}
+          onClose={() => setSettingsOpen(false)}
+        />
       )}
     </>
   )

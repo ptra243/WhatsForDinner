@@ -24,9 +24,10 @@ const errorText = (e: unknown) => (e as { message?: string }).message ?? String(
 
 /**
  * The Week tab: seven nights on a ruled card, starting on this week. Tapping a night opens
- * its sheet. Changes from anywhere (this app or Claude) reload the week as they happen.
+ * its sheet. Changes from anywhere (this app or Claude) reload the week as they happen;
+ * `settingsVersion` goes up when the settings sheet saves or clears the examples.
  */
-export function WeekTab({ householdId }: { householdId: string }) {
+export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: string; settingsVersion?: number }) {
   const [week, setWeek] = useState(() => weekStartOf(new Date()))
   const [plan, setPlan] = useState<{ week: string; nights: Week }>()
   const [recipes, setRecipes] = useState<Recipe[]>([])
@@ -50,7 +51,7 @@ export function WeekTab({ householdId }: { householdId: string }) {
     return () => {
       live = false
     }
-  }, [householdId, week, version])
+  }, [householdId, week, version, settingsVersion])
 
   // One save from Claude is many row changes; reload once they settle.
   useEffect(() => {
