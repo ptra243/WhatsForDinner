@@ -39,6 +39,10 @@ For a household and week: for each planned dish, scale each recipe ingredient by
 
 On first sign-in the app calls `create_household(name)`. It creates the household, makes the caller its `owner`, and copies the template's settings and recipes (with ingredients and steps, `is_example = true`, `created_by` null) into it. Each household gets its own copy: re-seeding never touches existing households, and a household's edits never reach the template or anyone else. In M1 a user has one household, so a caller who already belongs to one gets its id back and nothing is created. CI checks the copy in `supabase/tests/households.sql`.
 
+## Export and clearing examples
+
+The settings sheet (`web/src/lib/household.ts`) saves `household_settings.settings` keeping any keys it does not show. **Export** downloads one JSON file (`format: 1`) with the household, its members and settings, recipes with their ingredients and steps, plan nights and dishes, list marks and extras, and the shared `ingredients` list; rows are as stored and read a page at a time past the API row limit. **Clear examples** deletes the household's `is_example` recipes; their ingredients, steps and planned dishes go with them by `on delete cascade`.
+
 ## Later (additive)
 
 votes, suggestions, pantry (with location and best-before), ingredient shelf life and pack size columns, ingredient_substitutes, recipe_pairings, recipe_methods (equipment variants), per-night time overrides and locks.
