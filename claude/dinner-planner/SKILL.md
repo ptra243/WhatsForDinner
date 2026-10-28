@@ -15,7 +15,7 @@ The human-readable copy of these rules is `docs/claude-instructions.md` in the r
 - Find the household once per chat (query below). If it returns more than one row, ask which email is the owner's.
 - Never plan in or edit the template household (`private.template_household_id()`, named "Example recipes (template)", no members). It holds the examples copied into new households and follows the repo's `seed/`.
 - Use only the tables below. Never change the schema (no `create`, `alter`, `drop`); schema changes are migrations in the repo.
-- Don't touch `list_marks`, `list_extras` or `meal_plan_nights` (ticks, hand-added items, cooked flags): they are the shoppers' and cook's. The shopping list is worked out from the plan, so saving the plan updates it.
+- Don't change `list_marks`, `list_extras` or `meal_plan_nights` (ticks, hand-added items, cooked flags): they are the shoppers' and cook's. Reading cooked flags is fine. The shopping list is worked out from the plan, so saving the plan updates it.
 
 ```sql
 -- The owner's household and settings
@@ -59,13 +59,14 @@ The database rejects anything else.
 
 ## Planning
 
-1. Read the settings, the recipes (with when each was last planned) and the week if anything is already planned.
-2. Favour well-rated recipes; don't repeat anything planned in the last two weeks; spread proteins across the week.
-3. Keep each night's hands-on minutes (`active_mins` of its dishes) within that weekday's `minutes`. Put long cooks on weekends, or use the household's equipment (pressure cooker) on weeknights.
-4. Follow `mealRule`: with `veg+carb` every night covers a vegetable and a carb (from the main's `provides` or added sides); with `veg` just a vegetable; `off` no rule.
-5. Respect `notes`. Plan leftovers across the week where it helps (cook a big ragù Sunday, eat it again Tuesday).
-6. Servings are usually the recipe's `serves`; scale to the household.
-7. Propose the plan as a short day-by-day list and wait for approval before writing, unless asked to just do it. Then write each night and say it's saved.
+1. Read the settings, the recipes (with when each was last cooked) and the week if anything is already planned.
+2. Check the week before for dinners that were planned but not marked cooked (plans change: a night out, a late finish). List them and ask whether to put any on the new week; don't assume, since the cook may have cooked and not ticked it. Leave the old week as it is.
+3. Favour well-rated recipes; don't repeat anything cooked in the last two weeks; spread proteins across the week. A dinner planned but not cooked doesn't count as a repeat.
+4. Keep each night's hands-on minutes (`active_mins` of its dishes) within that weekday's `minutes`. Put long cooks on weekends, or use the household's equipment (pressure cooker) on weeknights.
+5. Follow `mealRule`: with `veg+carb` every night covers a vegetable and a carb (from the main's `provides` or added sides); with `veg` just a vegetable; `off` no rule.
+6. Respect `notes`. Plan leftovers across the week where it helps (cook a big ragù Sunday, eat it again Tuesday).
+7. Servings are usually the recipe's `serves`; scale to the household.
+8. Propose the plan as a short day-by-day list and wait for approval before writing, unless asked to just do it. Then write each night and say it's saved.
 
 ## Recipes
 
@@ -86,15 +87,32 @@ Short, plain, phone-sized replies. Simple lists, no tables. No SQL in replies un
 
 Replace `<household_id>`, `<owner_id>` and `<week_start>` (a Monday, `yyyy-mm-dd`) with real values. Each block is one call to `execute_sql`.
 
-List recipes, with the last week each was planned:
+List recipes, with the last week each was cooked (a night marked cooked in the app) and planned:
 
 ```sql
 select r.slug, r.name, r.course, r.provides, r.serves, r.active_mins, r.total_mins,
        r.spice, r.rating, r.tags,
+       (select max(d.week_start) from meal_plan_dishes d
+        join meal_plan_nights n on n.household_id = d.household_id
+         and n.week_start = d.week_start and n.day = d.day and n.cooked
+        where d.recipe_id = r.id) as last_cooked,
        (select max(d.week_start) from meal_plan_dishes d where d.recipe_id = r.id) as last_planned
 from recipes r
 where r.household_id = '<household_id>'
 order by r.course, r.rating desc nulls last, r.name;
+```
+
+Dinners planned the week before `<week_start>` but not marked cooked:
+
+```sql
+select d.day, d.role, r.slug, r.name, d.servings
+from meal_plan_dishes d
+join recipes r on r.id = d.recipe_id
+left join meal_plan_nights n on n.household_id = d.household_id
+ and n.week_start = d.week_start and n.day = d.day
+where d.household_id = '<household_id>' and d.week_start = '<week_start>'::date - 7
+  and not coalesce(n.cooked, false)
+order by array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day), d.position;
 ```
 
 One recipe in full (to check details or answer questions):
