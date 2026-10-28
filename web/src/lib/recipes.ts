@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Day } from './week'
+import { dayOf, weekStartOf, type Day } from './week'
 
 export type Course = 'main' | 'side'
 
@@ -151,4 +151,22 @@ export async function addToNight(householdId: string, recipe: Recipe, weekStart:
     .from('meal_plan_dishes')
     .insert({ ...night, position, recipe_id: recipe.id, role: recipe.course, servings: recipe.serves })
   if (insertError) throw insertError
+}
+
+/**
+ * After cooking: if the recipe is planned on today's night, ticks that night as cooked.
+ * Returns whether it did.
+ */
+export async function markCooked(householdId: string, recipeId: string, today = new Date()): Promise<boolean> {
+  const night = { household_id: householdId, week_start: weekStartOf(today), day: dayOf(today) }
+  const { data, error } = await supabase
+    .from('meal_plan_dishes')
+    .select('id')
+    .match({ ...night, recipe_id: recipeId })
+    .limit(1)
+  if (error) throw error
+  if (!data.length) return false
+  const { error: upsertError } = await supabase.from('meal_plan_nights').upsert({ ...night, cooked: true })
+  if (upsertError) throw upsertError
+  return true
 }

@@ -23,6 +23,9 @@ export function weekStartOf(d: Date): string {
   return ymd(x)
 }
 
+/** The weekday of `d`. */
+export const dayOf = (d: Date): Day => DAYS[(d.getDay() + 6) % 7]
+
 export function addDays(s: string, n: number): string {
   const x = parseYmd(s)
   x.setDate(x.getDate() + n)
