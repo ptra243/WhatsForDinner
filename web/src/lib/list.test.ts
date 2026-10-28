@@ -173,7 +173,7 @@ describe('swapPrompt', () => {
     const onion = find(deriveList(dishes, sections), 'onion|each')!
     expect(swapPrompt(onion, dishes, '2026-10-26')).toBe(
       "I'm at the shops and couldn't get onion (1.5 each) for Bolognese on Mon, Green salad on Thu, week starting 2026-10-26. " +
-        "What can I swap it for? If it's a good swap, update the plan and list.",
+        "What can I swap it for? If it's a good swap, update my What's for Dinner plan.",
     )
   })
 

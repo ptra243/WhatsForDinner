@@ -216,3 +216,29 @@ describe('Night sheet', () => {
     expect(await within(sheet).findByRole('alert')).toHaveTextContent('permission denied')
   })
 })
+
+describe('Ask Claude', () => {
+  const asked = (open: { mock: { calls: unknown[][] } }) => new URL(String(open.mock.calls.at(-1)?.[0])).searchParams.get('q')
+
+  it('asks about this week, or to plan an empty one', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue({} as Window)
+    render(<WeekTab householdId="h1" />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Ask Claude about this week' }))
+    expect(asked(open)).toBe("About my What's for Dinner plan for the week of 26 Oct to 1 Nov (starting 2026-10-26): ")
+    expect(screen.queryByRole('button', { name: 'Plan this week with Claude' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Next week' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Plan this week with Claude' }))
+    expect(asked(open)).toContain("Plan dinners in What's for Dinner for the week of 2 Nov to 8 Nov (starting 2026-11-02)")
+    expect(screen.queryByRole('button', { name: 'Ask Claude about this week' })).not.toBeInTheDocument()
+    open.mockRestore()
+  })
+
+  it('asks about a night', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue({} as Window)
+    render(<WeekTab householdId="h1" />)
+    const sheet = await openNight(/^Thu 29/)
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Ask Claude about Thursday' }))
+    expect(asked(open)).toBe("About Thursday 29 Oct in my What's for Dinner plan (week starting 2026-10-26): ")
+    open.mockRestore()
+  })
+})

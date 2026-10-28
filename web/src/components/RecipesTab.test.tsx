@@ -203,3 +203,25 @@ describe('Recipe view', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
+
+describe('Ask Claude', () => {
+  const asked = (open: { mock: { calls: unknown[][] } }) => new URL(String(open.mock.calls.at(-1)?.[0])).searchParams.get('q')
+
+  it('asks about a recipe', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue({} as Window)
+    render(<RecipesTab householdId="h1" />)
+    fireEvent.click(await screen.findByRole('button', { name: /Red lentil dal/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Claude about this recipe' }))
+    expect(asked(open)).toBe(`About my What's for Dinner recipe "Red lentil dal" (id ${RECIPES[0].id}): `)
+    open.mockRestore()
+  })
+
+  it('adds a recipe from the empty list', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue({} as Window)
+    api.loadRecipes.mockResolvedValueOnce([])
+    render(<RecipesTab householdId="h1" />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Add a recipe with Claude' }))
+    expect(asked(open)).toBe("Add this recipe to my What's for Dinner recipes:\n")
+    open.mockRestore()
+  })
+})

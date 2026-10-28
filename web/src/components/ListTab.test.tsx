@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RecipeIngredient } from '../lib/recipes'
 import type { ListData } from '../lib/shop'
+import { Toast } from './AskClaude'
 import { ListTab } from './ListTab'
 
 const api = vi.hoisted(() => ({
@@ -53,7 +54,12 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers())
 
 const renderTab = (adding = false, onAddClose = () => {}) =>
-  render(<ListTab householdId="h1" adding={adding} onAddClose={onAddClose} />)
+  render(
+    <>
+      <ListTab householdId="h1" adding={adding} onAddClose={onAddClose} />
+      <Toast />
+    </>,
+  )
 const section = (name: string) => screen.getByRole('region', { name })
 const tick = (name: string) => screen.getByRole('checkbox', { name: new RegExp(`^${name}`) })
 const openItem = async (name: string) => {
@@ -157,7 +163,7 @@ describe('Amount sheet', () => {
     api.loadList.mockResolvedValue(data({ marks: { 'onion|each': { ticked: false, boughtQty: null, boughtUnit: null, missing: true, haveIt: false } } }))
     renderTab()
     fireEvent.click(await screen.findByRole('button', { name: 'Ask Claude for a swap' }))
-    expect(await screen.findByText('Copied the question. Paste it into Claude.')).toBeInTheDocument()
+    expect(await screen.findByText('Copied the question. Open Claude and paste it.')).toBeInTheDocument()
   })
 
   it('moves an item to already have and back', async () => {
