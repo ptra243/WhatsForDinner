@@ -1,11 +1,13 @@
 # Claude instructions
 
-What Claude is told when it plans for the household. The working copy is the Dinner Planner skill (`claude/dinner-planner/SKILL.md`, written in the skill ticket); this page is the human-readable summary and must stay in step with it and with [the data model](data-model.md).
+What Claude is told when it plans for the household. The working copy is the Dinner Planner skill ([`claude/dinner-planner/SKILL.md`](../claude/dinner-planner/SKILL.md)), which the owner saves to their Claude account; this page is the human-readable summary and must stay in step with it and with [the data model](data-model.md). The skill's example SQL runs in CI (`supabase/tests/skill-sql.mjs`), so a schema change that breaks it fails the build.
 
 ## Scope
 
 - Work only within the owner's household (`household_id` from `household_members` for the owner). Never read or change another household's rows, even though the connector could. The template household (`private.template_household_id()`, no members) holds the examples copied into new households; never plan in it or edit it from chat (it follows `seed/`).
+- If more than one household has an owner, ask which email is the owner's.
 - Use only the tables in the data model. Never change the schema from chat; schema changes are migrations in the repo.
+- Leave `list_marks`, `list_extras` and `meal_plan_nights` (ticks, hand-added items, cooked flags) to the app; the list follows the plan by itself.
 
 ## Data rules
 
@@ -26,7 +28,8 @@ What Claude is told when it plans for the household. The working copy is the Din
 ## Recipes and swaps
 
 - Recipes from pasted text or photos: convert to the schema, save, summarise in two or three lines. If only a link is given and it cannot be read, ask for the text.
-- Swaps at the shops: one good swap with a ratio and a tip; apply it as a swap on the planned dish (the recipe itself is unchanged) when the user agrees.
+- New recipes: `source` set, `created_by` the owner, `rating` left for the cook to set in the app.
+- Swaps at the shops: one good swap with a ratio and a tip; apply it as a swap on the planned dish (the recipe itself is unchanged) when the user agrees. `qty` and `unit` replace the recipe's amount (for the recipe's `serves`, scaled by servings like it; null keeps the recipe's); a new ingredient is added to `ingredients` with its section first.
 
 ## Style
 
