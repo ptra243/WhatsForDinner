@@ -16,7 +16,7 @@ flowchart LR
 | Everyday app | Static React app on GitHub Pages at `ptra243.github.io/WhatsForDinner`, deployed by a GitHub Action on push to `master` | Installable (PWA); last-loaded list viewable offline |
 | Database | Supabase Postgres (free tier, Singapore region; project ref `fckheksaemriadvrveoj`) with Auth (email magic link) | Schema as migrations in `supabase/migrations/` |
 | Planning | Claude chat (any device) with the Dinner Planner skill and the Supabase connector | Skill source in `claude/dinner-planner/SKILL.md` |
-| Hand-off | "Ask Claude" buttons (plan this week, about this week, a night, a recipe, a swap, add a recipe) open a claude.ai link with the prompt prefilled, and copy the prompt too in case the Claude app drops the prefill | If the tab is blocked, the copy is the fallback and a toast says to paste it |
+| Hand-off | "Ask Claude" buttons (plan this week, about this week, a night, a recipe, a swap, add a recipe) open a new chat in the owner's "Dinner Skill" claude.ai Project (`claude.ai/new?project=<id>&q=<prompt>`, ID in `web/src/config.ts`) with the prompt prefilled, and copy the prompt too in case the Claude app drops the prefill | If the tab is blocked, the copy is the fallback and a toast says to paste it |
 
 ## Data flow
 

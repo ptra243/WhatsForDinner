@@ -8,3 +8,6 @@ export const SUPABASE_PUBLISHABLE_KEY =
 
 /** Where a magic link returns to: the app's own URL (the Pages URL in production, the dev server locally). */
 export const appUrl = () => new URL(import.meta.env.BASE_URL, window.location.origin).href
+
+/** The owner's "Dinner Skill" claude.ai Project, where Ask Claude chats open (docs/architecture.md, Hand-off). */
+export const CLAUDE_PROJECT_ID = '01a180b0-2b71-77dc-89d5-c82d85418fc4'

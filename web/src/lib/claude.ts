@@ -1,8 +1,10 @@
 // Hand-off to Claude: open claude.ai with the question written (docs/architecture.md, Hand-off).
+import { CLAUDE_PROJECT_ID } from '../config'
 import { DAY_FULL, dateOf, dayLabel, rangeLabel, type Day } from './week'
 
-/** A claude.ai link that starts a new chat with `prompt` filled in. */
-export const claudeUrl = (prompt: string) => `https://claude.ai/new?q=${encodeURIComponent(prompt)}`
+/** A claude.ai link that starts a new chat in the Dinner Skill project with `prompt` filled in. */
+export const claudeUrl = (prompt: string) =>
+  `https://claude.ai/new?project=${CLAUDE_PROJECT_ID}&q=${encodeURIComponent(prompt)}`
 
 /**
  * Opens Claude with the prompt filled in, and copies the prompt too in case the Claude app
