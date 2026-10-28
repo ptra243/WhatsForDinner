@@ -9,6 +9,7 @@ import { Tabs } from './components/Tabs'
 import { WeekTab } from './components/WeekTab'
 import { useHousehold, useSession } from './lib/auth'
 import { addRecipePrompt } from './lib/claude'
+import { useOnline } from './lib/online'
 import { supabase } from './lib/supabase'
 import { TABS, type Tab } from './tabs'
 
@@ -59,6 +60,7 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [settingsVersion, setSettingsVersion] = useState(0)
+  const online = useOnline()
 
   useEffect(() => {
     const onHash = () => setTab(tabFromHash())
@@ -83,7 +85,7 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
   )
 
   const addButton = (
-    <button className="btn ghost" type="button" onClick={() => setAdding(true)}>
+    <button className="btn ghost" type="button" disabled={!online} onClick={() => setAdding(true)}>
       Add item
     </button>
   )
@@ -95,6 +97,11 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
       <Header title={TITLES[tab]} action={tab === 'week' ? settingsButton : tab === 'list' ? addButton : addRecipeButton} />
       <main>
         <div className="wrap">
+          {!online && (
+            <p className="banner" role="status">
+              <b>Offline, ticks need signal.</b> Showing what was last loaded.
+            </p>
+          )}
           {tab === 'recipes' ? (
             <RecipesTab householdId={householdId} />
           ) : tab === 'week' ? (

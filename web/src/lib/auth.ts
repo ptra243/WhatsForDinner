@@ -1,14 +1,42 @@
 import type { Session } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
+import { SUPABASE_URL } from '../config'
 import { supabase } from './supabase'
 
-/** The signed-in session: undefined while loading, null when signed out. Persists across reloads. */
+/** Where supabase-js keeps the session (its default key for this project). */
+const STORAGE_KEY = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`
+
+/**
+ * The session supabase-js still holds in storage. With no signal an expired token cannot be
+ * refreshed, so supabase-js reports no session but keeps it; a real sign-out removes it.
+ */
+export function storedSession(): Session | null {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')
+    return s?.access_token && s?.user ? (s as Session) : null
+  } catch {
+    return null
+  }
+}
+
+/** Removes the last-loaded data the service worker keeps for offline use. */
+const clearOfflineData = () => {
+  if ('caches' in window) caches.delete('wfd-data').catch(() => {})
+}
+
+/**
+ * The signed-in session: undefined while loading, null when signed out. Persists across reloads,
+ * and stays signed in with no signal so the last-loaded data can show.
+ */
 export function useSession(): Session | null | undefined {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
+    supabase.auth.getSession().then(({ data }) => setSession(data.session ?? storedSession()))
+    const { data } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === 'SIGNED_OUT') clearOfflineData()
+      setSession(s ?? (event === 'SIGNED_OUT' ? null : storedSession()))
+    })
     return () => data.subscription.unsubscribe()
   }, [])
 

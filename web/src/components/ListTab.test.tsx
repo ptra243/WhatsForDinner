@@ -214,3 +214,34 @@ describe('Add item', () => {
     expect(within(screen.getByRole('dialog', { name: 'Add an item' })).getByRole('button', { name: 'Add to list' })).toBeDisabled()
   })
 })
+
+describe('Offline', () => {
+  const setOnline = (online: boolean) =>
+    act(() => {
+      Object.defineProperty(navigator, 'onLine', { value: online, configurable: true })
+      window.dispatchEvent(new Event(online ? 'online' : 'offline'))
+    })
+  afterEach(() => setOnline(true))
+
+  it('shows the last-loaded list but no ticking or other changes', async () => {
+    renderTab()
+    await screen.findByText('lettuce')
+    setOnline(false)
+    expect(tick('lettuce')).toBeDisabled()
+    const sheet = await openItem('milk')
+    for (const name of ['Save and tick', 'Couldn’t get it', 'Already have it', 'Remove from list']) {
+      expect(within(sheet).getByRole('button', { name })).toBeDisabled()
+    }
+    expect(within(sheet).getByLabelText('Section')).toBeDisabled()
+  })
+
+  it('reloads and allows ticking again when the signal is back', async () => {
+    renderTab()
+    await screen.findByText('lettuce')
+    setOnline(false)
+    expect(api.loadList).toHaveBeenCalledTimes(2)
+    setOnline(true)
+    await waitFor(() => expect(api.loadList).toHaveBeenCalledTimes(3))
+    expect(tick('lettuce')).toBeEnabled()
+  })
+})
