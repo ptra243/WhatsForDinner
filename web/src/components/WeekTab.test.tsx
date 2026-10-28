@@ -13,6 +13,8 @@ const api = vi.hoisted(() => ({
   subscribePlan: vi.fn(),
   loadRecipes: vi.fn(),
   addToNight: vi.fn(async () => {}),
+  updateRecipe: vi.fn(async () => {}),
+  markCooked: vi.fn(async () => true),
 }))
 vi.mock('../lib/plan', async (actual) => ({ ...(await actual<typeof import('../lib/plan')>()), ...api }))
 vi.mock('../lib/recipes', async (actual) => ({ ...(await actual<typeof import('../lib/recipes')>()), ...api }))
@@ -70,7 +72,7 @@ beforeEach(() => {
 })
 afterEach(() => vi.useRealTimers())
 
-const night = (day: RegExp) => screen.getByRole('button', { name: day })
+const night = (day: RegExp) => screen.getByRole('group', { name: day })
 const openNight = async (day: RegExp) => {
   fireEvent.click(await screen.findByRole('button', { name: day }))
   return screen.getByRole('dialog')
@@ -91,7 +93,7 @@ describe('Week card', () => {
 
   it('marks tonight with a start-by time from dinner time', async () => {
     render(<WeekTab householdId="h1" />)
-    const wed = await screen.findByRole('button', { name: /^Wed 28/ })
+    const wed = await screen.findByRole('group', { name: /^Wed 28/ })
     expect(wed).toHaveTextContent('Tonight')
     expect(wed).toHaveTextContent('Start by 5:30 pm')
     expect(night(/^Thu 29/)).not.toHaveTextContent('Start by')
@@ -99,14 +101,14 @@ describe('Week card', () => {
 
   it('marks cooked nights', async () => {
     render(<WeekTab householdId="h1" />)
-    const mon = await screen.findByRole('button', { name: /^Mon 26/ })
+    const mon = await screen.findByRole('group', { name: /^Mon 26/ })
     expect(mon).toHaveClass('cooked')
     expect(mon).toHaveTextContent('cooked')
   })
 
   it('flags gaps and hands-on minutes over budget', async () => {
     render(<WeekTab householdId="h1" />)
-    expect(await screen.findByRole('button', { name: /^Wed 28/ })).toHaveTextContent('No carb yet')
+    expect(await screen.findByRole('group', { name: /^Wed 28/ })).toHaveTextContent('No carb yet')
     expect(night(/^Thu 29/)).not.toHaveTextContent('No ')
     expect(night(/^Thu 29/)).toHaveTextContent('55 min hands-on')
     expect(night(/^Wed 28/)).not.toHaveTextContent('hands-on')
@@ -132,6 +134,86 @@ describe('Week card', () => {
     api.loadWeek.mockResolvedValue(changed)
     act(() => realtime())
     await waitFor(() => expect(night(/^Fri 30/)).toHaveTextContent('Chicken curry'))
+  })
+})
+
+describe('From the card to the recipe', () => {
+  it('opens a night’s main or side at the night’s servings', async () => {
+    api.loadWeek.mockImplementation(async () => {
+      const w = plan()
+      w.thu.dishes[1].servings = 6
+      return w
+    })
+    api.loadRecipes.mockResolvedValue([
+      RECIPES[0],
+      { ...RECIPES[1], ingredients: [{ name: 'beef', qty: 1, unit: 'kg', note: '' }] },
+      { ...RECIPES[2], serves: 2, ingredients: [{ name: 'rice', qty: 200, unit: 'g', note: '' }] },
+      ...RECIPES.slice(3),
+    ])
+    render(<WeekTab householdId="h1" />)
+    await screen.findByRole('group', { name: /^Thu 29/ })
+    fireEvent.click(within(night(/^Thu 29/)).getByRole('button', { name: 'Steamed rice' }))
+    const view = screen.getByRole('dialog', { name: 'Steamed rice' })
+    expect(view).toHaveTextContent('6 serves')
+    expect(view).toHaveTextContent('600 g')
+    fireEvent.click(within(view).getByRole('button', { name: '‹ Back' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    fireEvent.click(within(night(/^Thu 29/)).getByRole('button', { name: 'Beef stew' }))
+    expect(screen.getByRole('dialog', { name: 'Beef stew' })).toHaveTextContent('4 serves')
+  })
+
+  it('cooks tonight’s main from the card and ticks the night off', async () => {
+    api.loadWeek.mockImplementation(async () => {
+      const w = plan()
+      w.wed.dishes[0].servings = 2
+      return w
+    })
+    api.loadRecipes.mockResolvedValue([
+      {
+        ...RECIPES[0],
+        ingredients: [{ name: 'chicken thigh', qty: 1, unit: 'kg', note: '' }],
+        steps: [{ text: 'Brown the chicken thigh.', timerMins: null }],
+      },
+      ...RECIPES.slice(1),
+    ])
+    render(<WeekTab householdId="h1" />)
+    const wed = await screen.findByRole('group', { name: /^Wed 28/ })
+    expect(within(night(/^Thu 29/)).queryByRole('button', { name: /^Cook/ })).not.toBeInTheDocument()
+    fireEvent.click(within(wed).getByRole('button', { name: 'Cook Chicken curry' }))
+    const cook = screen.getByRole('dialog', { name: 'Cooking Chicken curry' })
+    expect(within(cook).getByRole('region', { name: 'This step uses' })).toHaveTextContent('500 g')
+    expect(screen.queryByRole('dialog', { name: /Wednesday/ })).not.toBeInTheDocument()
+
+    fireEvent.click(within(cook).getByRole('button', { name: /Finish/ }))
+    const finished = screen.getByRole('dialog', { name: 'Finished cooking' })
+    fireEvent.click(within(finished).getByRole('button', { name: /Mark as cooked/ }))
+    expect(await screen.findByRole('status')).toHaveTextContent('Tonight is ticked off.')
+    expect(api.markCooked).toHaveBeenCalledWith('h1', 'curry')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('has no Cook button once tonight is cooked', async () => {
+    api.loadWeek.mockImplementation(async () => {
+      const w = plan()
+      w.wed.cooked = true
+      return w
+    })
+    render(<WeekTab householdId="h1" />)
+    const wed = await screen.findByRole('group', { name: /^Wed 28/ })
+    expect(within(wed).queryByRole('button', { name: /^Cook/ })).not.toBeInTheDocument()
+  })
+
+  it('still edits the night from the day or the rest of the row', async () => {
+    render(<WeekTab householdId="h1" />)
+    const sheet = await openNight(/^Thu 29/)
+    expect(sheet).toHaveAccessibleName('Thursday 29 Oct')
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Done' }))
+    fireEvent.click(within(night(/^Thu 29/)).getByText('2 h 30'))
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Thursday 29 Oct')
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    fireEvent.click(within(night(/^Fri 30/)).getByRole('button', { name: 'Nothing planned' }))
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Friday 30 Oct')
   })
 })
 

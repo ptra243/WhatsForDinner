@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState, type MouseEvent } from 'react'
 import { nightPrompt, planWeekPrompt, weekPrompt } from '../lib/claude'
 import { mins } from '../lib/format'
 import {
@@ -19,15 +19,21 @@ import {
 import { addToNight, loadRecipes, matches, type Course, type Recipe } from '../lib/recipes'
 import { DAY_FULL, DAY_NAMES, DAYS, dateOf, dayLabel, parseYmd, weekStartOf, ymd, type Day } from '../lib/week'
 import { AskClaudeButton } from './AskClaude'
+import { CookMode } from './CookMode'
+import { RecipeView } from './RecipeView'
 import { Sheet } from './Sheet'
 import { WeekNav } from './WeekNav'
 
 const errorText = (e: unknown) => (e as { message?: string }).message ?? String(e)
 
+/** A dish to open from the card: its recipe at the night's servings. */
+type Opened = { recipeId: string; servings: number }
+
 /**
- * The Week tab: seven nights on a ruled card, starting on this week. Tapping a night opens
- * its sheet. Changes from anywhere (this app or Claude) reload the week as they happen;
- * `settingsVersion` goes up when the settings sheet saves or clears the examples.
+ * The Week tab: seven nights on a ruled card, starting on this week. Tapping a dish opens its
+ * recipe at the night's servings, Cook on tonight opens cook mode for tonight's main, and tapping
+ * the rest of a night opens its sheet. Changes from anywhere (this app or Claude) reload the week
+ * as they happen; `settingsVersion` goes up when the settings sheet saves or clears the examples.
  */
 export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: string; settingsVersion?: number }) {
   const [week, setWeek] = useState(() => weekStartOf(new Date()))
@@ -37,6 +43,9 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
   const [error, setError] = useState<string>()
   const [version, setVersion] = useState(0)
   const [openDay, setOpenDay] = useState<Day>()
+  const [viewing, setViewing] = useState<Opened>()
+  const [cooking, setCooking] = useState<Opened>()
+  const [status, setStatus] = useState<string>()
 
   useEffect(() => {
     let live = true
@@ -72,6 +81,9 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
   const nights = plan?.week === week ? plan.nights : undefined
   const byId = new Map(recipes.map((r) => [r.id, r]))
   const today = ymd(new Date())
+  const viewed = viewing && byId.get(viewing.recipeId)
+  const cooked = cooking && byId.get(cooking.recipeId)
+  const changeRecipe = (next: Recipe) => setRecipes((rs) => rs.map((r) => (r.id === next.id ? next : r)))
 
   /** Shows a change on a night straight away, before the database confirms it. */
   const patchNight = (day: Day, change: (n: Night) => Night) =>
@@ -83,6 +95,11 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
       {error && (
         <p className="small warn" role="alert">
           Could not load the week: {error}
+        </p>
+      )}
+      {status && (
+        <p className="small muted" role="status">
+          {status}
         </p>
       )}
       {!nights ? (
@@ -115,6 +132,11 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
                   recipes={byId}
                   settings={settings}
                   onOpen={() => setOpenDay(d)}
+                  onView={(recipeId, servings) => setViewing({ recipeId, servings })}
+                  onCook={(recipeId, servings) => {
+                    setStatus(undefined)
+                    setCooking({ recipeId, servings })
+                  }}
                 />
               )
             })}
@@ -140,6 +162,37 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
           onClose={() => setOpenDay(undefined)}
         />
       )}
+      {viewing && viewed && (
+        <RecipeView
+          key={viewed.id}
+          householdId={householdId}
+          recipe={viewed}
+          servings={viewing.servings}
+          onChange={changeRecipe}
+          onDeleted={() => {
+            setViewing(undefined)
+            reload()
+          }}
+          onClose={() => {
+            setViewing(undefined)
+            reload()
+          }}
+        />
+      )}
+      {cooking && cooked && (
+        <CookMode
+          householdId={householdId}
+          recipe={cooked}
+          servings={cooking.servings}
+          onChange={changeRecipe}
+          onExit={() => setCooking(undefined)}
+          onDone={(message) => {
+            setCooking(undefined)
+            setStatus(message)
+            reload()
+          }}
+        />
+      )}
     </>
   )
 }
@@ -152,6 +205,8 @@ function NightRow({
   recipes,
   settings,
   onOpen,
+  onView,
+  onCook,
 }: {
   day: Day
   date: string
@@ -160,19 +215,56 @@ function NightRow({
   recipes: Map<string, Recipe>
   settings: Settings
   onOpen: () => void
+  onView: (recipeId: string, servings: number) => void
+  onCook: (recipeId: string, servings: number) => void
 }) {
   const i = nightInfo(night, day, recipes, settings)
-  const name = (d: (typeof i.dishes)[number]) => d.recipe?.name ?? 'Missing recipe'
+  const label = `${DAY_NAMES[day]} ${parseYmd(date).getDate()}`
+  /** A dish's name, a button to its recipe when the recipe is still there. */
+  const dish = (d: (typeof i.dishes)[number], className?: string) =>
+    d.recipe ? (
+      <button key={d.id} type="button" className={className} onClick={() => onView(d.recipeId, d.servings)}>
+        {d.recipe.name}
+      </button>
+    ) : (
+      <span key={d.id} className={className}>
+        Missing recipe
+      </span>
+    )
+  // Taps between the dish names (the margin, the times) edit the night like the day button does.
+  const openFromRow = (e: MouseEvent) => {
+    if (!(e.target as Element).closest('button')) onOpen()
+  }
   return (
-    <button type="button" className={`night${tonight ? ' now' : ''}${night.cooked ? ' cooked' : ''}`} onClick={onOpen}>
-      <span className="dn">
+    <div
+      role="group"
+      aria-label={label}
+      className={`night${tonight ? ' now' : ''}${night.cooked ? ' cooked' : ''}`}
+      onClick={openFromRow}
+    >
+      <button type="button" className="dn" aria-label={`${label}, edit night`} onClick={onOpen}>
         <b>{DAY_NAMES[day]}</b>{' '}
         <span>{parseYmd(date).getDate()}</span>
-      </span>
+      </button>
       <span className="nm">
         {tonight && <span className="tonight">Tonight</span>}
-        {i.main ? <span className="dt">{name(i.main)}</span> : <span className="empty">Nothing planned</span>}
-        {i.sides.length > 0 && <span className="ds">{i.sides.map(name).join(' · ')}</span>}
+        {i.main ? (
+          dish(i.main, 'dt')
+        ) : (
+          <button type="button" className="empty" onClick={onOpen}>
+            Nothing planned
+          </button>
+        )}
+        {i.sides.length > 0 && (
+          <span className="ds">
+            {i.sides.map((d, ix) => (
+              <Fragment key={d.id}>
+                {ix > 0 && ' · '}
+                {dish(d)}
+              </Fragment>
+            ))}
+          </span>
+        )}
         {tonight && i.total > 0 && !night.cooked && (
           <span className="startby">Start by {startBy(i.total, settings.dinnerTime)}</span>
         )}
@@ -186,8 +278,18 @@ function NightRow({
         )}
         {i.total > 0 && !night.cooked && <span>{mins(i.total)}</span>}
         {i.over && !night.cooked && <span className="over">{i.active} min hands-on</span>}
+        {tonight && i.main?.recipe && !night.cooked && (
+          <button
+            type="button"
+            className="cook"
+            aria-label={`Cook ${i.main.recipe.name}`}
+            onClick={() => i.main && onCook(i.main.recipeId, i.main.servings)}
+          >
+            Cook
+          </button>
+        )}
       </span>
-    </button>
+    </div>
   )
 }
 

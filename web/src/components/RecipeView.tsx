@@ -9,14 +9,16 @@ import { CookMode } from './CookMode'
 type Props = {
   householdId: string
   recipe: Recipe
+  /** Servings the ingredients start at; the recipe's own when left out. */
+  servings?: number
   onChange: (recipe: Recipe) => void
   onDeleted: () => void
   onClose: () => void
 }
 
 /** Full-screen recipe: meta, ingredients scaled to the chosen servings, method, rating and notes. */
-export function RecipeView({ householdId, recipe: r, onChange, onDeleted, onClose }: Props) {
-  const [servings, setServings] = useState(r.serves)
+export function RecipeView({ householdId, recipe: r, servings: startServings, onChange, onDeleted, onClose }: Props) {
+  const [servings, setServings] = useState(startServings ?? r.serves)
   const [notes, setNotes] = useState(r.notes)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [adding, setAdding] = useState(false)
