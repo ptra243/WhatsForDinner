@@ -24,6 +24,16 @@ export function emptyWeek(): Week {
   return week
 }
 
+/** A night with a dish added the way `addToNight` stores it: a main first with the others made sides, a side last. */
+export function withDish(night: Night, dish: Omit<Dish, 'position'>): Night {
+  if (dish.role === 'main') {
+    const moved = night.dishes.map((d) => ({ ...d, position: d.position + 1, role: 'side' as const }))
+    return { ...night, dishes: [{ ...dish, position: 0 }, ...moved] }
+  }
+  const position = night.dishes.length ? Math.max(...night.dishes.map((d) => d.position)) + 1 : 0
+  return { ...night, dishes: [...night.dishes, { ...dish, position }] }
+}
+
 /** A planned dish with its recipe (undefined when the recipe is gone). */
 export type PlannedDish = Dish & { recipe?: Recipe }
 

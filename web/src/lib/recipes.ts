@@ -125,7 +125,8 @@ export async function loadWeekMains(householdId: string, weekStart: string): Pro
 
 /**
  * Plans the recipe on a night, at its usual serves unless `servings` is given. A main goes
- * first and the night's other mains become sides; a side goes last.
+ * first and the night's other mains become sides; a side goes last. `id` names the new dish,
+ * so a dish shown before the write keeps its id once the row exists.
  */
 export async function addToNight(
   householdId: string,
@@ -133,6 +134,7 @@ export async function addToNight(
   weekStart: string,
   day: Day,
   servings = recipe.serves,
+  id?: string,
 ): Promise<void> {
   const night = { household_id: householdId, week_start: weekStart, day }
   const { data: dishes, error } = await supabase
@@ -142,21 +144,20 @@ export async function addToNight(
     .order('position')
   if (error) throw error
 
-  let position = dishes.length ? Math.max(...dishes.map((d) => d.position)) + 1 : 0
-  if (recipe.course === 'main') {
-    position = 0
-    for (const d of dishes) {
-      const { error } = await supabase
-        .from('meal_plan_dishes')
-        .update({ position: d.position + 1, role: 'side' })
-        .eq('id', d.id)
-      if (error) throw error
-    }
-  }
+  const main = recipe.course === 'main'
+  const position = main || !dishes.length ? 0 : Math.max(...dishes.map((d) => d.position)) + 1
   const { error: insertError } = await supabase
     .from('meal_plan_dishes')
-    .insert({ ...night, position, recipe_id: recipe.id, role: recipe.course, servings })
+    .insert({ ...night, ...(id ? { id } : {}), position, recipe_id: recipe.id, role: recipe.course, servings })
   if (insertError) throw insertError
+  // Each write is a round trip, so the other dishes move down together rather than one after another.
+  if (main) {
+    const moved = await Promise.all(
+      dishes.map((d) => supabase.from('meal_plan_dishes').update({ position: d.position + 1, role: 'side' }).eq('id', d.id)),
+    )
+    const failed = moved.find((r) => r.error)
+    if (failed) throw failed.error
+  }
 }
 
 /**

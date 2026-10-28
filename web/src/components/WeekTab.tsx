@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, type MouseEvent } from 'react'
+import { Fragment, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { nightPrompt, planWeekPrompt, weekPrompt } from '../lib/claude'
 import { mins } from '../lib/format'
 import {
@@ -12,6 +12,7 @@ import {
   startBy,
   subscribePlan,
   suggestSides,
+  withDish,
   type Night,
   type Settings,
   type Week,
@@ -46,13 +47,16 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
   const [viewing, setViewing] = useState<Opened>()
   const [cooking, setCooking] = useState<Opened>()
   const [status, setStatus] = useState<string>()
+  // Saves still on their way; reloads wait for them so a half-done save never replaces what is shown.
+  const writing = useRef(0)
 
   useEffect(() => {
     let live = true
     Promise.all([loadWeek(householdId, week), loadRecipes(householdId), loadSettings(householdId)]).then(
       ([nights, rs, s]) => {
         if (!live) return
-        setPlan({ week, nights })
+        const saving = writing.current > 0
+        setPlan((p) => (saving && p?.week === week ? p : { week, nights }))
         setRecipes(rs)
         setSettings(s)
         setError(undefined)
@@ -69,7 +73,9 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
     let timer: ReturnType<typeof setTimeout> | undefined
     const off = subscribePlan(householdId, () => {
       clearTimeout(timer)
-      timer = setTimeout(() => setVersion((v) => v + 1), 250)
+      timer = setTimeout(() => {
+        if (!writing.current) setVersion((v) => v + 1)
+      }, 250)
     })
     return () => {
       clearTimeout(timer)
@@ -78,6 +84,13 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
   }, [householdId])
 
   const reload = () => setVersion((v) => v + 1)
+  /** Marks a save as started; the returned function marks it finished, reloading once the last one is. */
+  const beginWrite = () => {
+    writing.current++
+    return () => {
+      if (--writing.current === 0) reload()
+    }
+  }
   const nights = plan?.week === week ? plan.nights : undefined
   const byId = new Map(recipes.map((r) => [r.id, r]))
   const today = ymd(new Date())
@@ -158,7 +171,7 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
           recipes={recipes}
           settings={settings}
           onPatch={(change) => patchNight(openDay, change)}
-          onSaved={reload}
+          onSaving={beginWrite}
           onClose={() => setOpenDay(undefined)}
         />
       )}
@@ -302,7 +315,7 @@ function NightSheet({
   recipes,
   settings,
   onPatch,
-  onSaved,
+  onSaving,
   onClose,
 }: {
   householdId: string
@@ -312,7 +325,7 @@ function NightSheet({
   recipes: Recipe[]
   settings: Settings
   onPatch: (change: (n: Night) => Night) => void
-  onSaved: () => void
+  onSaving: () => () => void
   onClose: () => void
 }) {
   const [picking, setPicking] = useState<Course>()
@@ -324,27 +337,37 @@ function NightSheet({
   const suggestions = i.gaps.length ? suggestSides(recipes, i.gaps, night.dishes) : []
   const checkName = settings.mealRule === 'veg' ? 'veg' : 'veg and carb'
 
-  /** Writes a change; the week reloads after it, whether it worked or not. */
+  /**
+   * Shows a change straight away and writes it; a failed write puts the night back and says why.
+   * The week reloads after it, whether it worked or not.
+   */
   const save = async (write: () => Promise<void>, patch?: (n: Night) => Night) => {
+    const before = night
     if (patch) onPatch(patch)
+    const done = onSaving()
     setBusy(true)
     setError(undefined)
     try {
       await write()
     } catch (e) {
+      if (patch) onPatch(() => before)
       setError(errorText(e))
     } finally {
       setBusy(false)
-      onSaved()
+      done()
     }
   }
 
-  const add = (r: Recipe, servings?: number) =>
-    save(async () => {
-      await addToNight(householdId, r, weekStart, day, servings)
-      setPicking(undefined)
-      setQuery('')
-    })
+  const add = (r: Recipe, servings = r.serves) => {
+    // The dish gets its id here, so the row the reload brings back is the one already shown.
+    const id = crypto.randomUUID()
+    setPicking(undefined)
+    setQuery('')
+    save(
+      () => addToNight(householdId, r, weekStart, day, servings, id),
+      (n) => withDish(n, { id, recipeId: r.id, role: r.course, servings }),
+    )
+  }
 
   const choices = picking
     ? recipes.filter((r) => matches(r, query, picking)).sort((a, b) => a.name.localeCompare(b.name))
