@@ -129,6 +129,17 @@ describe('App shell', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Recipes' })).toBeInTheDocument()
   })
 
+  it('adds a recipe through Claude, toasting when it copies the prompt instead', async () => {
+    window.history.replaceState(null, '', '/#recipes')
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn(async () => {}) }, configurable: true })
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Add recipe' }))
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith("Add this recipe to my What's for Dinner recipes:\n")
+    expect(await screen.findByText('Copied the question. Open Claude and paste it.')).toBeInTheDocument()
+    open.mockRestore()
+  })
+
   it('opens the settings sheet and closes it with Escape or the scrim', async () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: 'Household settings' }))

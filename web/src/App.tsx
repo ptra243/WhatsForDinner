@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { AskClaudeButton, Toast } from './components/AskClaude'
 import { Header } from './components/Header'
 import { ListTab } from './components/ListTab'
 import { RecipesTab } from './components/RecipesTab'
@@ -7,6 +8,7 @@ import { SettingsSheet } from './components/SettingsSheet'
 import { Tabs } from './components/Tabs'
 import { WeekTab } from './components/WeekTab'
 import { useHousehold, useSession } from './lib/auth'
+import { addRecipePrompt } from './lib/claude'
 import { supabase } from './lib/supabase'
 import { TABS, type Tab } from './tabs'
 
@@ -86,9 +88,11 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
     </button>
   )
 
+  const addRecipeButton = <AskClaudeButton prompt={addRecipePrompt()}>Add recipe</AskClaudeButton>
+
   return (
     <>
-      <Header title={TITLES[tab]} action={tab === 'week' ? settingsButton : tab === 'list' ? addButton : undefined} />
+      <Header title={TITLES[tab]} action={tab === 'week' ? settingsButton : tab === 'list' ? addButton : addRecipeButton} />
       <main>
         <div className="wrap">
           {tab === 'recipes' ? (
@@ -101,6 +105,7 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
         </div>
       </main>
       <Tabs current={tab} onChange={changeTab} />
+      <Toast />
       {settingsOpen && (
         <SettingsSheet
           householdId={householdId}

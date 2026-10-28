@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { nightPrompt, planWeekPrompt, weekPrompt } from '../lib/claude'
 import { mins } from '../lib/format'
 import {
   DEFAULT_SETTINGS,
@@ -17,6 +18,7 @@ import {
 } from '../lib/plan'
 import { addToNight, loadRecipes, matches, type Course, type Recipe } from '../lib/recipes'
 import { DAY_FULL, DAY_NAMES, DAYS, dateOf, dayLabel, parseYmd, weekStartOf, ymd, type Day } from '../lib/week'
+import { AskClaudeButton } from './AskClaude'
 import { Sheet } from './Sheet'
 import { WeekNav } from './WeekNav'
 
@@ -95,6 +97,9 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
             <div className="empty-state gapped">
               <h2>Nothing planned for this week</h2>
               <p className="muted small">Ask Claude to plan it from your recipes, or tap a night to pick dishes yourself.</p>
+              <AskClaudeButton className="btn" prompt={planWeekPrompt(week)}>
+                Plan this week with Claude
+              </AskClaudeButton>
             </div>
           )}
           <div className="paper week">
@@ -114,6 +119,11 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
               )
             })}
           </div>
+          {DAYS.some((d) => nights[d].dishes.length) && (
+            <AskClaudeButton className="btn ghost wide gap-top" prompt={weekPrompt(week)}>
+              Ask Claude about this week
+            </AskClaudeButton>
+          )}
         </>
       )}
       {openDay && nights && (
@@ -386,6 +396,9 @@ function NightSheet({
           </label>
         )}
       </div>
+      <AskClaudeButton className="btn quiet" prompt={nightPrompt(weekStart, day)}>
+        Ask Claude about {DAY_FULL[day]}
+      </AskClaudeButton>
       <button className="btn wide" type="button" onClick={onClose}>
         Done
       </button>

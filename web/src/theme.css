@@ -199,3 +199,8 @@ fieldset.plain{border:0;margin:0;padding:0;min-width:0}
 fieldset.plain legend{padding:0;margin-bottom:6px}
 .minutes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .minutes .field{width:100%;min-width:0}
+
+/* Toast (Ask Claude fallback), above the tab bar */
+.toast-host{position:fixed;left:0;right:0;bottom:calc(80px + env(safe-area-inset-bottom,0px));z-index:40;display:flex;justify-content:center;padding:0 16px;pointer-events:none}
+.toast{background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:6px;font-size:14px;max-width:480px;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.gap-top{margin-top:14px}

@@ -175,6 +175,6 @@ export function swapPrompt(item: ListItem, dishes: ListDish[], weekStart: string
   }
   return (
     `I'm at the shops and couldn't get ${item.name} (${itemQty(item)})${uses.length ? ` for ${uses.join(', ')}` : ''}, ` +
-    `week starting ${weekStart}. What can I swap it for? If it's a good swap, update the plan and list.`
+    `week starting ${weekStart}. What can I swap it for? If it's a good swap, update my What's for Dinner plan.`
   )
 }

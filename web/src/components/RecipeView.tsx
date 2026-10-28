@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import { recipePrompt } from '../lib/claude'
 import { mins, scaledQty } from '../lib/format'
 import { deleteRecipe, updateRecipe, type Recipe } from '../lib/recipes'
 import { AddToNight } from './AddToNight'
+import { AskClaudeButton } from './AskClaude'
 import { CookMode } from './CookMode'
 
 type Props = {
@@ -101,6 +103,7 @@ export function RecipeView({ householdId, recipe: r, onChange, onDeleted, onClos
             Add to a night
           </button>
         </div>
+        <AskClaudeButton prompt={recipePrompt(r.name, r.id)}>Ask Claude about this recipe</AskClaudeButton>
         {status && (
           <p className="small muted flat" role="status">
             {status}

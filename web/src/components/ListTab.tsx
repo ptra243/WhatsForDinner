@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { askClaude } from '../lib/claude'
 import { num } from '../lib/format'
 import { deriveList, itemDetail, itemQty, rowQty, SECTIONS, shopList, swapPrompt, UNITS, type Mark, type ShopRow } from '../lib/list'
 import { addExtra, applyMark, loadList, removeExtra, setMark, setSection, subscribeList, type ListData } from '../lib/shop'
 import { weekStartOf } from '../lib/week'
+import { AskClaudeButton } from './AskClaude'
 import { Sheet } from './Sheet'
 import { WeekNav } from './WeekNav'
 
@@ -29,7 +29,6 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
   const [version, setVersion] = useState(0)
   const [hideTicked, setHideTicked] = useState(loadHide)
   const [openKey, setOpenKey] = useState<string>()
-  const [notice, setNotice] = useState<string>()
 
   useEffect(() => {
     let live = true
@@ -96,23 +95,12 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
     }
   }
 
-  const askSwap = async (row: ShopRow) => {
-    const result = await askClaude(swapPrompt(row, data?.dishes ?? [], week))
-    setNotice(
-      result === 'opened'
-        ? undefined
-        : result === 'copied'
-          ? 'Copied the question. Paste it into Claude.'
-          : 'Could not open Claude. Ask it what to swap for ' + row.name + '.',
-    )
-  }
-
   // The open item, found even when Hide ticked hides it.
   const all = openKey && data ? shopList(items, data.marks) : undefined
   const openRow = all && [...all.sections.flatMap((s) => s.rows), ...all.have].find((r) => r.key === openKey)
 
   const row = (r: ShopRow) => (
-    <ItemRow key={r.key} row={r} onTick={(ticked) => mark(r.key, { ticked, ...(ticked ? { missing: false } : {}) })} onOpen={() => setOpenKey(r.key)} onAskSwap={() => askSwap(r)} />
+    <ItemRow key={r.key} row={r} onTick={(ticked) => mark(r.key, { ticked, ...(ticked ? { missing: false } : {}) })} onOpen={() => setOpenKey(r.key)} swapPrompt={() => swapPrompt(r, data?.dishes ?? [], week)} />
   )
 
   return (
@@ -121,11 +109,6 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
       {error && (
         <p className="small warn" role="alert">
           Could not {data ? 'save that change' : 'load the list'}: {error}
-        </p>
-      )}
-      {notice && (
-        <p className="banner" role="status">
-          {notice}
         </p>
       )}
       {!view ? (
@@ -206,7 +189,7 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
   )
 }
 
-function ItemRow({ row, onTick, onOpen, onAskSwap }: { row: ShopRow; onTick: (ticked: boolean) => void; onOpen: () => void; onAskSwap: () => void }) {
+function ItemRow({ row, onTick, onOpen, swapPrompt }: { row: ShopRow; onTick: (ticked: boolean) => void; onOpen: () => void; swapPrompt: () => string }) {
   const { ticked, missing } = row.mark
   const detail = itemDetail(row)
   const id = `tick-${row.key}`
@@ -227,9 +210,9 @@ function ItemRow({ row, onTick, onOpen, onAskSwap }: { row: ShopRow; onTick: (ti
       </div>
       {missing && (
         <div className="swaprow">
-          <button className="btn ghost wide" type="button" onClick={onAskSwap}>
+          <AskClaudeButton className="btn ghost wide" prompt={swapPrompt}>
             Ask Claude for a swap
-          </button>
+          </AskClaudeButton>
         </div>
       )}
     </>

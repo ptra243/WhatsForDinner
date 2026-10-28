@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { addRecipePrompt } from '../lib/claude'
 import { mins } from '../lib/format'
 import { loadRecipes, matches, type Course, type Recipe } from '../lib/recipes'
+import { AskClaudeButton } from './AskClaude'
 import { RecipeView } from './RecipeView'
 
 const COURSES: [Course | 'all', string][] = [
@@ -46,7 +48,10 @@ export function RecipesTab({ householdId }: { householdId: string }) {
     return (
       <div className="empty-state">
         <h2>No recipes yet</h2>
-        <p className="muted">Your household’s recipes will show here.</p>
+        <p className="muted">Your household’s recipes will show here. Paste one or send a photo to Claude to add it.</p>
+        <AskClaudeButton className="btn" prompt={addRecipePrompt()}>
+          Add a recipe with Claude
+        </AskClaudeButton>
       </div>
     )
   }
