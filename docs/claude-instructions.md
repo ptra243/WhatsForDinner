@@ -24,6 +24,7 @@ What Claude is told when it plans for the household. The working copy is the Din
 - Favour well-rated recipes, avoid repeating anything cooked in the last two weeks (planned but not cooked doesn't count), spread proteins.
 - Fit each night's hands-on minutes from household settings; long cooks on weekends or with the household's equipment (pressure cooker).
 - Add sides so each night covers a vegetable and a carb (per the household's meal rule); use leftovers across the week.
+- Prefer a main's usual sides: those it was cooked with on nights marked cooked in the last 26 weeks (the skill's pairing query). Pairings are worked out from the plan, never saved.
 - Respect household notes (preferences such as spice level).
 - Allergens to avoid (`settings.avoid`): a recipe containing one is planned only if every ingredient bringing it gets a swap to one without it, and the proposal says so ("egg noodles → rice noodles"); otherwise it is left out.
 - Propose a plan as a short day-by-day list and wait for approval before writing, unless asked to just do it.

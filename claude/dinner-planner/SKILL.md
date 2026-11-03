@@ -71,6 +71,7 @@ The database rejects anything else.
 3. Favour well-rated recipes; don't repeat anything cooked in the last two weeks; spread proteins across the week. A dinner planned but not cooked doesn't count as a repeat.
 4. Keep each night's hands-on minutes (`active_mins` of its dishes) within that weekday's `minutes`. Put long cooks on weekends, or use the household's equipment (pressure cooker) on weeknights.
 5. Follow `mealRule`: with `veg+carb` every night covers a vegetable and a carb (from the main's `provides` or added sides); with `veg` just a vegetable; `off` no rule.
+   When a main needs sides, prefer the ones the household actually cooks with it (the pairing query below: nights marked cooked in the last 26 weeks), then other sides that fill the gap. Pairings are worked out from the plan; there is nothing to save.
 6. Respect `notes`. Plan leftovers across the week where it helps (cook a big ragù Sunday, eat it again Tuesday).
 7. If `avoid` lists allergens, find the recipes containing them (query below). Plan one only if every ingredient bringing an avoided allergen gets a swap to an ingredient without it, and say so in the proposal ("Wonton noodle soup, egg noodles → rice noodles; check the label"). Otherwise leave it out. Save those swaps on the dish once the night is written (swap SQL below), then check the week (query below) returns nothing.
 8. Servings are usually the recipe's `serves`; scale to the household.
@@ -122,6 +123,24 @@ left join meal_plan_nights n on n.household_id = d.household_id
 where d.household_id = '<household_id>' and d.week_start = '<week_start>'::date - 7
   and not coalesce(n.cooked, false)
 order by array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day), d.position;
+```
+
+The sides each main was cooked with in the 26 weeks before `<week_start>`, most often first (a night counts once):
+
+```sql
+select m.slug as main, s.slug as side, s.name,
+       count(distinct (n.week_start, n.day)) as times_cooked
+from meal_plan_nights n
+join meal_plan_dishes dm on dm.household_id = n.household_id
+ and dm.week_start = n.week_start and dm.day = n.day and dm.role = 'main'
+join meal_plan_dishes ds on ds.household_id = n.household_id
+ and ds.week_start = n.week_start and ds.day = n.day and ds.role = 'side'
+join recipes m on m.id = dm.recipe_id
+join recipes s on s.id = ds.recipe_id and s.id <> m.id
+where n.household_id = '<household_id>' and n.cooked
+  and n.week_start >= '<week_start>'::date - 182
+group by m.slug, s.slug, s.name
+order by m.slug, times_cooked desc, s.name;
 ```
 
 One recipe in full (to check details or answer questions):
