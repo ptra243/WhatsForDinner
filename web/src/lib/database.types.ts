@@ -322,6 +322,9 @@ isOneToOne: false
                            },
 "remove_member":
 { Args: { "hid": string,"member_id": string }; Returns: undefined
+                           },
+"save_recipe":
+{ Args: { "hid": string,"recipe": Json }; Returns: string
                            }
           }
           Enums: {

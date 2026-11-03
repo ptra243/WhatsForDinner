@@ -214,3 +214,16 @@ fieldset.plain legend{padding:0;margin-bottom:6px}
 .toast-host{position:fixed;left:0;right:0;bottom:calc(80px + env(safe-area-inset-bottom,0px));z-index:40;display:flex;justify-content:center;padding:0 16px;pointer-events:none}
 .toast{background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:6px;font-size:14px;max-width:480px;box-shadow:0 4px 16px rgba(0,0,0,.2)}
 .gap-top{margin-top:14px}
+
+/* Recipe form */
+.formgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.formgrid .field{width:100%;min-width:0}
+.editrow{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-bottom:1px solid var(--line-soft)}
+.editrow .row{min-width:0}
+.editrow .field.grow{min-width:0;width:100%}
+.editrow .row>select.field{flex:none}
+.rowctl{flex:none;gap:0}
+.rowctl .xbtn{width:36px}
+.rowctl .xbtn:disabled{opacity:.35;cursor:default}
+.qtyfield{width:72px;flex:none}
+.newing{background:var(--hl);border-radius:6px;padding:10px}
