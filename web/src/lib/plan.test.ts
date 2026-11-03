@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SETTINGS, nightInfo, startBy, suggestSides, swapDinners, toSettings, withDish, type Night } from './plan'
+import {
+  DEFAULT_SETTINGS,
+  nightInfo,
+  pairedSides,
+  startBy,
+  suggestSides,
+  swapDinners,
+  toSettings,
+  usualSides,
+  withDish,
+  type Night,
+} from './plan'
 import type { Recipe } from './recipes'
 
 const recipe = (r: Partial<Recipe> & Pick<Recipe, 'id' | 'name'>): Recipe => ({
@@ -123,6 +134,50 @@ describe('side suggestions', () => {
     expect(suggestSides(recipes, ['carb'], []).map((r) => r.name)).toEqual(['Naan', 'Rice'])
     expect(suggestSides(recipes, ['veg', 'carb'], night([['salad', 'side']]).dishes).map((r) => r.name)).toEqual(['Naan', 'Rice'])
     expect(suggestSides(recipes, ['veg'], []).map((r) => r.name)).toEqual(['Salad'])
+  })
+
+  it('ranks sides cooked with the main first and leaves out the ones already offered', () => {
+    const recipes = [...RECIPES.values()]
+    const paired = [{ recipeId: 'rice', count: 2 }]
+    expect(suggestSides(recipes, ['carb'], [], paired).map((r) => r.name)).toEqual(['Rice', 'Naan'])
+    expect(suggestSides(recipes, ['carb'], [], paired, ['rice']).map((r) => r.name)).toEqual(['Naan'])
+  })
+})
+
+describe('pairings', () => {
+  const cooked = (ids: [string, 'main' | 'side'][]) => ids.map(([recipeId, role]) => ({ recipeId, role }))
+  const HISTORY = [
+    cooked([['curry', 'main'], ['bread', 'side']]),
+    cooked([['curry', 'main'], ['rice', 'side'], ['salad', 'side']]),
+    cooked([['curry', 'main'], ['rice', 'side'], ['rice', 'side']]),
+    cooked([['stew', 'main'], ['salad', 'side']]),
+    cooked([['rice', 'side']]),
+  ]
+
+  it('counts the sides cooked with a main, once a night, most often then newest first', () => {
+    expect(pairedSides(HISTORY, 'curry')).toEqual([
+      { recipeId: 'rice', count: 2 },
+      { recipeId: 'bread', count: 1 },
+      { recipeId: 'salad', count: 1 },
+    ])
+    expect(pairedSides(HISTORY, 'stew')).toEqual([{ recipeId: 'salad', count: 1 }])
+    expect(pairedSides(HISTORY, 'rice')).toEqual([])
+    expect(pairedSides([], 'curry')).toEqual([])
+  })
+
+  it('offers up to three saved sides not on the night yet', () => {
+    const paired = pairedSides(HISTORY, 'curry')
+    expect(usualSides(paired, RECIPES, []).map((u) => [u.recipe.name, u.count])).toEqual([
+      ['Rice', 2],
+      ['Naan', 1],
+      ['Salad', 1],
+    ])
+    expect(usualSides(paired, RECIPES, night([['curry', 'main'], ['rice', 'side']]).dishes).map((u) => u.recipeId)).toEqual([
+      'bread',
+      'salad',
+    ])
+    const gone = [{ recipeId: 'deleted', count: 5 }, ...paired, { recipeId: 'extra', count: 1 }]
+    expect(usualSides(gone, RECIPES, []).map((u) => u.recipeId)).toEqual(['rice', 'bread', 'salad'])
   })
 })
 

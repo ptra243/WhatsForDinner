@@ -103,11 +103,58 @@ export function startBy(totalMins: number, dinnerTime: string): string {
   return `${((hh + 11) % 12) + 1}:${String(t % 60).padStart(2, '0')} ${hh >= 12 ? 'pm' : 'am'}`
 }
 
-/** Up to three sides that fill a gap and are not on the night yet, best rated first. */
-export function suggestSides(recipes: Recipe[], gaps: string[], dishes: Dish[]): Recipe[] {
+/** A cooked night's dishes, in order: all a pairing needs. */
+export type CookedNight = Pick<Dish, 'recipeId' | 'role'>[]
+
+/** A side and how many cooked nights it was eaten with a main. */
+export type Pairing = { recipeId: string; count: number }
+
+/**
+ * The sides cooked with a main, most often first; ties keep the order of `cooked` (newest
+ * first from `loadCookedNights`). A night counts a side once, and only nights with a main count.
+ */
+export function pairedSides(cooked: CookedNight[], mainId: string): Pairing[] {
+  const counts = new Map<string, number>()
+  for (const dishes of cooked) {
+    if (dishes.find((d) => d.role === 'main')?.recipeId !== mainId) continue
+    for (const id of new Set(dishes.filter((d) => d.role === 'side').map((d) => d.recipeId))) {
+      if (id !== mainId) counts.set(id, (counts.get(id) ?? 0) + 1)
+    }
+  }
+  return [...counts].map(([recipeId, count]) => ({ recipeId, count })).sort((a, b) => b.count - a.count)
+}
+
+/** Up to three of a main's usual sides that are saved and not on the night yet, with their recipes. */
+export function usualSides(paired: Pairing[], recipes: Map<string, Recipe>, dishes: Dish[]): (Pairing & { recipe: Recipe })[] {
+  return paired
+    .flatMap((p) => {
+      const recipe = recipes.get(p.recipeId)
+      return recipe?.course === 'side' && !dishes.some((d) => d.recipeId === p.recipeId) ? [{ ...p, recipe }] : []
+    })
+    .slice(0, 3)
+}
+
+/**
+ * Up to three sides that fill a gap and are not on the night yet: those cooked with the main
+ * most often first, then best rated. Sides in `shown` (the usual sides already offered) are left out.
+ */
+export function suggestSides(
+  recipes: Recipe[],
+  gaps: string[],
+  dishes: Dish[],
+  paired: Pairing[] = [],
+  shown: string[] = [],
+): Recipe[] {
+  const count = new Map(paired.map((p) => [p.recipeId, p.count]))
   return recipes
-    .filter((r) => r.course === 'side' && r.provides.some((p) => gaps.includes(p)) && !dishes.some((d) => d.recipeId === r.id))
-    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+    .filter(
+      (r) =>
+        r.course === 'side' &&
+        r.provides.some((p) => gaps.includes(p)) &&
+        !dishes.some((d) => d.recipeId === r.id) &&
+        !shown.includes(r.id),
+    )
+    .sort((a, b) => (count.get(b.id) ?? 0) - (count.get(a.id) ?? 0) || (b.rating ?? 0) - (a.rating ?? 0))
     .slice(0, 3)
 }
 
@@ -170,6 +217,29 @@ export async function loadWeek(householdId: string, weekStart: string): Promise<
   }
   for (const n of nights.data) Object.assign(week[n.day as Day], { cooked: n.cooked, skipCheck: n.skip_check })
   return week
+}
+
+/**
+ * The dishes of every night marked cooked from the week starting `since`, newest night first.
+ * Pairings are worked out from these; nothing about them is stored.
+ */
+export async function loadCookedNights(householdId: string, since: string): Promise<CookedNight[]> {
+  const [nights, dishes] = await Promise.all([
+    supabase.from('meal_plan_nights').select('week_start, day').eq('household_id', householdId).eq('cooked', true).gte('week_start', since),
+    supabase
+      .from('meal_plan_dishes')
+      .select('week_start, day, recipe_id, role')
+      .eq('household_id', householdId)
+      .gte('week_start', since)
+      .order('position')
+      .order('created_at'),
+  ])
+  if (nights.error) throw nights.error
+  if (dishes.error) throw dishes.error
+  const key = (n: { week_start: string; day: string }) => `${n.week_start} ${DAYS.indexOf(n.day as Day)}`
+  const byNight = new Map<string, CookedNight>(nights.data.map((n) => [key(n), []]))
+  for (const d of dishes.data) byNight.get(key(d))?.push({ recipeId: d.recipe_id, role: d.role as Course })
+  return [...byNight].sort(([a], [b]) => b.localeCompare(a)).map(([, n]) => n)
 }
 
 export async function setServings(dishId: string, servings: number): Promise<void> {

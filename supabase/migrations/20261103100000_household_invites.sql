@@ -128,7 +128,7 @@ begin
        or exists (select 1 from public.meal_plan_dishes d where d.household_id = old_hid)
        or exists (select 1 from public.list_marks l where l.household_id = old_hid)
        or exists (select 1 from public.list_extras e where e.household_id = old_hid) then
-      raise exception 'You already have a household with your own recipes or plans in it, so you can''t join another one';
+      raise exception 'You already have a household with your own recipes, plans, shopping list or members in it, so you can''t join another one';
     end if;
   end loop;
   delete from public.households h

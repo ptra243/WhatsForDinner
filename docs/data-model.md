@@ -65,6 +65,10 @@ These functions are security definer and check the caller. CI checks them in `su
 
 The settings sheet (`web/src/lib/household.ts`) saves `household_settings.settings` keeping any keys it does not show. **Export** downloads one JSON file (`format: 1`) with the household, its members and settings, recipes with their ingredients and steps, plan nights and dishes, list marks and extras, and the shared `ingredients` list; rows are as stored and read a page at a time past the API row limit. **Clear examples** deletes the household's `is_example` recipes; their ingredients, steps and planned dishes go with them by `on delete cascade`.
 
+## Side-dish pairings
+
+Pairings are derived, not stored: a main's usual sides are the sides planned with it on nights marked cooked (`meal_plan_dishes` joined to `meal_plan_nights` where `cooked`) in the last 26 weeks, counted once a night. The app works them out in `web/src/lib/plan.ts` (`pairedSides`); the Dinner Planner skill has the same query.
+
 ## Later (additive)
 
-votes, suggestions, pantry (with location and best-before), ingredient shelf life and pack size columns, ingredient_substitutes, recipe_pairings, recipe_methods (equipment variants), per-night time overrides and locks.
+votes, suggestions, pantry (with location and best-before), ingredient shelf life and pack size columns, ingredient_substitutes, recipe_methods (equipment variants), per-night time overrides and locks.

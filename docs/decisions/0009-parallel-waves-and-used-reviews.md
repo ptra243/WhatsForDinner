@@ -1,6 +1,6 @@
 # 0009 · Ship milestones in waves; reviewers use the app
 
-**Date:** 2026-10-28 · **Status:** accepted; amends [0008](0008-review-harness.md)
+**Date:** 2026-10-28 · **Status:** accepted; amends [0008](0008-review-harness.md); amended by [0010](0010-start-sessions-ahead.md)
 
 **Context.** `/ship M1` merged 14 PRs in about 4½ hours, one issue at a time. About 105 of the 268 minutes were two stalls where a PR sat with no reviewer. The app holds session notes after a long run of them with no message from the owner, and while the owner talks to a session directly. It also refuses to start a session in a turn that another session's message started. Working one issue at a time cost about another 40 minutes: the longest chain of dependencies (#5 → #6 → #8 → #10 → #14) was about 86 minutes of work, against about 128 minutes for #5–#14 in sequence. All 14 reviews approved in the first round, and several PRs merged without anyone opening the app, because signing in locally took too many steps. The owner found two gaps on their phone within minutes (#51, #52).
 

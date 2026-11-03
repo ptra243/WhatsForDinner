@@ -5,7 +5,7 @@ disable-model-invocation: true
 argument-hint: "#<issue> | <milestone, e.g. M1>"
 ---
 
-You are the **dispatcher** (decisions 0008 and 0009). You start sessions and pass pointers between them. The author session writes the code, the reviewer session judges and merges, the owner settles disputes. Your own work is limited to reading GitHub and starting or messaging sessions.
+You are the **dispatcher** (decisions 0008, 0009 and 0010). You start sessions and pass pointers between them. The author session writes the code, the reviewer session judges and merges, the owner settles disputes. Your own work is limited to reading GitHub and starting or messaging sessions.
 
 ## Scope
 
@@ -30,15 +30,25 @@ Keep up to **3 issues in flight**, taking ready issues in the build order in `do
 
 Whenever an issue merges, fill the free slot.
 
+### On deck
+
+The app refuses to start sessions in a turn that another session's message or an automated event started, so every start would otherwise wait for the owner's next message. So in every turn where starts work, after filling the free slots, put up to **3 issues on deck**: the issues that will take the next slots, in build order. Each starts now and waits on GitHub, with `--after` naming the issues it waits for:
+
+- the in-flight (or on-deck) issue whose slot it takes;
+- plus any in-flight or on-deck issue it depends on, shares a schema change with, or needs a file from.
+
+An issue whose "Depends on" names an open owner decision is never put on deck. With issues on deck, the owner is only needed when the deck runs out.
+
 ## Per issue
 
-1. **Start the author.** `start_session`: initiation `user_asked`, context `fresh`, `use_worktree: true`, title `#N - author: <issue title>`, prompt `/implement-issue N`. Nothing else in the prompt.
-2. **Find the PR** by its branch, which `/implement-issue` names `issue-N-<slug>`: `gh pr list --state open --json number,headRefName --jq '.[] | select(.headRefName | startswith("issue-N-")) | .number'`. (Not a body search: other PRs name #N under "Depends on".) An author that has ended its turn with no PR is blocked; pass its question to the owner.
-3. **Start the reviewer.** `start_session`: initiation `user_asked`, context `fresh`, `use_worktree: true`, title `#N - review PR #P`, prompt `/review-pr P`. Nothing else in the prompt: the reviewer's brief is its skill, never your summary.
-4. **Relay** each time the reviewer ends a turn. Read the newest PR comment starting `Review:` (`gh api repos/ptra243/WhatsForDinner/issues/P/comments`):
-   - `Review: APPROVE` and the PR is merged: tell the owner in one line (`#N merged as PR #P`), then fill the slot.
+1. **Start the pair in the same turn.** Two `start_session` calls, each initiation `user_asked`, context `fresh`, `use_worktree: true`, and nothing else in the prompt (a session's brief is its skill, never your summary):
+   - author: title `#N - author: <issue title>`, prompt `/implement-issue N`, or `/implement-issue N --after A B` on deck;
+   - reviewer: title `#N - review`, prompt `/review-pr --issue N`. It waits for the author's `Ready for review` comment, then reviews and renames itself `#N - review PR #P`.
+2. **Find the PR** by its branch, which `/implement-issue` names `issue-N-<slug>`: `gh api "repos/ptra243/WhatsForDinner/pulls?state=open&per_page=100" --jq '.[] | select(.head.ref | startswith("issue-N-")) | .number'`. (Not a body search: other PRs name #N under "Depends on".) An author that has ended its turn with no PR is blocked; pass its question to the owner.
+3. **Relay** each time the reviewer ends a turn. Read the newest PR comment starting `Review:` (`gh api repos/ptra243/WhatsForDinner/issues/P/comments`):
+   - `Review: APPROVE` and the PR is merged: tell the owner in one line (`#N merged as PR #P`). The on-deck issue waiting for it starts by itself; refill the deck when you can start sessions.
    - `Review: CHANGES REQUESTED`: `SendMessage` the author `New review on PR #P.` When the author ends its turn, `SendMessage` the reviewer `Author updated PR #P; re-review.`
-   - `Review: ESCALATED`: hand the PR link to the owner; the issue leaves the wave, the others carry on.
+   - `Review: ESCALATED`: hand the PR link to the owner; the issue leaves the wave, the others carry on. Name any on-deck issue waiting for it: it keeps waiting until the owner settles the PR or the wait times out.
 
 Relay pointers only. The PR thread is the record; findings and replies stay there in the author's and reviewer's own words.
 
@@ -46,15 +56,16 @@ Relay pointers only. The PR thread is the record; findings and replies stay ther
 
 Notes can arrive late or not at all: the app holds them after a long run of notes with no message from the owner, and while the owner is talking to a session directly. So at the start of **every** turn, whatever woke you, rebuild the state from GitHub and `list_sessions` `{"linked": true}` instead of trusting the last note:
 
-- an in-flight issue with an open PR and no reviewer session: start the reviewer;
+- an in-flight or on-deck issue with no reviewer session (for example one started before decision 0010): start one with `/review-pr --issue N`, or `/review-pr P` when its PR is already ready;
+- free slots or deck places with ready issues left: fill them;
 - a `Review:` comment newer than your last relay: relay it;
 - after `CHANGES REQUESTED`, an author push or PR comment newer than the newest `Review:` comment, and the reviewer not yet asked: send it `Author updated PR #P; re-review.`;
-- an author session that is idle with no PR: pass its question to the owner;
-- a merged PR whose slot is still empty: fill it.
+- an author session that is idle with no PR and not waiting: pass its question to the owner;
+- a session whose wait timed out: tell the owner what it was waiting for.
 
-**When a start is refused** (the app does not let you start sessions in a turn another session's message or an automated event started): send the owner a push notification if the tool is available, and end your turn with one line naming each waiting step, for example `PR #50 is ready for review; reply "go" to start the reviewer.` The owner's reply is your next turn; the sweep starts it.
+**When a start is refused** (the app does not let you start sessions in a turn another session's message or an automated event started): only needed once the deck is empty. Send the owner a push notification if the tool is available, and end your turn with one line naming each waiting step, for example `#21 is ready for a slot; reply "go" to start it.` The owner's reply is your next turn; the sweep starts it.
 
-End every turn the owner started with one line on what is in flight (`In flight: #10 in review, #11 authoring`).
+End every turn the owner started with one line on what is in flight (`In flight: #10 in review, #11 authoring; on deck: #12 after #10`).
 
 **Done** when every issue in scope is merged or handed to the owner with a reason. Then list every open **Owner checks** item in scope, one row per issue with its link, in one message.
 

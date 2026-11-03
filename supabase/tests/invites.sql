@@ -161,7 +161,7 @@ begin
   perform pg_temp.as_user('00000000-0000-4000-8000-0000000000d3');
   set local role authenticated;
   perform pg_temp.refused(format('select public.accept_invite(%L)', current_setting('my.open_token')),
-    'You already have a household with your own recipes or plans in it, so you can''t join another one');
+    'You already have a household with your own recipes, plans, shopping list or members in it, so you can''t join another one');
   reset role;
   if (select used_at from public.household_invites where token_hash = private.invite_hash(current_setting('my.open_token'))) is not null then
     raise exception 'Invite check failed: refused join (%) used the invite', what;

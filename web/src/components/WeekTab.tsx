@@ -5,10 +5,12 @@ import { nightPrompt, planWeekPrompt, weekPrompt } from '../lib/claude'
 import { mins } from '../lib/format'
 import {
   DEFAULT_SETTINGS,
+  loadCookedNights,
   loadSettings,
   loadWeek,
   moveNight,
   nightInfo,
+  pairedSides,
   removeDish,
   setNightFlags,
   setServings,
@@ -16,7 +18,9 @@ import {
   subscribePlan,
   suggestSides,
   swapDinners,
+  usualSides,
   withDish,
+  type CookedNight,
   type Night,
   type Settings,
   type Week,
@@ -30,6 +34,9 @@ import { Sheet } from './Sheet'
 import { WeekNav } from './WeekNav'
 
 const errorText = (e: unknown) => (e as { message?: string }).message ?? String(e)
+
+/** How far back cooked nights count towards a main's usual sides. */
+const PAIRING_WEEKS = 26
 
 /** A dish to open from the card: its recipe at the night's servings, with the night's swaps. */
 type Opened = { recipeId: string; servings: number; swaps?: TaggedSwap[] }
@@ -49,6 +56,7 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
   const [plan, setPlan] = useState<{ week: string; nights: Week }>()
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
+  const [history, setHistory] = useState<CookedNight[]>([])
   const [error, setError] = useState<string>()
   const [version, setVersion] = useState(0)
   const [openDay, setOpenDay] = useState<Day>()
@@ -61,13 +69,20 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
 
   useEffect(() => {
     let live = true
-    Promise.all([loadWeek(householdId, week), loadRecipes(householdId), loadSettings(householdId)]).then(
-      ([nights, rs, s]) => {
+    const since = addDays(weekStartOf(new Date()), -7 * PAIRING_WEEKS)
+    Promise.all([
+      loadWeek(householdId, week),
+      loadRecipes(householdId),
+      loadSettings(householdId),
+      loadCookedNights(householdId, since),
+    ]).then(
+      ([nights, rs, s, cooked]) => {
         if (!live) return
         const saving = writing.current > 0
         setPlan((p) => (saving && p?.week === week ? p : { week, nights }))
         setRecipes(rs)
         setSettings(s)
+        setHistory(cooked)
         setError(undefined)
       },
       (e) => live && setError(errorText(e)),
@@ -216,6 +231,7 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
           night={nights[openDay]}
           recipes={recipes}
           settings={settings}
+          history={history}
           nights={nights}
           onPatch={(change) => patchNight(openDay, change)}
           onSaving={beginWrite}
@@ -357,7 +373,10 @@ function NightRow({
   )
 }
 
-/** One night: its dishes with servings, gap suggestions, a picker, and the cooked and skip-check toggles. */
+/**
+ * One night: its dishes with servings, the main's usual sides, gap suggestions, a picker,
+ * and the cooked and skip-check toggles.
+ */
 function NightSheet({
   householdId,
   weekStart,
@@ -366,6 +385,7 @@ function NightSheet({
   nights,
   recipes,
   settings,
+  history,
   onPatch,
   onSaving,
   onMove,
@@ -379,6 +399,8 @@ function NightSheet({
   nights: Week
   recipes: Recipe[]
   settings: Settings
+  /** Cooked nights of the last weeks, for the sides each main is usually eaten with. */
+  history: CookedNight[]
   onPatch: (change: (n: Night) => Night) => void
   onSaving: () => () => void
   onMove: (to: Target) => void
@@ -390,8 +412,13 @@ function NightSheet({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
 
-  const i = nightInfo(night, day, new Map(recipes.map((r) => [r.id, r])), settings)
-  const suggestions = i.gaps.length ? suggestSides(recipes, i.gaps, night.dishes) : []
+  const byId = new Map(recipes.map((r) => [r.id, r]))
+  const i = nightInfo(night, day, byId, settings)
+  const paired = i.main?.role === 'main' ? pairedSides(history, i.main.recipeId) : []
+  const usual = usualSides(paired, byId, night.dishes)
+  const suggestions = i.gaps.length
+    ? suggestSides(recipes, i.gaps, night.dishes, paired, usual.map((u) => u.recipeId))
+    : []
   const checkName = settings.mealRule === 'veg' ? 'veg' : 'veg and carb'
 
   /**
@@ -494,6 +521,19 @@ function NightSheet({
         </div>
       ) : (
         <p className="muted flat">Nothing planned yet.</p>
+      )}
+
+      {usual.length > 0 && (
+        <div className="stack">
+          <b className="small">Usually with</b>
+          <div className="row wrap-row">
+            {usual.map((u) => (
+              <button key={u.recipeId} type="button" className="chip" disabled={busy} onClick={() => add(u.recipe, i.main?.servings)}>
+                + {u.recipe.name} ({u.count}×)
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {i.gaps.length > 0 && (

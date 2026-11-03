@@ -24,6 +24,11 @@ const avoidQueries = blocks.filter((b) => b.includes("settings->'avoid'"));
 if (avoidQueries.length !== 2) throw new Error(`Expected 2 allergen queries in SKILL.md, found ${avoidQueries.length}`);
 const [recipesWithAvoided, weekWithAvoided] = avoidQueries.map((b) => fill(b).replace(/;\s*$/, ''));
 
+// The pairing query, run again once Monday is marked cooked.
+const pairingQueries = blocks.filter((b) => b.includes('times_cooked'));
+if (pairingQueries.length !== 1) throw new Error(`Expected 1 pairing query in SKILL.md, found ${pairingQueries.length}`);
+const pairings = fill(pairingQueries[0]).replace(/;\s*$/, '');
+
 // The query that finds the owner's household, so it can be checked with a member in the household (#16).
 const ownerQueries = blocks.filter((b) => b.includes("m.role = 'owner'"));
 if (ownerQueries.length !== 1) throw new Error(`Expected 1 owner household query in SKILL.md, found ${ownerQueries.length}`);
@@ -88,6 +93,15 @@ update meal_plan_dishes set swaps = '[{"from": "cream", "to": "coconut milk", "q
 where household_id = :'hid' and week_start = :'week' and day = 'mon' and role = 'main';
 select pg_temp.expect('week with avoided allergens: a swap without them clears it',
   (select string_agg(ingredient, ', ' order by ingredient) from (${weekWithAvoided}) q), 'butter');
+select pg_temp.expect('no pairings before a night is cooked', (select count(*) from (${pairings}) q), 0::bigint);
+insert into meal_plan_nights (household_id, week_start, day, cooked) values (:'hid', :'week', 'mon', true);
+insert into meal_plan_nights (household_id, week_start, day, cooked) values (:'hid', (:'week'::date - 7 * 27)::date, 'mon', true);
+insert into meal_plan_dishes (household_id, week_start, day, position, recipe_id, role, servings)
+select household_id, (:'week'::date - 7 * 27)::date, day, position, recipe_id, role, servings
+from meal_plan_dishes where household_id = :'hid' and week_start = :'week' and day = 'mon';
+select pg_temp.expect('pairings from the cooked Monday, not the one 27 weeks back',
+  (select string_agg(main || ' + ' || side || ' ' || times_cooked, ', ' order by side) from (${pairings}) q),
+  'lemon-garlic-chicken + garlicky-green-beans 1, lemon-garlic-chicken + steamed-rice 1');
 select pg_temp.expect('other households untouched',
   (select count(*) from meal_plan_dishes where household_id <> :'hid'), :others::bigint);
 
