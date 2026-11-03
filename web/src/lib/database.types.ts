@@ -243,6 +243,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"recipe_votes": {
+                  Row: {
+                    "created_at": string,"household_id": string,"recipe_id": string,"updated_at": string,"user_id": string,"vote": number,"week_start": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"household_id": string,"recipe_id": string,"updated_at"?: string,"user_id"?: string,"vote": number,"week_start": string
+                  }
+                  Update: {
+                    "created_at"?: string,"household_id"?: string,"recipe_id"?: string,"updated_at"?: string,"user_id"?: string,"vote"?: number,"week_start"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "recipe_votes_household_id_fkey"
+      columns: ["household_id"]
+isOneToOne: false
+      referencedRelation: "households"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "recipe_votes_recipe_id_fkey"
+      columns: ["recipe_id"]
+isOneToOne: false
+      referencedRelation: "recipes"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"recipes": {
                   Row: {
                     "active_mins": number | null,"course": string,"created_at": string,"created_by": string | null,"household_id": string,"id": string,"is_example": boolean,"name": string,"notes": string,"provides": (string)[],"rating": number | null,"serves": number,"slug": string,"source": string,"spice": number | null,"tags": (string)[],"total_mins": number | null,"updated_at": string

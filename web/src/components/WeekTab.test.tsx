@@ -20,6 +20,13 @@ const api = vi.hoisted(() => ({
 }))
 vi.mock('../lib/plan', async (actual) => ({ ...(await actual<typeof import('../lib/plan')>()), ...api }))
 vi.mock('../lib/recipes', async (actual) => ({ ...(await actual<typeof import('../lib/recipes')>()), ...api }))
+const votes = vi.hoisted(() => ({ list: [] as import('../lib/votes').Vote[], vote: vi.fn() }))
+vi.mock('../lib/votes', async (actual) => ({
+  ...(await actual<typeof import('../lib/votes')>()),
+  useCurrentUser: () => 'me',
+  useVotes: () => ({ votes: votes.list, error: undefined, vote: votes.vote }),
+  useMemberNames: () => new Map<string, string>(),
+}))
 
 const recipe = (r: Partial<Recipe> & Pick<Recipe, 'id' | 'name'>): Recipe => ({
   course: 'main',
@@ -68,6 +75,7 @@ beforeEach(() => {
   api.loadSettings.mockResolvedValue(DEFAULT_SETTINGS)
   api.loadCookedNights.mockResolvedValue([])
   api.loadRecipes.mockResolvedValue(RECIPES)
+  votes.list = []
   api.subscribePlan.mockImplementation((_h: string, cb: () => void) => {
     realtime = cb
     return () => {}
@@ -127,6 +135,24 @@ describe('Week card', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Previous week' }))
     fireEvent.click(screen.getByRole('button', { name: 'Previous week' }))
     expect(await screen.findByText('19 Oct to 25 Oct')).toBeInTheDocument()
+  })
+
+  it('shows the week’s vote tally, which opens the 👍 recipes', async () => {
+    const onShowVotes = vi.fn()
+    votes.list = [
+      { recipeId: 'curry', userId: 'me', vote: 1 },
+      { recipeId: 'stew', userId: 'sam', vote: 1 },
+      { recipeId: 'stew', userId: 'me', vote: -1 },
+    ]
+    render(<WeekTab householdId="h1" onShowVotes={onShowVotes} />)
+    fireEvent.click(await screen.findByRole('button', { name: '👍 2 liked, 1 not this week ›' }))
+    expect(onShowVotes).toHaveBeenCalledWith('2026-10-26')
+  })
+
+  it('shows no tally without votes', async () => {
+    render(<WeekTab householdId="h1" />)
+    await screen.findAllByText('Beef stew')
+    expect(screen.queryByText(/liked/)).not.toBeInTheDocument()
   })
 
   it('reloads when the plan changes in the database', async () => {

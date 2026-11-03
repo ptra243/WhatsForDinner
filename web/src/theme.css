@@ -97,6 +97,8 @@ textarea.field{min-height:84px;padding:10px 12px;resize:vertical}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px}
 .chip{min-height:36px;padding:0 14px;border-radius:6px;border:1px solid var(--line);background:var(--tex),var(--surface);font-size:14px;font-weight:700}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip.vote{min-width:52px;font-size:20px;padding:0 10px}
+.chip.small{min-height:32px;padding:0 10px;font-size:13px}
 .paper.reclist{display:flex;flex-direction:column;padding:0}
 .reclist .rec{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;border:0;background:none;border-bottom:1px solid var(--line);padding:11px 16px 11px 72px}
 .reclist .rec:last-child{border-bottom:0}

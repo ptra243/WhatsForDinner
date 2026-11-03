@@ -39,6 +39,10 @@ vi.mock('./lib/supabase', () => ({ supabase: db.client }))
 vi.mock('./components/WeekTab', () => ({ WeekTab: () => null }))
 // So has the Shopping list tab (components/ListTab.test.tsx).
 vi.mock('./components/ListTab', () => ({ ListTab: () => null }))
+vi.mock('./lib/votes', async (actual) => ({
+  ...(await actual<typeof import('./lib/votes')>()),
+  useVotes: () => ({ votes: [], error: undefined, vote: () => {} }),
+}))
 // The settings sheet's own fields are tested in components/SettingsSheet.test.tsx.
 vi.mock('./lib/household', async (actual) => {
   const mod = await actual<typeof import('./lib/household')>()

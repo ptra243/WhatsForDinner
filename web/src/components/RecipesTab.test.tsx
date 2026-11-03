@@ -14,6 +14,13 @@ const api = vi.hoisted(() => ({
 vi.mock('../lib/recipes', async (actual) => ({ ...(await actual<typeof import('../lib/recipes')>()), ...api }))
 const plan = vi.hoisted(() => ({ loadSettings: vi.fn() }))
 vi.mock('../lib/plan', async (actual) => ({ ...(await actual<typeof import('../lib/plan')>()), ...plan }))
+const votes = vi.hoisted(() => ({ list: [] as import('../lib/votes').Vote[], vote: vi.fn() }))
+vi.mock('../lib/votes', async (actual) => ({
+  ...(await actual<typeof import('../lib/votes')>()),
+  useCurrentUser: () => 'me',
+  useVotes: () => ({ votes: votes.list, error: undefined, vote: votes.vote }),
+  useMemberNames: () => new Map([['sam', 'Sam']]),
+}))
 
 const recipe = (r: Partial<Recipe> & Pick<Recipe, 'id' | 'name'>): Recipe => ({
   course: 'main',
@@ -74,6 +81,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   api.loadRecipes.mockResolvedValue(RECIPES.map((r) => ({ ...r })))
   plan.loadSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, avoid: ['milk'] })
+  votes.list = []
 })
 
 describe('Recipe list', () => {
@@ -233,6 +241,48 @@ describe('Recipe view', () => {
     const view = await open()
     fireEvent.click(within(view).getByRole('button', { name: '‹ Back' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})
+
+describe('Votes', () => {
+  const dal = { recipeId: 'dal', userId: 'me', vote: 1 } as const
+
+  it('votes on a recipe for next week, shows who voted what, and switches to this week', async () => {
+    votes.list = [dal, { recipeId: 'dal', userId: 'sam', vote: -1 }]
+    render(<RecipesTab householdId="h1" />)
+    fireEvent.click(await screen.findByRole('button', { name: /Red lentil dal/ }))
+    const box = screen.getByRole('region', { name: 'Votes' })
+    expect(box).toHaveTextContent('Want it next week?')
+    expect(box).toHaveTextContent('👍 you · 👎 Sam')
+    expect(within(box).getByRole('button', { name: 'Like it next week' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(within(box).getByRole('button', { name: 'Not next week' }))
+    expect(votes.vote).toHaveBeenCalledWith('dal', -1)
+    fireEvent.click(within(box).getByRole('button', { name: 'This week' }))
+    expect(box).toHaveTextContent('Want it this week?')
+    expect(within(box).getByRole('button', { name: 'Like it this week' })).toBeInTheDocument()
+  })
+
+  it('says when nobody has voted', async () => {
+    render(<RecipesTab householdId="h1" />)
+    fireEvent.click(await screen.findByRole('button', { name: /Red lentil dal/ }))
+    expect(screen.getByRole('region', { name: 'Votes' })).toHaveTextContent('No votes yet')
+  })
+
+  it('filters to recipes with a 👍, showing the votes on each', async () => {
+    votes.list = [dal]
+    render(<RecipesTab householdId="h1" />)
+    await screen.findByRole('button', { name: /Rice pudding/ })
+    fireEvent.click(screen.getByRole('button', { name: '👍 next week' }))
+    expect(screen.queryByRole('button', { name: /Rice pudding/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Red lentil dal/ })).toHaveTextContent('👍 you')
+    fireEvent.click(screen.getByRole('button', { name: '👍 next week' }))
+    expect(screen.getByRole('button', { name: /Rice pudding/ })).toBeInTheDocument()
+  })
+
+  it('starts filtered to the week the Week tab opened it for', async () => {
+    render(<RecipesTab householdId="h1" likedWeek="2026-01-05" />)
+    expect(await screen.findByRole('button', { name: '👍 for 5 Jan' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('No 👍 for 5 Jan yet.')).toBeInTheDocument()
   })
 })
 

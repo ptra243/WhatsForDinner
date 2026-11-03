@@ -6,6 +6,7 @@ import { deleteRecipe, updateRecipe, type Recipe } from '../lib/recipes'
 import { AddToNight } from './AddToNight'
 import { AskClaudeButton } from './AskClaude'
 import { CookMode } from './CookMode'
+import { RecipeVotes } from './RecipeVotes'
 
 type Props = {
   householdId: string
@@ -21,7 +22,7 @@ type Props = {
   onClose: () => void
 }
 
-/** Full-screen recipe: meta, ingredients scaled to the chosen servings, method, rating and notes. */
+/** Full-screen recipe: meta, votes for the coming week, ingredients scaled to the chosen servings, method, rating and notes. */
 export function RecipeView({
   householdId,
   recipe: r,
@@ -134,6 +135,7 @@ export function RecipeView({
             Add to a night
           </button>
         </div>
+        <RecipeVotes householdId={householdId} recipeId={r.id} />
         <AskClaudeButton prompt={recipePrompt(r.name, r.id)}>Ask Claude about this recipe</AskClaudeButton>
         {status && (
           <p className="small muted flat" role="status">

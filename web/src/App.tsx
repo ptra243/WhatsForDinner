@@ -13,6 +13,7 @@ import { addRecipePrompt } from './lib/claude'
 import { flush, flushWhenShown, usePendingCount, useStalled } from './lib/offlineQueue'
 import { useOnline } from './lib/online'
 import { supabase } from './lib/supabase'
+import { CurrentUser } from './lib/votes'
 import { TABS, type Tab } from './tabs'
 
 const TITLES: Record<Tab, string> = { week: 'This week', list: 'Shopping list', recipes: 'Recipes' }
@@ -49,7 +50,9 @@ export default function App() {
   if (!household.household) return <Notice text="Setting up your household…" />
   return (
     <CanAskClaude.Provider value={household.household.role === 'owner'}>
-      <Shell user={{ id: session.user.id, email: session.user.email ?? '' }} household={household.household} />
+      <CurrentUser.Provider value={session.user.id}>
+        <Shell user={{ id: session.user.id, email: session.user.email ?? '' }} household={household.household} />
+      </CurrentUser.Provider>
     </CanAskClaude.Provider>
   )
 }
@@ -76,6 +79,8 @@ function Shell({ user, household }: { user: { id: string; email: string }; house
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [settingsVersion, setSettingsVersion] = useState(0)
+  // The week whose 👍 recipes the Recipes tab opens filtered to, from the Week tab's vote tally.
+  const [likedWeek, setLikedWeek] = useState<string>()
   const online = useOnline()
   const waiting = usePendingCount(householdId)
   const stalled = useStalled(householdId)
@@ -95,6 +100,7 @@ function Shell({ user, household }: { user: { id: string; email: string }; house
   }, [])
 
   const changeTab = (t: Tab) => {
+    setLikedWeek(undefined)
     setTab(t)
     window.history.replaceState(null, '', `#${t}`)
     window.scrollTo(0, 0)
@@ -137,9 +143,16 @@ function Shell({ user, household }: { user: { id: string; email: string }; house
             )
           )}
           {tab === 'recipes' ? (
-            <RecipesTab householdId={householdId} />
+            <RecipesTab householdId={householdId} likedWeek={likedWeek} />
           ) : tab === 'week' ? (
-            <WeekTab householdId={householdId} settingsVersion={settingsVersion} />
+            <WeekTab
+              householdId={householdId}
+              settingsVersion={settingsVersion}
+              onShowVotes={(week) => {
+                changeTab('recipes')
+                setLikedWeek(week)
+              }}
+            />
           ) : (
             <ListTab householdId={householdId} adding={adding} onAddClose={() => setAdding(false)} />
           )}

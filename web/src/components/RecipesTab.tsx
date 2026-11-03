@@ -5,6 +5,7 @@ import type { Allergen } from '../lib/allergens'
 import { mins } from '../lib/format'
 import { loadSettings } from '../lib/plan'
 import { loadRecipes, matches, type Course, type Recipe } from '../lib/recipes'
+import { comingWeek, likedIds, useCurrentUser, useMemberNames, useVotes, voteSummary, weekWords } from '../lib/votes'
 import { AskClaudeButton } from './AskClaude'
 import { RecipeView } from './RecipeView'
 
@@ -14,8 +15,11 @@ const COURSES: [Course | 'all', string][] = [
   ['side', 'Sides'],
 ]
 
-/** The Recipes tab: a ruled sheet of the household's recipes with search and a course filter. */
-export function RecipesTab({ householdId }: { householdId: string }) {
+/**
+ * The Recipes tab: a ruled sheet of the household's recipes with search, a course filter and a
+ * filter to the recipes someone gave 👍 for a week (`likedWeek` turns it on for that week).
+ */
+export function RecipesTab({ householdId, likedWeek }: { householdId: string; likedWeek?: string }) {
   const [recipes, setRecipes] = useState<Recipe[]>()
   const canAskClaude = useCanAskClaude()
   const [error, setError] = useState<string>()
@@ -23,6 +27,11 @@ export function RecipesTab({ householdId }: { householdId: string }) {
   const [course, setCourse] = useState<Course | 'all'>('all')
   const [openId, setOpenId] = useState<string>()
   const [avoid, setAvoid] = useState<Allergen[]>([])
+  const voteWeek = likedWeek ?? comingWeek()
+  const [likedOnly, setLikedOnly] = useState(likedWeek !== undefined)
+  const { votes } = useVotes(householdId, voteWeek)
+  const names = useMemberNames(householdId)
+  const me = useCurrentUser()
 
   useEffect(() => {
     let live = true
@@ -69,7 +78,8 @@ export function RecipesTab({ householdId }: { householdId: string }) {
     )
   }
 
-  const shown = recipes.filter((r) => matches(r, query, course))
+  const liked = likedIds(votes ?? [])
+  const shown = recipes.filter((r) => matches(r, query, course) && (!likedOnly || liked.has(r.id)))
   const open = recipes.find((r) => r.id === openId)
 
   return (
@@ -89,12 +99,22 @@ export function RecipesTab({ householdId }: { householdId: string }) {
             {label}
           </button>
         ))}
+        <button type="button" className="chip" aria-pressed={likedOnly} onClick={() => setLikedOnly(!likedOnly)}>
+          👍 {weekWords(voteWeek)}
+        </button>
       </div>
       <div className="paper reclist">
         {shown.length ? (
-          shown.map((r) => <RecipeRow key={r.id} recipe={r} onOpen={() => setOpenId(r.id)} />)
+          shown.map((r) => (
+            <RecipeRow
+              key={r.id}
+              recipe={r}
+              votes={likedOnly && votes ? voteSummary(votes, r.id, me, names) : ''}
+              onOpen={() => setOpenId(r.id)}
+            />
+          ))
         ) : (
-          <p className="muted">No recipes match.</p>
+          <p className="muted">{likedOnly && !liked.size ? `No 👍 ${weekWords(voteWeek)} yet.` : 'No recipes match.'}</p>
         )}
       </div>
       {open && (
@@ -115,7 +135,8 @@ export function RecipesTab({ householdId }: { householdId: string }) {
   )
 }
 
-function RecipeRow({ recipe: r, onOpen }: { recipe: Recipe; onOpen: () => void }) {
+/** A recipe on the sheet; `votes` is who voted what, shown when filtering by votes. */
+function RecipeRow({ recipe: r, votes, onOpen }: { recipe: Recipe; votes?: string; onOpen: () => void }) {
   const meta = [
     r.activeMins ? `${r.activeMins} min hands-on` : '',
     r.totalMins ? `${mins(r.totalMins)} total` : '',
@@ -140,6 +161,7 @@ function RecipeRow({ recipe: r, onOpen }: { recipe: Recipe; onOpen: () => void }
           </>
         ) : null}
       </span>
+      {votes && <span className="m">{votes}</span>}
     </button>
   )
 }

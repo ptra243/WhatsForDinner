@@ -22,6 +22,7 @@ Table privileges are granted explicitly, because the live project gives `anon` a
 | `meal_plan_nights` | household_id, week_start, day, cooked, skip_check | PK (household_id, week_start, day) |
 | `list_marks` | household_id, week_start, item_key, ticked, bought_qty, bought_unit, status (`missing` / null), have_it, updated_by | PK (household_id, week_start, item_key) |
 | `list_extras` | household_id, week_start, name, qty, unit, section, added_by | Hand-added list items |
+| `recipe_votes` | household_id, week_start (a Monday, checked), recipe_id → recipes, user_id → auth.users, vote (`1` 👍 / `-1` 👎) | PK (household_id, week_start, recipe_id, user_id); no `id`. Members read all the household's votes and write only their own (`user_id = auth.uid()`), for the household's own recipes. Goes with the recipe or the user |
 
 ## Rules enforced by the database
 
@@ -63,7 +64,11 @@ These functions are security definer and check the caller. CI checks them in `su
 
 ## Export and clearing examples
 
-The settings sheet (`web/src/lib/household.ts`) saves `household_settings.settings` keeping any keys it does not show. **Export** downloads one JSON file (`format: 1`) with the household, its members and settings, recipes with their ingredients and steps, plan nights and dishes, list marks and extras, and the shared `ingredients` list; rows are as stored and read a page at a time past the API row limit. **Clear examples** deletes the household's `is_example` recipes; their ingredients, steps and planned dishes go with them by `on delete cascade`.
+The settings sheet (`web/src/lib/household.ts`) saves `household_settings.settings` keeping any keys it does not show. **Export** downloads one JSON file (`format: 1`) with the household, its members and settings, recipes with their ingredients and steps, plan nights and dishes, list marks and extras, votes, and the shared `ingredients` list; rows are as stored and read a page at a time past the API row limit. **Clear examples** deletes the household's `is_example` recipes; their ingredients, steps and planned dishes go with them by `on delete cascade`.
+
+## Votes
+
+Each member says 👍 or 👎 to a recipe for a week; no row means no vote, and tapping the same vote again deletes the row. The recipe view (`web/src/components/RecipeVotes.tsx`) votes for the coming week (next Monday's) with a switch to this week, and shows who voted what ("👍 you · 👎 Sam"; a member's name is their email before the @). The Recipes tab filters to recipes with a 👍 from anyone for a week, and the Week tab shows that week's tally ("4 liked, 1 not this week": recipes with a 👍, recipes with a 👎; one with both counts in each), which opens the filtered list. Votes update live for the other member. Logic in `web/src/lib/votes.ts` with Vitest tests. The Dinner Planner skill reads the week's votes when planning and never writes them. CI checks the policies in `supabase/tests/votes.sql`.
 
 ## Side-dish pairings
 
@@ -71,4 +76,4 @@ Pairings are derived, not stored: a main's usual sides are the sides planned wit
 
 ## Later (additive)
 
-votes, suggestions, pantry (with location and best-before), ingredient shelf life and pack size columns, ingredient_substitutes, recipe_methods (equipment variants), per-night time overrides and locks.
+suggestions, pantry (with location and best-before), ingredient shelf life and pack size columns, ingredient_substitutes, recipe_methods (equipment variants), per-night time overrides and locks.

@@ -29,6 +29,11 @@ const pairingQueries = blocks.filter((b) => b.includes('times_cooked'));
 if (pairingQueries.length !== 1) throw new Error(`Expected 1 pairing query in SKILL.md, found ${pairingQueries.length}`);
 const pairings = fill(pairingQueries[0]).replace(/;\s*$/, '');
 
+// The votes query, checked against votes from both members (#17).
+const voteQueries = blocks.filter((b) => b.includes('from recipe_votes'));
+if (voteQueries.length !== 1) throw new Error(`Expected 1 votes query in SKILL.md, found ${voteQueries.length}`);
+const weekVotes = fill(voteQueries[0]).replace(/;s*$/, '');
+
 // The query that finds the owner's household, so it can be checked with a member in the household (#16).
 const ownerQueries = blocks.filter((b) => b.includes("m.role = 'owner'"));
 if (ownerQueries.length !== 1) throw new Error(`Expected 1 owner household query in SKILL.md, found ${ownerQueries.length}`);
@@ -61,6 +66,15 @@ select pg_temp.expect('owner household query with a member in the household',
 select '2026-11-02' as week \\gset
 select count(*) as others from meal_plan_dishes \\gset
 update household_settings set settings = settings || '{"avoid": ["egg", "milk"]}' where household_id = :'hid';
+insert into recipe_votes (household_id, week_start, recipe_id, user_id, vote)
+select :'hid', :'week', r.id, v.user_id::uuid, v.vote
+from (values ('fish-tacos', '00000000-0000-4000-8000-0000000000c1', 1), ('fish-tacos', '00000000-0000-4000-8000-0000000000c2', 1),
+             ('beef-ragu', '00000000-0000-4000-8000-0000000000c1', 1), ('beef-ragu', '00000000-0000-4000-8000-0000000000c2', -1),
+             ('shakshuka', '00000000-0000-4000-8000-0000000000c2', 1)) as v(slug, user_id, vote)
+join recipes r on r.household_id = :'hid' and r.slug = v.slug;
+insert into recipe_votes (household_id, week_start, recipe_id, user_id, vote)
+select :'hid', (:'week'::date + 7)::date, r.id, '00000000-0000-4000-8000-0000000000c1', -1
+from recipes r where r.household_id = :'hid' and r.slug = 'fish-tacos';
 `);
 
 blocks.forEach((sql, i) => {
@@ -102,6 +116,10 @@ from meal_plan_dishes where household_id = :'hid' and week_start = :'week' and d
 select pg_temp.expect('pairings from the cooked Monday, not the one 27 weeks back',
   (select string_agg(main || ' + ' || side || ' ' || times_cooked, ', ' order by side) from (${pairings}) q),
   'lemon-garlic-chicken + garlicky-green-beans 1, lemon-garlic-chicken + steamed-rice 1');
+select pg_temp.expect('the week''s votes, the 👎 first and only that week',
+  (select string_agg(slug || ' ' || likes || '/' || dislikes || ' ' || votes, '; ' order by dislikes desc, likes desc, slug) from (${weekVotes}) q),
+  'beef-ragu 1/1 👎 skill-member, 👍 skill-owner; fish-tacos 2/0 👍 skill-member, 👍 skill-owner; shakshuka 1/0 👍 skill-member');
+select pg_temp.expect('votes untouched by the skill', (select count(*) from recipe_votes where household_id = :'hid'), 6::bigint);
 select pg_temp.expect('other households untouched',
   (select count(*) from meal_plan_dishes where household_id <> :'hid'), :others::bigint);
 
