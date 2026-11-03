@@ -23,7 +23,27 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "household_members": {
+            "household_invites": {
+                  Row: {
+                    "cancelled_at": string | null,"created_at": string,"created_by": string | null,"expires_at": string,"household_id": string,"id": string,"token_hash": string,"used_at": string | null,"used_by": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "cancelled_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"expires_at"?: string,"household_id": string,"id"?: string,"token_hash": string,"used_at"?: string | null,"used_by"?: string | null
+                  }
+                  Update: {
+                    "cancelled_at"?: string | null,"created_at"?: string,"created_by"?: string | null,"expires_at"?: string,"household_id"?: string,"id"?: string,"token_hash"?: string,"used_at"?: string | null,"used_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "household_invites_household_id_fkey"
+      columns: ["household_id"]
+isOneToOne: false
+      referencedRelation: "households"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"household_members": {
                   Row: {
                     "created_at": string,"household_id": string,"role": string,"user_id": string
                   }
@@ -249,11 +269,33 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "create_household":
+            "accept_invite":
+{ Args: { "token": string }; Returns: string
+                           },
+"cancel_invite":
+{ Args: { "invite_id": string }; Returns: undefined
+                           },
+"create_household":
 { Args: { "household_name": string }; Returns: string
+                           },
+"create_invite":
+{ Args: { "hid": string }; Returns: string
+                           },
+"household_member_list":
+{ Args: { "hid": string }; Returns: {
+              "email": string,"joined_at": string,"role": string,"user_id": string
+            }[]
+                           },
+"invite_info":
+{ Args: { "token": string }; Returns: {
+              "household_name": string,"status": string
+            }[]
                            },
 "move_night":
 { Args: { "from_day": string,"from_week": string,"hid": string,"to_day": string,"to_week": string }; Returns: undefined
+                           },
+"remove_member":
+{ Args: { "hid": string,"member_id": string }; Returns: undefined
                            }
           }
           Enums: {

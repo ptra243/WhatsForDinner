@@ -123,6 +123,9 @@ ol.steps .tm{color:var(--warn);font-family:var(--display);font-weight:700;font-s
 .rate button{width:44px;height:44px;border:0;background:none;font-size:28px;line-height:1;color:var(--line);padding:0}
 .rate button.on{color:var(--star)}
 .card.confirm{background:var(--warn-soft)}
+/* Household members (settings sheet) */
+.members{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.members .grow{min-width:0;overflow-wrap:anywhere}
 
 /* Add to a night */
 .weeknav{display:flex;align-items:center;justify-content:space-between;gap:8px}

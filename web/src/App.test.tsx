@@ -8,7 +8,7 @@ import { clearQueues, enqueue, pending } from './lib/offlineQueue'
 const db = vi.hoisted(() => {
   const state = {
     session: null as null | { user: { id: string; email: string } },
-    memberships: [] as { household_id: string }[],
+    memberships: [] as { household_id: string; role: string }[],
     authListener: undefined as undefined | ((event: string, session: unknown) => void),
   }
   const client = {
@@ -26,7 +26,7 @@ const db = vi.hoisted(() => {
       }),
     },
     from: vi.fn(() => ({
-      select: () => ({ limit: async () => ({ data: state.memberships, error: null }) }),
+      select: () => ({ eq: () => ({ limit: async () => ({ data: state.memberships, error: null }) }) }),
     })),
     rpc: vi.fn<(fn: string, args: unknown) => Promise<{ data: string | null; error: null | { message: string } }>>(
       async () => ({ data: 'new-household', error: null }),
@@ -44,8 +44,10 @@ vi.mock('./lib/household', async (actual) => {
   const mod = await actual<typeof import('./lib/household')>()
   return { ...mod, loadHouseholdSettings: async () => mod.DEFAULT_HOUSEHOLD_SETTINGS, countExamples: async () => 0 }
 })
+// So is the Household section (components/HouseholdMembers.test.tsx).
+vi.mock('./components/HouseholdMembers', () => ({ HouseholdMembers: () => null }))
 
-const signedIn = (memberships: { household_id: string }[] = [{ household_id: 'h1' }]) => {
+const signedIn = (memberships: { household_id: string; role: string }[] = [{ household_id: 'h1', role: 'owner' }]) => {
   db.state.session = { user: { id: 'u1', email: 'cook@example.test' } }
   db.state.memberships = memberships
 }
@@ -104,6 +106,72 @@ describe('Household setup', () => {
     db.client.rpc.mockResolvedValueOnce({ data: null, error: { message: 'boom' } })
     render(<App />)
     expect(await screen.findByText('Could not set up your household: boom')).toBeInTheDocument()
+  })
+})
+
+describe('Invites', () => {
+  afterEach(() => {
+    localStorage.clear()
+    db.client.rpc.mockImplementation(async () => ({ data: 'new-household', error: null }))
+  })
+  /** rpc answers by function name; the rest return the default. */
+  const answers = (by: Record<string, { data: unknown; error: null | { message: string } }>) =>
+    db.client.rpc.mockImplementation(async (fn: string) => (by[fn] ?? { data: 'new-household', error: null }) as never)
+
+  it('signed out, names the household and keeps the invite in the magic link', async () => {
+    window.history.replaceState(null, '', '/?invite=tok')
+    answers({ invite_info: { data: [{ household_name: 'Home', status: 'open' }], error: null } })
+    render(<App />)
+    expect(await screen.findByText(/You’ve been invited to/)).toHaveTextContent('You’ve been invited to Home.')
+    expect(db.client.rpc).toHaveBeenCalledWith('invite_info', { token: 'tok' })
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'partner@example.test' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Email me a sign-in link' }))
+    expect(await screen.findByRole('heading', { name: 'Check your email' })).toBeInTheDocument()
+    expect(db.client.auth.signInWithOtp).toHaveBeenCalledWith({
+      email: 'partner@example.test',
+      options: { emailRedirectTo: `${window.location.origin}/?invite=tok` },
+    })
+  })
+
+  it('signed out, says when the link is used and offers normal sign-in', async () => {
+    window.history.replaceState(null, '', '/?invite=tok')
+    answers({ invite_info: { data: [{ household_name: 'Home', status: 'used' }], error: null } })
+    render(<App />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('This invite link has already been used.')
+    expect(window.location.search).toBe('')
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'partner@example.test' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Email me a sign-in link' }))
+    await screen.findByRole('heading', { name: 'Check your email' })
+    expect(db.client.auth.signInWithOtp).toHaveBeenCalledWith(
+      expect.objectContaining({ options: { emailRedirectTo: `${window.location.origin}/` } }),
+    )
+  })
+
+  it('signed in, joins the household instead of making one, as a member without Ask Claude', async () => {
+    window.history.replaceState(null, '', '/?invite=tok#recipes')
+    signedIn([])
+    answers({ accept_invite: { data: 'h1', error: null } })
+    db.client.rpc.mockImplementationOnce(async () => {
+      db.state.memberships = [{ household_id: 'h1', role: 'member' }]
+      return { data: 'h1', error: null }
+    })
+    render(<App />)
+    expect(await screen.findByRole('heading', { level: 1, name: 'Recipes' })).toBeInTheDocument()
+    expect(db.client.rpc).toHaveBeenCalledWith('accept_invite', { token: 'tok' })
+    expect(db.client.rpc).not.toHaveBeenCalledWith('create_household', expect.anything())
+    expect(window.location.search).toBe('')
+    expect(screen.queryByRole('button', { name: 'Add recipe' })).not.toBeInTheDocument()
+  })
+
+  it('signed in, says why a join was refused and carries on to their own household', async () => {
+    window.history.replaceState(null, '', '/?invite=tok')
+    signedIn()
+    answers({ accept_invite: { data: null, error: { message: 'This invite has expired' } } })
+    render(<App />)
+    expect(await screen.findByText('Could not join the household: This invite has expired')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to your own household' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'This week' })).toBeInTheDocument()
+    expect(db.client.rpc).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -217,7 +285,7 @@ describe('Offline', () => {
       `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`,
       JSON.stringify({ access_token: 'old', refresh_token: 'r', expires_at: 1, user: { id: 'u1', email: 'cook@example.test' } }),
     )
-    db.state.memberships = [{ household_id: 'h1' }]
+    db.state.memberships = [{ household_id: 'h1', role: 'owner' }]
     render(<App />)
     expect(await screen.findByRole('heading', { level: 1, name: 'This week' })).toBeInTheDocument()
   })

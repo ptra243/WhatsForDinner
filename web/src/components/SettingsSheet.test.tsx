@@ -14,6 +14,8 @@ const api = vi.hoisted(() => ({
 vi.mock('../lib/household', async (actual) => ({ ...(await actual<typeof import('../lib/household')>()), ...api }))
 const auth = vi.hoisted(() => ({ signOut: vi.fn(async () => ({ error: null })) }))
 vi.mock('../lib/supabase', () => ({ supabase: { auth } }))
+// The Household section has its own tests (HouseholdMembers.test.tsx).
+vi.mock('./HouseholdMembers', () => ({ HouseholdMembers: () => null }))
 
 const SAVED: HouseholdSettings = {
   notes: 'no mushrooms',
@@ -24,7 +26,7 @@ const SAVED: HouseholdSettings = {
   avoid: ['egg'],
 }
 
-const props = { householdId: 'h1', email: 'cook@example.test', onChanged: vi.fn(), onClose: vi.fn() }
+const props = { householdId: 'h1', user: { id: 'u1', email: 'cook@example.test' }, isOwner: true, onChanged: vi.fn(), onClose: vi.fn() }
 
 const open = async () => {
   render(<SettingsSheet {...props} />)

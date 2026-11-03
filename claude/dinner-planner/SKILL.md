@@ -36,7 +36,7 @@ where h.id <> private.template_household_id();
 - `recipe_steps`: recipe_id, position (from 0), text, timer_mins (null unless the step involves waiting).
 - `ingredients`: slug (PK), name (unique), section, allergens text[] (below). Shared by all households.
 - `meal_plan_dishes`: household_id, week_start (always a Monday), day (`mon`..`sun`), position (order in the night, from 0), recipe_id, role (`main` / `side`), servings, swaps jsonb `[{"from", "to", "qty", "unit"}]`.
-- `household_settings`, `households`, `household_members`: read only for you.
+- `household_settings`, `households`, `household_members`, `household_invites`: read only for you. A household can have members besides the owner (`role = 'member'`, a partner who joined by invite); they use the app, and you still plan for the household and set `created_by` to the owner.
 
 ## Units and sections
 

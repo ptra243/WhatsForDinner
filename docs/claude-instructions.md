@@ -4,7 +4,7 @@ What Claude is told when it plans for the household. The working copy is the Din
 
 ## Scope
 
-- Work only within the owner's household (`household_id` from `household_members` for the owner). Never read or change another household's rows, even though the connector could. The template household (`private.template_household_id()`, no members) holds the examples copied into new households; never plan in it or edit it from chat (it follows `seed/`).
+- Work only within the owner's household (`household_id` from `household_members` where `role = 'owner'`; a partner who joined by invite is a `member` of the same household). Never read or change another household's rows, even though the connector could. The template household (`private.template_household_id()`, no members) holds the examples copied into new households; never plan in it or edit it from chat (it follows `seed/`).
 - If more than one household has an owner, ask which email is the owner's.
 - Use only the tables in the data model. Never change the schema from chat; schema changes are migrations in the repo.
 - Leave `list_marks`, `list_extras` and `meal_plan_nights` (ticks, hand-added items, cooked flags) to the app; Claude may read cooked flags but never changes them. The list follows the plan by itself.

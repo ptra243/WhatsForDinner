@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useCanAskClaude } from '../lib/askAccess'
 import { addRecipePrompt } from '../lib/claude'
 import type { Allergen } from '../lib/allergens'
 import { mins } from '../lib/format'
@@ -16,6 +17,7 @@ const COURSES: [Course | 'all', string][] = [
 /** The Recipes tab: a ruled sheet of the household's recipes with search and a course filter. */
 export function RecipesTab({ householdId }: { householdId: string }) {
   const [recipes, setRecipes] = useState<Recipe[]>()
+  const canAskClaude = useCanAskClaude()
   const [error, setError] = useState<string>()
   const [query, setQuery] = useState('')
   const [course, setCourse] = useState<Course | 'all'>('all')
@@ -56,7 +58,10 @@ export function RecipesTab({ householdId }: { householdId: string }) {
     return (
       <div className="empty-state">
         <h2>No recipes yet</h2>
-        <p className="muted">Your household’s recipes will show here. Paste one or send a photo to Claude to add it.</p>
+        <p className="muted">
+          Your household’s recipes will show here.{' '}
+          {canAskClaude ? 'Paste one or send a photo to Claude to add it.' : 'The household’s owner adds them with Claude.'}
+        </p>
         <AskClaudeButton className="btn" prompt={addRecipePrompt()}>
           Add a recipe with Claude
         </AskClaudeButton>

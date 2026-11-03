@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { containsText, type TaggedSwap } from '../lib/allergens'
+import { useCanAskClaude } from '../lib/askAccess'
 import { nightPrompt, planWeekPrompt, weekPrompt } from '../lib/claude'
 import { mins } from '../lib/format'
 import {
@@ -51,6 +52,7 @@ type Target = { week: string; day: Day; night: Night }
  */
 export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: string; settingsVersion?: number }) {
   const [week, setWeek] = useState(() => weekStartOf(new Date()))
+  const canAskClaude = useCanAskClaude()
   const [plan, setPlan] = useState<{ week: string; nights: Week }>()
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
@@ -181,7 +183,11 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
           {DAYS.every((d) => !nights[d].dishes.length) && (
             <div className="empty-state gapped">
               <h2>Nothing planned for this week</h2>
-              <p className="muted small">Ask Claude to plan it from your recipes, or tap a night to pick dishes yourself.</p>
+              <p className="muted small">
+                {canAskClaude
+                  ? 'Ask Claude to plan it from your recipes, or tap a night to pick dishes yourself.'
+                  : 'Tap a night to pick dishes from your recipes.'}
+              </p>
               <AskClaudeButton className="btn" prompt={planWeekPrompt(week)}>
                 Plan this week with Claude
               </AskClaudeButton>

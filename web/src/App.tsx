@@ -7,7 +7,8 @@ import { SignIn } from './components/SignIn'
 import { SettingsSheet } from './components/SettingsSheet'
 import { Tabs } from './components/Tabs'
 import { WeekTab } from './components/WeekTab'
-import { useHousehold, useSession } from './lib/auth'
+import { useHousehold, useSession, type Household } from './lib/auth'
+import { CanAskClaude } from './lib/askAccess'
 import { addRecipePrompt } from './lib/claude'
 import { flush, flushWhenShown, usePendingCount, useStalled } from './lib/offlineQueue'
 import { useOnline } from './lib/online'
@@ -27,6 +28,15 @@ export default function App() {
 
   if (session === undefined) return <Notice text="Loading…" />
   if (!session) return <SignIn />
+  if (household.inviteError) {
+    return (
+      <Notice text={`Could not join the household: ${household.inviteError}`}>
+        <button className="btn wide" type="button" onClick={household.skipInvite}>
+          Continue to your own household
+        </button>
+      </Notice>
+    )
+  }
   if (household.error) {
     return (
       <Notice text={`Could not set up your household: ${household.error}`}>
@@ -36,8 +46,12 @@ export default function App() {
       </Notice>
     )
   }
-  if (!household.id) return <Notice text="Setting up your household…" />
-  return <Shell email={session.user.email ?? ''} householdId={household.id} />
+  if (!household.household) return <Notice text="Setting up your household…" />
+  return (
+    <CanAskClaude.Provider value={household.household.role === 'owner'}>
+      <Shell user={{ id: session.user.id, email: session.user.email ?? '' }} household={household.household} />
+    </CanAskClaude.Provider>
+  )
 }
 
 /** Full-page message while signing in or setting up. */
@@ -56,7 +70,8 @@ function Notice({ text, children }: { text: string; children?: ReactNode }) {
 }
 
 /** The signed-in app: tabs, header and the settings sheet. */
-function Shell({ email, householdId }: { email: string; householdId: string }) {
+function Shell({ user, household }: { user: { id: string; email: string }; household: Household }) {
+  const householdId = household.id
   const [tab, setTab] = useState<Tab>(tabFromHash)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -135,7 +150,8 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
       {settingsOpen && (
         <SettingsSheet
           householdId={householdId}
-          email={email}
+          user={user}
+          isOwner={household.role === 'owner'}
           onChanged={() => setSettingsVersion((v) => v + 1)}
           onClose={() => setSettingsOpen(false)}
         />
