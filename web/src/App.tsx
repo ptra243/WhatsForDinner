@@ -9,6 +9,7 @@ import { Tabs } from './components/Tabs'
 import { WeekTab } from './components/WeekTab'
 import { useHousehold, useSession } from './lib/auth'
 import { addRecipePrompt } from './lib/claude'
+import { flush, usePendingCount } from './lib/offlineQueue'
 import { useOnline } from './lib/online'
 import { supabase } from './lib/supabase'
 import { TABS, type Tab } from './tabs'
@@ -61,6 +62,12 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
   const [adding, setAdding] = useState(false)
   const [settingsVersion, setSettingsVersion] = useState(0)
   const online = useOnline()
+  const waiting = usePendingCount(householdId)
+
+  // List changes made with no signal are sent when the app opens and when the signal returns.
+  useEffect(() => {
+    if (online) void flush(householdId)
+  }, [householdId, online])
 
   useEffect(() => {
     const onHash = () => setTab(tabFromHash())
@@ -85,7 +92,7 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
   )
 
   const addButton = (
-    <button className="btn ghost" type="button" disabled={!online} onClick={() => setAdding(true)}>
+    <button className="btn ghost" type="button" onClick={() => setAdding(true)}>
       Add item
     </button>
   )
@@ -99,7 +106,8 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
         <div className="wrap">
           {!online && (
             <p className="banner" role="status">
-              <b>Offline, ticks need signal.</b> Showing what was last loaded.
+              <b>{waiting ? `Offline, ${waiting} ${waiting === 1 ? 'change' : 'changes'} will sync.` : 'Offline.'}</b> Showing what was
+              last loaded; list changes sync when the signal is back.
             </p>
           )}
           {tab === 'recipes' ? (

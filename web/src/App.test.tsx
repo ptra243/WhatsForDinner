@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { SUPABASE_URL } from './config'
+import { enqueue, pending } from './lib/offlineQueue'
 
 // A stand-in for the Supabase client: a session (or none), the user's memberships and create_household.
 const db = vi.hoisted(() => {
@@ -174,17 +175,36 @@ describe('Offline', () => {
     localStorage.clear()
   })
 
-  it('says ticks need signal and stops hand-added items', async () => {
+  it('says how many changes will sync, still allows hand-added items, and clears when the signal is back', async () => {
     signedIn()
     window.history.replaceState(null, '', '/#list')
     render(<App />)
     expect(await screen.findByRole('button', { name: 'Add item' })).toBeEnabled()
     expect(screen.queryByText(/Offline/)).not.toBeInTheDocument()
     setOnline(false)
-    expect(screen.getByText('Offline, ticks need signal.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add item' })).toBeDisabled()
+    expect(screen.getByText('Offline.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add item' })).toBeEnabled()
+    act(() => {
+      enqueue('h1', { kind: 'mark', week: '2026-10-26', key: 'milk|ml', change: { ticked: true } })
+      enqueue('h1', { kind: 'mark', week: '2026-10-26', key: 'bread|each', change: { ticked: true } })
+    })
+    expect(screen.getByText('Offline, 2 changes will sync.')).toBeInTheDocument()
     setOnline(true)
     expect(screen.queryByText(/Offline/)).not.toBeInTheDocument()
+  })
+
+  it('asks before signing out with changes waiting', async () => {
+    signedIn()
+    enqueue('h1', { kind: 'mark', week: '2026-10-26', key: 'milk|ml', change: { ticked: true } })
+    setOnline(false)
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Household settings' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    expect(screen.getByText('1 list change has not synced yet')).toBeInTheDocument()
+    expect(db.client.auth.signOut).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out anyway' }))
+    expect(await screen.findByRole('button', { name: 'Email me a sign-in link' })).toBeInTheDocument()
+    expect(pending('h1')).toEqual([])
   })
 
   it('stays signed in when an expired login cannot be refreshed with no signal', async () => {

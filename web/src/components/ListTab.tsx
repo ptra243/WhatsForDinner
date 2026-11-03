@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { num } from '../lib/format'
 import { deriveList, itemDetail, itemQty, rowQty, SECTIONS, shopList, swapPrompt, UNITS, type Mark, type ShopRow } from '../lib/list'
+import { enqueue, flush, onDropped, pending, withPending, type Change } from '../lib/offlineQueue'
 import { useOnline } from '../lib/online'
-import { addExtra, applyMark, loadList, removeExtra, setMark, setSection, subscribeList, type ListData } from '../lib/shop'
+import { applyMark, loadList, setSection, subscribeList, type ListData } from '../lib/shop'
 import { weekStartOf } from '../lib/week'
 import { AskClaudeButton } from './AskClaude'
 import { Sheet } from './Sheet'
@@ -30,7 +31,8 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
   const [version, setVersion] = useState(0)
   const [hideTicked, setHideTicked] = useState(loadHide)
   const [openKey, setOpenKey] = useState<string>()
-  // Ticks and other changes need signal; the list itself shows offline from the service worker.
+  // Offline the list shows from the service worker and changes wait in the queue; moving a
+  // section needs signal. The list reloads when the signal returns.
   const online = useOnline()
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
     loadList(householdId, week).then(
       (data) => {
         if (!live) return
-        setList({ week, data })
+        setList({ week, data: withPending(data, pending(householdId), week) })
         setError(undefined)
       },
       (e) => live && setError(errorText(e)),
@@ -61,21 +63,23 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
     }
   }, [householdId])
 
+  // A change the database refused was shown already; reload to show what it holds.
+  useEffect(() => onDropped(() => setVersion((v) => v + 1)), [])
+
   const reload = () => setVersion((v) => v + 1)
   const data = list?.week === week ? list.data : undefined
   const items = data ? deriveList(data.dishes, data.sections, data.extras) : []
   const view = data ? shopList(items, data.marks, hideTicked) : undefined
 
-  /** Changes a mark on screen at once, then saves it; reloads if the save fails. */
-  const mark = async (key: string, change: Partial<Mark>) => {
-    setList((l) => l && { ...l, data: { ...l.data, marks: { ...l.data.marks, [key]: applyMark(l.data.marks[key], change) } } })
-    try {
-      await setMark(householdId, week, key, change)
-    } catch (e) {
-      setError(errorText(e))
-      reload()
-    }
+  /** Shows a change on screen at once and queues it, sending it now if there is signal. */
+  const change = (c: Change, show: (data: ListData) => ListData) => {
+    setList((l) => l && { ...l, data: show(l.data) })
+    enqueue(householdId, c)
+    void flush(householdId)
   }
+
+  const mark = (key: string, m: Partial<Mark>) =>
+    change({ kind: 'mark', week, key, change: m }, (d) => ({ ...d, marks: { ...d.marks, [key]: applyMark(d.marks[key], m) } }))
 
   /** Runs a save, shows any error, and reloads after it. */
   const save = async (write: () => Promise<void>) => {
@@ -103,7 +107,7 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
   const openRow = all && [...all.sections.flatMap((s) => s.rows), ...all.have].find((r) => r.key === openKey)
 
   const row = (r: ShopRow) => (
-    <ItemRow key={r.key} row={r} offline={!online} onTick={(ticked) => mark(r.key, { ticked, ...(ticked ? { missing: false } : {}) })} onOpen={() => setOpenKey(r.key)} swapPrompt={() => swapPrompt(r, data?.dishes ?? [], week)} />
+    <ItemRow key={r.key} row={r} onTick={(ticked) => mark(r.key, { ticked, ...(ticked ? { missing: false } : {}) })} onOpen={() => setOpenKey(r.key)} swapPrompt={() => swapPrompt(r, data?.dishes ?? [], week)} />
   )
 
   return (
@@ -173,7 +177,7 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
           onSection={(section) => openRow && save(() => setSection(openRow, section))}
           onRemove={() => {
             const id = openRow?.extra
-            if (id) save(() => removeExtra(id))
+            if (id) change({ kind: 'remove', week, id }, (d) => ({ ...d, extras: d.extras.filter((x) => x.id !== id) }))
             setOpenKey(undefined)
           }}
           onClose={() => setOpenKey(undefined)}
@@ -183,7 +187,8 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
         <AddSheet
           sections={data?.sections ?? {}}
           onAdd={(extra) => {
-            save(() => addExtra(householdId, week, extra))
+            const added = { ...extra, id: crypto.randomUUID() }
+            change({ kind: 'add', week, extra: added }, (d) => ({ ...d, extras: [...d.extras, added] }))
             onAddClose()
           }}
           onClose={onAddClose}
@@ -193,7 +198,7 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
   )
 }
 
-function ItemRow({ row, offline, onTick, onOpen, swapPrompt }: { row: ShopRow; offline: boolean; onTick: (ticked: boolean) => void; onOpen: () => void; swapPrompt: () => string }) {
+function ItemRow({ row, onTick, onOpen, swapPrompt }: { row: ShopRow; onTick: (ticked: boolean) => void; onOpen: () => void; swapPrompt: () => string }) {
   const { ticked, missing } = row.mark
   const detail = itemDetail(row)
   const id = `tick-${row.key}`
@@ -201,7 +206,7 @@ function ItemRow({ row, offline, onTick, onOpen, swapPrompt }: { row: ShopRow; o
     <>
       <div className={`item${ticked ? ' done' : ''}${missing ? ' miss' : ''}`}>
         <label htmlFor={id}>
-          <input id={id} type="checkbox" checked={ticked} disabled={offline} onChange={(e) => onTick(e.target.checked)} />
+          <input id={id} type="checkbox" checked={ticked} onChange={(e) => onTick(e.target.checked)} />
           <span className="nm">
             <b>{row.name}</b>
             {missing && <span className="tag">Couldn’t get it</span>}
@@ -294,11 +299,11 @@ function ItemSheet({
             <option key={s}>{s}</option>
           ))}
         </select>
+        {offline && <p className="small muted flat">Moving an item needs signal; it changes every list.</p>}
       </div>
       <button
         className="btn wide"
         type="button"
-        disabled={offline}
         onClick={() => {
           const n = qty.trim() === '' ? null : Number(qty)
           onMark({ ticked: true, boughtQty: n != null && !isNaN(n) && n >= 0 ? n : null, boughtUnit: unit, missing: false })
@@ -307,15 +312,15 @@ function ItemSheet({
         Save and tick
       </button>
       <div className="row wrap-row">
-        <button className="btn ghost grow" type="button" disabled={offline} onClick={() => onMark({ missing: !row.mark.missing, ticked: false })}>
+        <button className="btn ghost grow" type="button" onClick={() => onMark({ missing: !row.mark.missing, ticked: false })}>
           {row.mark.missing ? 'Found it after all' : 'Couldn’t get it'}
         </button>
-        <button className="btn ghost grow" type="button" disabled={offline} onClick={() => onMark({ haveIt: !row.mark.haveIt })}>
+        <button className="btn ghost grow" type="button" onClick={() => onMark({ haveIt: !row.mark.haveIt })}>
           {row.mark.haveIt ? 'Need to buy it' : 'Already have it'}
         </button>
       </div>
       {row.extra && (
-        <button className="btn danger wide" type="button" disabled={offline} onClick={onRemove}>
+        <button className="btn danger wide" type="button" onClick={onRemove}>
           Remove from list
         </button>
       )}

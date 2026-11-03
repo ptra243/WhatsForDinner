@@ -27,10 +27,13 @@ flowchart LR
 
 ## Offline
 
-- A service worker (`web/sw.js`, filled in by the build in `vite.config.ts`) caches the app shell, the fonts, and the newest answer to each Supabase read. With no signal the app opens on the last-loaded week, list and recipes under an "Offline, ticks need signal" banner.
-- Ticking and other list changes are disabled offline; nothing is queued (full offline ticking is M2). The list reloads when the signal returns.
+- A service worker (`web/sw.js`, filled in by the build in `vite.config.ts`) caches the app shell, the fonts, and the newest answer to each Supabase read. With no signal the app opens on the last-loaded week, list and recipes under an "Offline, N changes will sync" banner.
+- Shopping-list changes (ticks, bought amount, couldn't get, already have, adding and removing hand-added items) go through a queue (`web/src/lib/offlineQueue.ts`), online or not: each shows at once, is kept in local storage per household, and is sent oldest first when the app opens, when the signal returns, and straight after it is made if there is signal. The queue survives a reload and closing the app.
+- Each queued change writes only the columns it changed, as `setMark` does, so the other shopper's changes are not undone. Repeated changes to one item collapse into one. Hand-added items get their id on the phone, so one added and removed offline is never sent, and resending one whose answer was lost counts as saved.
+- A change the database refuses is dropped with a toast and the list reloads; no answer at all leaves the queue for the next try. Moving an item's section needs signal, since it changes every list. Signing out with changes waiting asks first, and signing out forgets them.
+- The list reloads when the signal returns, with any changes still waiting laid over it.
 - With no signal a stored login reads as unexpired (`offlineStorage` in `web/src/lib/supabase.ts`), so supabase-js does not spend 30 seconds retrying a token refresh before showing anything.
-- The cached reads are household data in the browser's Cache Storage; signing out deletes them.
+- The cached reads are household data in the browser's Cache Storage, and the queue is in local storage; signing out deletes both.
 
 ## Keys
 
@@ -58,4 +61,4 @@ flowchart LR
 
 ## Migration triggers (beyond M1)
 
-Move or add infrastructure only when one of these happens: partner needs AI without a Claude account; a custom domain; full offline ticking; in-app AI for non-owners (API proxy on a Cloudflare Worker).
+Move or add infrastructure only when one of these happens: partner needs AI without a Claude account; a custom domain; in-app AI for non-owners (API proxy on a Cloudflare Worker).
