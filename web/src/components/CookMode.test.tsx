@@ -14,6 +14,10 @@ vi.mock('../lib/votes', async (actual) => ({
   useVotes: () => ({ votes: [], loadError: undefined, saveError: undefined, vote: () => {} }),
   useMemberNames: () => new Map<string, string>(),
 }))
+vi.mock('../lib/suggestions', async (actual) => ({
+  ...(await actual<typeof import('../lib/suggestions')>()),
+  useSuggestions: () => ({ suggestions: [], error: undefined, reload: () => {} }),
+}))
 
 const DAL: Recipe = {
   id: 'dal',

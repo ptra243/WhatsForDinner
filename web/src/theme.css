@@ -227,3 +227,12 @@ fieldset.plain legend{padding:0;margin-bottom:6px}
 .rowctl .xbtn:disabled{opacity:.35;cursor:default}
 .qtyfield{width:72px;flex:none}
 .newing{background:var(--hl);border-radius:6px;padding:10px}
+
+/* Suggestions (Week and Recipes tabs) */
+.suggest-bar{margin-bottom:12px}
+.suggest-bar .btn{min-height:40px}
+.pill.badge{background:var(--warn);color:var(--accent-ink);font-size:13px;padding:3px 9px}
+.suggestions{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.suggestions b{min-width:0;overflow-wrap:anywhere}
+.suggestions .desc{overflow-wrap:anywhere}
+.suggestions .reply{font-style:italic}

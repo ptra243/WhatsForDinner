@@ -25,6 +25,11 @@ vi.mock('../lib/votes', async (actual) => ({
   useVotes: () => ({ votes: votes.list, loadError: undefined, saveError: undefined, vote: votes.vote }),
   useMemberNames: () => new Map([['sam', 'Sam']]),
 }))
+const sugg = vi.hoisted(() => ({ list: [] as import('../lib/suggestions').Suggestion[] }))
+vi.mock('../lib/suggestions', async (actual) => ({
+  ...(await actual<typeof import('../lib/suggestions')>()),
+  useSuggestions: () => ({ suggestions: sugg.list, error: undefined, reload: () => {} }),
+}))
 
 const recipe = (r: Partial<Recipe> & Pick<Recipe, 'id' | 'name'>): Recipe => ({
   course: 'main',
@@ -86,6 +91,7 @@ beforeEach(() => {
   api.loadRecipes.mockResolvedValue(RECIPES.map((r) => ({ ...r })))
   plan.loadSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, avoid: ['milk'] })
   votes.list = []
+  sugg.list = []
 })
 
 describe('Recipe list', () => {
@@ -348,5 +354,41 @@ describe('Adding and editing by hand', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Recipe saved.')
     expect(screen.queryByText('Example recipe')).not.toBeInTheDocument()
     expect(api.saveRecipe).toHaveBeenCalledWith('h1', expect.objectContaining({ id: 'dal', name: 'Weeknight dal' }))
+  })
+})
+
+describe('Suggestions', () => {
+  const added = {
+    id: 's1',
+    createdBy: 'sam',
+    name: 'Dal please',
+    description: '',
+    status: 'added' as const,
+    reply: 'Added as Red lentil dal',
+    recipeId: 'dal',
+    createdAt: '2026-11-01T00:00:00Z',
+  }
+
+  it('opens the recipe an added suggestion links to', async () => {
+    sugg.list = [added]
+    render(<RecipesTab householdId="h1" />)
+    await screen.findByRole('button', { name: /Red lentil dal/ })
+    fireEvent.click(screen.getByRole('button', { name: 'Suggestions (1)' }))
+    const list = screen.getByRole('dialog', { name: 'Suggestions' })
+    expect(within(list).getByText('Claude: Added as Red lentil dal')).toBeInTheDocument()
+    fireEvent.click(within(list).getByRole('button', { name: 'Open the recipe' }))
+    expect(await screen.findByRole('heading', { name: 'Red lentil dal' })).toBeInTheDocument()
+    expect(api.loadRecipes).toHaveBeenCalledTimes(1)
+  })
+
+  it('loads the recipes again for one Claude has just added', async () => {
+    sugg.list = [{ ...added, recipeId: 'pho' }]
+    render(<RecipesTab householdId="h1" />)
+    await screen.findByRole('button', { name: /Red lentil dal/ })
+    api.loadRecipes.mockResolvedValueOnce([...RECIPES.map((r) => ({ ...r })), recipe({ id: 'pho', name: 'Beef pho' })])
+    fireEvent.click(screen.getByRole('button', { name: 'Suggestions (1)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open the recipe' }))
+    expect(await screen.findByRole('heading', { name: 'Beef pho' })).toBeInTheDocument()
+    expect(api.loadRecipes).toHaveBeenCalledTimes(2)
   })
 })

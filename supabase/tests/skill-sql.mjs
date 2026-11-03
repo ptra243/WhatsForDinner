@@ -13,8 +13,10 @@ const seed = readFileSync(join(root, 'supabase', 'seed', 'seed.sql'), 'utf8');
 const blocks = [...skill.matchAll(/```sql\r?\n([\s\S]*?)```/g)].map((m) => m[1].trim());
 if (blocks.length === 0) throw new Error('No SQL examples found in SKILL.md');
 
+// The decline example gets the second suggestion, so both examples have an open one (#18).
 const fill = (sql) =>
   sql
+    .replaceAll("'<suggestion_id>'", sql.includes("status = 'declined'") ? ":'sid2'" : ":'sid'")
     .replaceAll("'<household_id>'", ":'hid'")
     .replaceAll("'<owner_id>'", ":'uid'")
     .replaceAll("'<week_start>'", ":'week'");
@@ -33,6 +35,11 @@ const pairings = fill(pairingQueries[0]).replace(/;\s*$/, '');
 const voteQueries = blocks.filter((b) => b.includes('from recipe_votes'));
 if (voteQueries.length !== 1) throw new Error(`Expected 1 votes query in SKILL.md, found ${voteQueries.length}`);
 const weekVotes = fill(voteQueries[0]).replace(/;\s*$/, '');
+
+// The open suggestions query, run again once both are handled (#18).
+const suggestionQueries = blocks.filter((b) => b.includes('from suggestions'));
+if (suggestionQueries.length !== 1) throw new Error(`Expected 1 open suggestions query in SKILL.md, found ${suggestionQueries.length}`);
+const openSuggestions = fill(suggestionQueries[0]).replace(/;\s*$/, '');
 
 // The query that finds the owner's household, so it can be checked with a member in the household (#16).
 const ownerQueries = blocks.filter((b) => b.includes("m.role = 'owner'"));
@@ -75,6 +82,14 @@ join recipes r on r.household_id = :'hid' and r.slug = v.slug;
 insert into recipe_votes (household_id, week_start, recipe_id, user_id, vote)
 select :'hid', (:'week'::date + 7)::date, r.id, '00000000-0000-4000-8000-0000000000c1', -1
 from recipes r where r.household_id = :'hid' and r.slug = 'fish-tacos';
+insert into suggestions (household_id, created_by, name, description) values
+  (:'hid', '00000000-0000-4000-8000-0000000000c2', 'Lemongrass chicken', 'The one from the Thai place')
+returning id as sid \\gset
+insert into suggestions (household_id, created_by, name, description) values
+  (:'hid', '00000000-0000-4000-8000-0000000000c2', 'Pho', 'https://example.test/pho')
+returning id as sid2 \\gset
+select pg_temp.expect('both suggestions open, oldest first, with who made them',
+  (select string_agg(name || ' by ' || suggested_by, ', ') from (${openSuggestions}) q), 'Lemongrass chicken by skill-member, Pho by skill-member');
 `);
 
 blocks.forEach((sql, i) => {
@@ -120,6 +135,11 @@ select pg_temp.expect('the week''s votes, the 👎 first and only that week',
   (select string_agg(slug || ' ' || likes || '/' || dislikes || ' ' || votes, '; ' order by dislikes desc, likes desc, slug) from (${weekVotes}) q),
   'beef-ragu 1/1 👎 skill-member, 👍 skill-owner; fish-tacos 2/0 👍 skill-member, 👍 skill-owner; shakshuka 1/0 👍 skill-member');
 select pg_temp.expect('votes untouched by the skill', (select count(*) from recipe_votes where household_id = :'hid'), 6::bigint);
+select pg_temp.expect('suggestion added with its recipe, the other declined',
+  (select string_agg(s.name || ' ' || s.status || ' ' || coalesce(r.slug, '-') || ' ' || s.reply, '; ' order by s.name)
+   from suggestions s left join recipes r on r.id = s.recipe_id where s.household_id = :'hid'),
+  'Lemongrass chicken added lemongrass-chicken Added as Lemongrass chicken; Pho declined - No recipe in the link; send me one to add it');
+select pg_temp.expect('no suggestions left open', (select count(*) from (${openSuggestions}) q), 0::bigint);
 select pg_temp.expect('other households untouched',
   (select count(*) from meal_plan_dishes where household_id <> :'hid'), :others::bigint);
 

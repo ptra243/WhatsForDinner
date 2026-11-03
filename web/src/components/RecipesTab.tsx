@@ -9,6 +9,7 @@ import { comingWeek, likedIds, useCurrentUser, useMemberNames, useVotes, voteSum
 import { AskClaudeButton } from './AskClaude'
 import { RecipeForm } from './RecipeForm'
 import { RecipeView } from './RecipeView'
+import { Suggestions } from './Suggestions'
 
 const COURSES: [Course | 'all', string][] = [
   ['all', 'All'],
@@ -37,6 +38,7 @@ export function RecipesTab({ householdId, likedWeek, adding: headerAdding = fals
   const [course, setCourse] = useState<Course | 'all'>('all')
   const [openId, setOpenId] = useState<string>()
   const [emptyAdding, setEmptyAdding] = useState(false)
+  const [version, setVersion] = useState(0)
   const adding = headerAdding || emptyAdding
   const closeForm = () => {
     setEmptyAdding(false)
@@ -63,7 +65,7 @@ export function RecipesTab({ householdId, likedWeek, adding: headerAdding = fals
     return () => {
       live = false
     }
-  }, [householdId])
+  }, [householdId, version])
 
   const form = adding && (
     <RecipeForm
@@ -170,6 +172,14 @@ export function RecipesTab({ householdId, likedWeek, adding: headerAdding = fals
 
   return (
     <>
+      <Suggestions
+        householdId={householdId}
+        onOpenRecipe={(id) => {
+          // Claude may have just added it, so load the recipes again when it isn't here yet.
+          if (!recipes?.some((r) => r.id === id)) setVersion((v) => v + 1)
+          setOpenId(id)
+        }}
+      />
       {list}
       {form}
     </>

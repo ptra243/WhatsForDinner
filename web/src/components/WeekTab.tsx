@@ -32,6 +32,7 @@ import { AskClaudeButton } from './AskClaude'
 import { CookMode } from './CookMode'
 import { RecipeView } from './RecipeView'
 import { Sheet } from './Sheet'
+import { Suggestions } from './Suggestions'
 import { WeekNav } from './WeekNav'
 
 const errorText = (e: unknown) => (e as { message?: string }).message ?? String(e)
@@ -39,8 +40,8 @@ const errorText = (e: unknown) => (e as { message?: string }).message ?? String(
 /** How far back cooked nights count towards a main's usual sides. */
 const PAIRING_WEEKS = 26
 
-/** A dish to open from the card: its recipe at the night's servings, with the night's swaps. */
-type Opened = { recipeId: string; servings: number; swaps?: TaggedSwap[] }
+/** A dish to open from the card: its recipe at the night's servings (the recipe's own when left out), with the night's swaps. */
+type Opened = { recipeId: string; servings?: number; swaps?: TaggedSwap[] }
 
 /** Where a night's dinner can move: another night this week or next, with what is planned there. */
 type Target = { week: string; day: Day; night: Night }
@@ -174,6 +175,14 @@ export function WeekTab({
           👍 {votesText} ›
         </button>
       )}
+      <Suggestions
+        householdId={householdId}
+        onOpenRecipe={(recipeId) => {
+          // Claude may have just added it, so load the recipes again when it isn't here yet.
+          if (!byId.has(recipeId)) reload()
+          setViewing({ recipeId })
+        }}
+      />
       {error && (
         <p className="small warn" role="alert">
           Could not load the week: {error}
@@ -279,7 +288,7 @@ export function WeekTab({
         <CookMode
           householdId={householdId}
           recipe={cooked}
-          servings={cooking.servings}
+          servings={cooking.servings ?? cooked.serves}
           onChange={changeRecipe}
           onExit={() => setCooking(undefined)}
           onDone={(message) => {

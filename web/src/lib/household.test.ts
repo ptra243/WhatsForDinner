@@ -121,6 +121,7 @@ describe('exportHousehold', () => {
       list_marks: [{ table: 'list_marks' }],
       list_extras: [{ table: 'list_extras' }],
       recipe_votes: [{ table: 'recipe_votes' }],
+      suggestions: [{ table: 'suggestions' }],
     })
     expect(out.ingredients).toHaveLength(1003)
     expect(db.state.queries.filter((q) => q.table === 'ingredients')).toHaveLength(2)
