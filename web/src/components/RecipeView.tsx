@@ -6,6 +6,7 @@ import { deleteRecipe, updateRecipe, type Recipe } from '../lib/recipes'
 import { AddToNight } from './AddToNight'
 import { AskClaudeButton } from './AskClaude'
 import { CookMode } from './CookMode'
+import { RecipeForm } from './RecipeForm'
 import { RecipeVotes } from './RecipeVotes'
 
 type Props = {
@@ -38,6 +39,7 @@ export function RecipeView({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [adding, setAdding] = useState(false)
   const [cooking, setCooking] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [status, setStatus] = useState<string>()
   const [error, setError] = useState<string>()
   const back = useRef<HTMLButtonElement>(null)
@@ -92,9 +94,14 @@ export function RecipeView({
   return (
     <div className="panel" role="dialog" aria-modal="true" aria-label={r.name}>
       <div className="wrap">
-        <button ref={back} className="back" type="button" onClick={onClose}>
-          ‹ Back
-        </button>
+        <div className="row spread">
+          <button ref={back} className="back" type="button" onClick={onClose}>
+            ‹ Back
+          </button>
+          <button className="btn quiet" type="button" onClick={() => setEditing(true)}>
+            Edit
+          </button>
+        </div>
         <div className="stack tight">
           <h1>{r.name}</h1>
           <span className="small muted">{meta.join(' · ')}</span>
@@ -247,6 +254,24 @@ export function RecipeView({
             setCooking(false)
             setError(undefined)
             setStatus(message)
+            back.current?.focus()
+          }}
+        />
+      )}
+      {editing && (
+        <RecipeForm
+          householdId={householdId}
+          recipe={r}
+          onSaved={(next) => {
+            setEditing(false)
+            setNotes(next.notes)
+            setError(undefined)
+            setStatus('Recipe saved.')
+            onChange(next)
+            back.current?.focus()
+          }}
+          onClose={() => {
+            setEditing(false)
             back.current?.focus()
           }}
         />

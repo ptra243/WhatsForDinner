@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { SUPABASE_URL } from './config'
@@ -164,7 +164,9 @@ describe('Invites', () => {
     expect(db.client.rpc).toHaveBeenCalledWith('accept_invite', { token: 'tok' })
     expect(db.client.rpc).not.toHaveBeenCalledWith('create_household', expect.anything())
     expect(window.location.search).toBe('')
-    expect(screen.queryByRole('button', { name: 'Add recipe' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Add recipe' }))
+    expect(await screen.findByRole('dialog', { name: 'Add a recipe' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Add it with Claude/ })).not.toBeInTheDocument()
   })
 
   it('signed in, says why a join was refused and carries on to their own household', async () => {
@@ -209,6 +211,8 @@ describe('App shell', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn(async () => {}) }, configurable: true })
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: 'Add recipe' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Got it as text or a photo? Add it with Claude' }))
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled())
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith("Add this recipe to my What's for Dinner recipes:\n")
     expect(await screen.findByText('Copied the question. Open Claude and paste it.')).toBeInTheDocument()
     open.mockRestore()

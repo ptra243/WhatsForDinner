@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { AskClaudeButton, Toast } from './components/AskClaude'
+import { Toast } from './components/AskClaude'
 import { Header } from './components/Header'
 import { ListTab } from './components/ListTab'
 import { RecipesTab } from './components/RecipesTab'
@@ -9,7 +9,6 @@ import { Tabs } from './components/Tabs'
 import { WeekTab } from './components/WeekTab'
 import { useHousehold, useSession, type Household } from './lib/auth'
 import { CanAskClaude } from './lib/askAccess'
-import { addRecipePrompt } from './lib/claude'
 import { flush, flushWhenShown, usePendingCount, useStalled } from './lib/offlineQueue'
 import { useOnline } from './lib/online'
 import { supabase } from './lib/supabase'
@@ -78,6 +77,7 @@ function Shell({ user, household }: { user: { id: string; email: string }; house
   const [tab, setTab] = useState<Tab>(tabFromHash)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [addingRecipe, setAddingRecipe] = useState(false)
   const [settingsVersion, setSettingsVersion] = useState(0)
   // The week whose 👍 recipes the Recipes tab opens filtered to, from the Week tab's vote tally.
   const [likedWeek, setLikedWeek] = useState<string>()
@@ -122,7 +122,11 @@ function Shell({ user, household }: { user: { id: string; email: string }; house
     </button>
   )
 
-  const addRecipeButton = <AskClaudeButton prompt={addRecipePrompt()}>Add recipe</AskClaudeButton>
+  const addRecipeButton = (
+    <button className="btn ghost" type="button" onClick={() => setAddingRecipe(true)}>
+      Add recipe
+    </button>
+  )
 
   return (
     <>
@@ -143,7 +147,12 @@ function Shell({ user, household }: { user: { id: string; email: string }; house
             )
           )}
           {tab === 'recipes' ? (
-            <RecipesTab householdId={householdId} likedWeek={likedWeek} />
+            <RecipesTab
+              householdId={householdId}
+              likedWeek={likedWeek}
+              adding={addingRecipe}
+              onAddClose={() => setAddingRecipe(false)}
+            />
           ) : tab === 'week' ? (
             <WeekTab
               householdId={householdId}

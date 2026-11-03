@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS } from '../lib/plan'
 import type { Recipe } from '../lib/recipes'
@@ -10,6 +10,10 @@ const api = vi.hoisted(() => ({
   deleteRecipe: vi.fn(async () => {}),
   loadWeekMains: vi.fn(async () => ({ tue: 'Fish tacos' })),
   addToNight: vi.fn(async () => {}),
+  loadIngredients: vi.fn(async () => [{ name: 'onion', section: 'fruit and veg', allergens: [] }]),
+  loadRecipeNames: vi.fn(async () => []),
+  saveRecipe: vi.fn(async () => 'new'),
+  loadRecipe: vi.fn(),
 }))
 vi.mock('../lib/recipes', async (actual) => ({ ...(await actual<typeof import('../lib/recipes')>()), ...api }))
 const plan = vi.hoisted(() => ({ loadSettings: vi.fn() }))
@@ -305,5 +309,44 @@ describe('Ask Claude', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Add a recipe with Claude' }))
     expect(asked(open)).toBe("Add this recipe to my What's for Dinner recipes:\n")
     open.mockRestore()
+  })
+})
+
+describe('Adding and editing by hand', () => {
+  it('adds a recipe from the empty list and opens it', async () => {
+    api.loadRecipes.mockResolvedValueOnce([])
+    api.loadRecipe.mockResolvedValueOnce(recipe({ id: 'new', name: 'Toast', createdAt: '2026-11-03T00:00:00Z' }))
+    render(<RecipesTab householdId="h1" />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Add recipe' }))
+    const form = screen.getByRole('dialog', { name: 'Add a recipe' })
+    fireEvent.change(within(form).getByLabelText('Name'), { target: { value: 'Toast' } })
+    await waitFor(() => expect(within(form).getByRole('button', { name: 'Save recipe' })).toBeEnabled())
+    fireEvent.click(within(form).getByRole('button', { name: 'Save recipe' }))
+    expect(await screen.findByRole('dialog', { name: 'Toast' })).toBeInTheDocument()
+    expect(api.saveRecipe).toHaveBeenCalledWith('h1', expect.objectContaining({ name: 'Toast' }))
+    fireEvent.click(screen.getByRole('button', { name: '‹ Back' }))
+    expect(names()).toEqual(['Toast'])
+  })
+
+  it('shows the form when the header asks for it', async () => {
+    const onAddClose = vi.fn()
+    render(<RecipesTab householdId="h1" adding onAddClose={onAddClose} />)
+    fireEvent.click(await screen.findByRole('button', { name: '‹ Cancel' }))
+    expect(onAddClose).toHaveBeenCalled()
+  })
+
+  it('edits a recipe from its view', async () => {
+    api.loadRecipe.mockResolvedValueOnce({ ...RECIPES[0], name: 'Weeknight dal', isExample: false })
+    render(<RecipesTab householdId="h1" />)
+    fireEvent.click(await screen.findByRole('button', { name: /Red lentil dal/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    const form = screen.getByRole('dialog', { name: 'Edit Red lentil dal' })
+    fireEvent.change(within(form).getByLabelText('Name'), { target: { value: 'Weeknight dal' } })
+    await waitFor(() => expect(within(form).getByRole('button', { name: 'Save recipe' })).toBeEnabled())
+    fireEvent.click(within(form).getByRole('button', { name: 'Save recipe' }))
+    expect(await screen.findByRole('heading', { name: 'Weeknight dal' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Recipe saved.')
+    expect(screen.queryByText('Example recipe')).not.toBeInTheDocument()
+    expect(api.saveRecipe).toHaveBeenCalledWith('h1', expect.objectContaining({ id: 'dal', name: 'Weeknight dal' }))
   })
 })
