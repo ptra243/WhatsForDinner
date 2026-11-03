@@ -1,9 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NO_MARK } from './list'
-import { clearQueues, enqueue, flush, pending, withPending, type Change, type Queued } from './offlineQueue'
+import { renderHook } from '@testing-library/react'
+import { clearQueues, enqueue, flush, flushWhenShown, pending, RETRY_FIRST, useStalled, withPending, type Change, type Queued } from './offlineQueue'
 import type { ListData } from './shop'
 
+const api = vi.hoisted(() => ({ removeExtra: vi.fn(async () => {}) }))
 vi.mock('./supabase', () => ({ supabase: {} }))
+vi.mock('./shop', async (actual) => ({ ...(await actual<typeof import('./shop')>()), ...api }))
+
+const isStalled = (householdId: string) => renderHook(() => useStalled(householdId)).result.current
 
 const W = '2026-10-26'
 const milk = { id: 'x9', name: 'milk', qty: 2, unit: 'l', section: 'dairy and fridge' }
@@ -12,7 +17,10 @@ const strip = (q: Queued[]): Change[] => q.map((c) => Object.fromEntries(Object.
 
 const setOnline = (online: boolean) => Object.defineProperty(navigator, 'onLine', { value: online, configurable: true })
 
-beforeEach(() => localStorage.clear())
+beforeEach(() => {
+  clearQueues()
+  localStorage.clear()
+})
 afterEach(() => setOnline(true))
 
 describe('enqueue', () => {
@@ -89,13 +97,40 @@ describe('flush', () => {
     expect(pending('h1')).toHaveLength(1)
   })
 
-  it('stops and keeps the queue when there is no answer', async () => {
-    const save = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch'))
+  it('stops and keeps the queue when there is no answer, then retries by itself, backing off', async () => {
+    vi.useFakeTimers()
+    try {
+      const noAnswer = new TypeError('Failed to fetch')
+      const save = vi.fn().mockRejectedValueOnce(noAnswer).mockRejectedValueOnce(noAnswer).mockResolvedValue(undefined)
+      enqueue('h1', { kind: 'remove', week: W, id: 'x1' })
+      enqueue('h1', { kind: 'remove', week: W, id: 'x2' })
+      await flush('h1', save)
+      expect(save).toHaveBeenCalledTimes(1)
+      expect(pending('h1')).toHaveLength(2)
+      expect(isStalled('h1')).toBe(true)
+
+      // The phone still says it is online, so no `online` event comes: the timer retries.
+      await vi.advanceTimersByTimeAsync(RETRY_FIRST)
+      expect(save).toHaveBeenCalledTimes(2)
+      await vi.advanceTimersByTimeAsync(RETRY_FIRST)
+      expect(save).toHaveBeenCalledTimes(2)
+      await vi.advanceTimersByTimeAsync(RETRY_FIRST)
+      expect(save).toHaveBeenCalledTimes(4)
+      expect(pending('h1')).toEqual([])
+      expect(isStalled('h1')).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('sends when the app is shown again', async () => {
     enqueue('h1', { kind: 'remove', week: W, id: 'x1' })
-    enqueue('h1', { kind: 'remove', week: W, id: 'x2' })
-    await flush('h1', save)
-    expect(save).toHaveBeenCalledTimes(1)
-    expect(pending('h1')).toHaveLength(2)
+    const off = flushWhenShown('h1')
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    off()
+    await vi.waitFor(() => expect(api.removeExtra).toHaveBeenCalledWith('x1'))
+    await vi.waitFor(() => expect(pending('h1')).toEqual([]))
   })
 
   it('drops a change the database refuses and carries on', async () => {

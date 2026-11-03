@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { SUPABASE_URL } from './config'
-import { enqueue, pending } from './lib/offlineQueue'
+import { clearQueues, enqueue, pending } from './lib/offlineQueue'
 
 // A stand-in for the Supabase client: a session (or none), the user's memberships and create_household.
 const db = vi.hoisted(() => {
@@ -172,10 +172,12 @@ describe('Offline', () => {
     })
   afterEach(() => {
     setOnline(true)
+    act(() => clearQueues())
     localStorage.clear()
   })
 
-  it('says how many changes will sync, still allows hand-added items, and clears when the signal is back', async () => {
+  // The stand-in client cannot save list changes, so every send here gets no answer, as on a weak signal.
+  it('says how many changes will sync, still allows hand-added items, and says when they are still waiting online', async () => {
     signedIn()
     window.history.replaceState(null, '', '/#list')
     render(<App />)
@@ -191,6 +193,7 @@ describe('Offline', () => {
     expect(screen.getByText('Offline, 2 changes will sync.')).toBeInTheDocument()
     setOnline(true)
     expect(screen.queryByText(/Offline/)).not.toBeInTheDocument()
+    expect(await screen.findByText('Weak signal, 2 changes waiting to sync.')).toBeInTheDocument()
   })
 
   it('asks before signing out with changes waiting', async () => {

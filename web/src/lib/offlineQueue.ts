@@ -28,6 +28,32 @@ const dropListeners = new Set<() => void>()
 const sending = new Map<string, number>()
 const flushing = new Map<string, Promise<void>>()
 
+/**
+ * Households whose last send got no answer. In a shop the phone often reports a connection
+ * while nothing gets through, so no `online` event will come: retry on a timer, backing off.
+ */
+const stalled = new Set<string>()
+const retries = new Map<string, { timer?: ReturnType<typeof setTimeout>; delay: number }>()
+export const RETRY_FIRST = 15_000
+const RETRY_MAX = 120_000
+
+function retryLater(householdId: string, save: typeof send) {
+  const last = retries.get(householdId)
+  clearTimeout(last?.timer)
+  const delay = last ? Math.min(last.delay * 2, RETRY_MAX) : RETRY_FIRST
+  retries.set(householdId, { delay, timer: setTimeout(() => void flush(householdId, save), delay) })
+  if (!stalled.has(householdId)) {
+    stalled.add(householdId)
+    notify()
+  }
+}
+
+function caughtUp(householdId: string) {
+  clearTimeout(retries.get(householdId)?.timer)
+  retries.delete(householdId)
+  if (stalled.delete(householdId)) notify()
+}
+
 /** The household's waiting changes, oldest first. */
 export function pending(householdId: string): Queued[] {
   try {
@@ -88,22 +114,26 @@ const errorText = (e: unknown) => (e as { message?: string })?.message ?? String
 
 /**
  * Sends the queue oldest first while there is signal. A change the database refuses is dropped
- * with a toast so it does not hold up the rest; anything else stops until the next try.
- * Only one run per household at a time; changes queued meanwhile are sent in the same run.
+ * with a toast so it does not hold up the rest; anything else stops and tries again later
+ * (`retryLater`). Only one run per household at a time; changes queued meanwhile are sent in
+ * the same run. Runs on app start, when the signal returns, when the app is shown again,
+ * after each change, and on the retry timer.
  */
 export function flush(householdId: string, save = send): Promise<void> {
   const running = flushing.get(householdId)
   if (running) return running
   const run = (async () => {
     for (;;) {
+      // Offline, the `online` event starts the next run.
       if (!navigator.onLine) return
       const next = pending(householdId)[0]
-      if (!next) return
+      if (!next) return caughtUp(householdId)
       sending.set(householdId, next.n)
       try {
         await save(householdId, next)
+        caughtUp(householdId)
       } catch (e) {
-        if (!refused(e)) return
+        if (!refused(e)) return retryLater(householdId, save)
         showToast(`A change could not be saved, so it was dropped: ${errorText(e)}`)
         dropListeners.forEach((l) => l())
       } finally {
@@ -138,7 +168,17 @@ export function clearQueues() {
   } catch {
     // Nothing stored to forget.
   }
+  for (const householdId of [...retries.keys()]) caughtUp(householdId)
   notify()
+}
+
+/** Sends the queue whenever the app is shown again. Returns the unsubscribe. */
+export function flushWhenShown(householdId: string): () => void {
+  const onShow = () => {
+    if (document.visibilityState === 'visible') void flush(householdId)
+  }
+  document.addEventListener('visibilitychange', onShow)
+  return () => document.removeEventListener('visibilitychange', onShow)
 }
 
 const subscribe = (onChange: () => void) => {
@@ -158,3 +198,6 @@ export function onDropped(onDrop: () => void): () => void {
 
 /** How many changes are waiting to be saved. */
 export const usePendingCount = (householdId: string) => useSyncExternalStore(subscribe, () => pending(householdId).length)
+
+/** Whether the last send got no answer, so changes are waiting though the phone says it has signal. */
+export const useStalled = (householdId: string) => useSyncExternalStore(subscribe, () => stalled.has(householdId))
