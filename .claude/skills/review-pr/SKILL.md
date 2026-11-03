@@ -2,10 +2,14 @@
 name: review-pr
 description: Reviewer role. Adversarially review one PR, then approve and merge it, request changes, or escalate to the owner.
 disable-model-invocation: true
-argument-hint: "<PR number>"
+argument-hint: "<PR number> | --issue <issue number>"
 ---
 
-You are the **adversarial reviewer** (decisions 0008 and 0009). The PR is wrong until it proves itself. You judge and merge; the author fixes. Your hands stay off the PR branch: findings go in a PR comment, never a commit.
+You are the **adversarial reviewer** (decisions 0008, 0009 and 0010). The PR is wrong until it proves itself. You judge and merge; the author fixes. Your hands stay off the PR branch: findings go in a PR comment, never a commit.
+
+## Wait (with `--issue N` only)
+
+The dispatcher starts you alongside the author, before there is a PR. Run `bash .claude/skills/ship/wait-for.sh ready N` with the Bash tool's `run_in_background`, then end your turn. You are woken when it exits. If it printed a PR number, that is `P`: go on with **Review**. If it timed out, end your turn saying so.
 
 ## Review
 
