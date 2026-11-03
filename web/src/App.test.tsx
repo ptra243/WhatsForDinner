@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { SUPABASE_URL } from './config'
 
 // A stand-in for the Supabase client: a session (or none), the user's memberships and create_household.
 const db = vi.hoisted(() => {
@@ -189,7 +190,8 @@ describe('Offline', () => {
   it('stays signed in when an expired login cannot be refreshed with no signal', async () => {
     // supabase-js reports no session but keeps it in storage until a real sign-out.
     localStorage.setItem(
-      'sb-fckheksaemriadvrveoj-auth-token',
+      // The key auth.ts reads: the live project's, or the local stack's when web/.env.local sets one.
+      `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`,
       JSON.stringify({ access_token: 'old', refresh_token: 'r', expires_at: 1, user: { id: 'u1', email: 'cook@example.test' } }),
     )
     db.state.memberships = [{ household_id: 'h1' }]
