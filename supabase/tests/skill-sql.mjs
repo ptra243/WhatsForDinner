@@ -32,7 +32,7 @@ const pairings = fill(pairingQueries[0]).replace(/;\s*$/, '');
 // The votes query, checked against votes from both members (#17).
 const voteQueries = blocks.filter((b) => b.includes('from recipe_votes'));
 if (voteQueries.length !== 1) throw new Error(`Expected 1 votes query in SKILL.md, found ${voteQueries.length}`);
-const weekVotes = fill(voteQueries[0]).replace(/;s*$/, '');
+const weekVotes = fill(voteQueries[0]).replace(/;\s*$/, '');
 
 // The query that finds the owner's household, so it can be checked with a member in the household (#16).
 const ownerQueries = blocks.filter((b) => b.includes("m.role = 'owner'"));

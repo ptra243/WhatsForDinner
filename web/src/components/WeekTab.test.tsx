@@ -24,7 +24,7 @@ const votes = vi.hoisted(() => ({ list: [] as import('../lib/votes').Vote[], vot
 vi.mock('../lib/votes', async (actual) => ({
   ...(await actual<typeof import('../lib/votes')>()),
   useCurrentUser: () => 'me',
-  useVotes: () => ({ votes: votes.list, error: undefined, vote: votes.vote }),
+  useVotes: () => ({ votes: votes.list, loadError: undefined, saveError: undefined, vote: votes.vote }),
   useMemberNames: () => new Map<string, string>(),
 }))
 

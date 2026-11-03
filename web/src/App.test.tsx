@@ -41,7 +41,7 @@ vi.mock('./components/WeekTab', () => ({ WeekTab: () => null }))
 vi.mock('./components/ListTab', () => ({ ListTab: () => null }))
 vi.mock('./lib/votes', async (actual) => ({
   ...(await actual<typeof import('./lib/votes')>()),
-  useVotes: () => ({ votes: [], error: undefined, vote: () => {} }),
+  useVotes: () => ({ votes: [], loadError: undefined, saveError: undefined, vote: () => {} }),
 }))
 // The settings sheet's own fields are tested in components/SettingsSheet.test.tsx.
 vi.mock('./lib/household', async (actual) => {

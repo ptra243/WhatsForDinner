@@ -93,12 +93,14 @@ export function subscribeVotes(householdId: string, onChange: () => void): () =>
 
 /**
  * The household's votes for a week, kept live, and a setter that shows the change straight
- * away. `error` says why the last load or save failed.
+ * away. `loadError` says why the last load failed; `saveError` why the last save did, and stays
+ * up through the reload that puts the vote back, until the next save works.
  */
 export function useVotes(householdId: string, week: string) {
   const me = useCurrentUser()
   const [state, setState] = useState<{ week: string; votes: Vote[] }>()
-  const [error, setError] = useState<string>()
+  const [loadError, setLoadError] = useState<string>()
+  const [saveError, setSaveError] = useState<string>()
   const [version, setVersion] = useState(0)
 
   useEffect(() => {
@@ -107,9 +109,9 @@ export function useVotes(householdId: string, week: string) {
       (votes) => {
         if (!live) return
         setState({ week, votes })
-        setError(undefined)
+        setLoadError(undefined)
       },
-      (e: { message?: string }) => live && setError(e.message ?? String(e)),
+      (e: { message?: string }) => live && setLoadError(e.message ?? String(e)),
     )
     return () => {
       live = false
@@ -127,14 +129,14 @@ export function useVotes(householdId: string, week: string) {
     setState({ week, votes: next === null ? others : [...others, { recipeId, userId: me, vote: next }] })
     try {
       await saveVote(householdId, week, recipeId, me, next)
-      setError(undefined)
+      setSaveError(undefined)
     } catch (e) {
-      setError((e as { message?: string }).message ?? String(e))
+      setSaveError((e as { message?: string }).message ?? String(e))
       setVersion((v) => v + 1)
     }
   }
 
-  return { votes, error, vote }
+  return { votes, loadError, saveError, vote }
 }
 
 /** Members' short names by user id, for "👎 Sam". */

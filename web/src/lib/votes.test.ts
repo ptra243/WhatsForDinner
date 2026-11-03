@@ -1,11 +1,15 @@
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { comingWeek, memberName, nextVote, saveVote, tally, tallyText, voteSummary, weekWords, type Vote } from './votes'
+import { comingWeek, memberName, nextVote, saveVote, tally, tallyText, useVotes, voteSummary, weekWords, type Vote } from './votes'
 
 type Call = [string, ...unknown[]]
 
-// A stand-in for supabase-js that records each query's builder calls.
+// A stand-in for supabase-js that records each query's builder calls; `respond` gives each result.
 const db = vi.hoisted(() => {
-  const state = { queries: [] as { table: string; calls: Call[] }[] }
+  const state = {
+    queries: [] as { table: string; calls: Call[] }[],
+    respond: (() => ({ data: null, error: null })) as (calls: Call[]) => { data: unknown; error: unknown },
+  }
   const from = (table: string) => {
     const q = { table, calls: [] as Call[] }
     state.queries.push(q)
@@ -14,7 +18,7 @@ const db = vi.hoisted(() => {
       {
         get: (_, key: string) =>
           key === 'then'
-            ? (ok: (v: unknown) => unknown) => Promise.resolve({ data: null, error: null }).then(ok)
+            ? (ok: (v: unknown) => unknown) => Promise.resolve(state.respond(q.calls)).then(ok)
             : (...args: unknown[]) => {
                 q.calls.push([key, ...args])
                 return builder
@@ -23,12 +27,14 @@ const db = vi.hoisted(() => {
     )
     return builder
   }
-  return { state, client: { from } }
+  const channel = () => ({ on: () => ({}), subscribe: () => ({}) })
+  return { state, client: { from, channel, removeChannel: () => {} } }
 })
 vi.mock('./supabase', () => ({ supabase: db.client }))
 
 beforeEach(() => {
   db.state.queries = []
+  db.state.respond = () => ({ data: null, error: null })
 })
 
 // Wednesday 4 Nov 2026: this week starts 2 Nov, next week 9 Nov.
@@ -95,5 +101,21 @@ describe('saveVote', () => {
       ['recipe_votes', [['upsert', { ...key, vote: 1 }]]],
       ['recipe_votes', [['delete'], ['match', key]]],
     ])
+  })
+})
+
+describe('useVotes', () => {
+  it('puts the vote back and keeps the error up when the save is refused', async () => {
+    db.state.respond = (calls) =>
+      calls.some((c) => c[0] === 'upsert') ? { data: null, error: { message: 'refused' } } : { data: [], error: null }
+    const { result } = renderHook(() => useVotes('h1', '2026-11-09'))
+    await waitFor(() => expect(result.current.votes).toEqual([]))
+    await act(() => result.current.vote('curry', 1))
+    expect(result.current.saveError).toBe('refused')
+    // The reload that puts the vote back succeeds, and the save error stays.
+    await waitFor(() => expect(db.state.queries.filter((q) => q.calls[0]?.[0] === 'select')).toHaveLength(2))
+    await waitFor(() => expect(result.current.votes).toEqual([]))
+    expect(result.current.saveError).toBe('refused')
+    expect(result.current.loadError).toBeUndefined()
   })
 })

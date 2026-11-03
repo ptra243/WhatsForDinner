@@ -9,7 +9,7 @@ import { weekStartOf } from '../lib/week'
 export function RecipeVotes({ householdId, recipeId }: { householdId: string; recipeId: string }) {
   const me = useCurrentUser()
   const [week, setWeek] = useState(() => comingWeek())
-  const { votes, error, vote } = useVotes(householdId, week)
+  const { votes, loadError, saveError, vote } = useVotes(householdId, week)
   const names = useMemberNames(householdId)
   const mine = votes?.find((v) => v.recipeId === recipeId && v.userId === me)?.vote
   const summary = votes ? voteSummary(votes, recipeId, me, names) : ''
@@ -50,9 +50,14 @@ export function RecipeVotes({ householdId, recipeId }: { householdId: string; re
           {summary || (votes ? 'No votes yet' : '')}
         </span>
       </div>
-      {error && (
+      {saveError && (
         <p className="small warn flat" role="alert">
-          Could not save the vote: {error}
+          Could not save the vote: {saveError}
+        </p>
+      )}
+      {loadError && !saveError && (
+        <p className="small warn flat" role="alert">
+          Could not load the votes: {loadError}
         </p>
       )}
     </section>
