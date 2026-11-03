@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:login": "node scripts/dev-login.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
