@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { useCanAskClaude } from '../lib/askAccess'
 import { askClaude } from '../lib/claude'
 import { onToast, showToast } from '../lib/toast'
 
@@ -15,8 +16,13 @@ export function Toast() {
 
 type Props = { prompt: string | (() => string); className?: string; children: ReactNode }
 
-/** A button that opens Claude with `prompt`, toasting when it had to copy the prompt instead. */
+/**
+ * A button that opens Claude with `prompt`, toasting when it had to copy the prompt instead.
+ * Shown only to the household's owner (`CanAskClaude`).
+ */
 export function AskClaudeButton({ prompt, className = 'btn ghost', children }: Props) {
+  const allowed = useCanAskClaude()
+  if (!allowed) return null
   const ask = async () => {
     const result = await askClaude(typeof prompt === 'function' ? prompt() : prompt)
     if (result === 'copied') showToast('Copied the question. Open Claude and paste it.')

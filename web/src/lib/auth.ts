@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
 import { SUPABASE_URL } from '../config'
+import { acceptInvite, clearPendingInvite, pendingInvite } from './invites'
 import { supabase } from './supabase'
 
 /** Where supabase-js keeps the session (its default key for this project). */
@@ -43,35 +44,72 @@ export function useSession(): Session | null | undefined {
   return session
 }
 
+export type Household = { id: string; role: 'owner' | 'member' }
+
 /**
- * The signed-in user's household id. On first sign-in there is none, so create_household
- * makes one with the example recipes in it (and returns the existing one if a racing call won).
+ * The signed-in user's household and their role in it. On first sign-in there is none, so
+ * create_household makes one with the example recipes in it (and returns the existing one if a
+ * racing call won).
  */
-export async function ensureHousehold(): Promise<string> {
-  const { data, error } = await supabase.from('household_members').select('household_id').limit(1)
+export async function ensureHousehold(userId: string): Promise<Household> {
+  // Co-members' rows are readable too, so pick the user's own.
+  const { data, error } = await supabase.from('household_members').select('household_id, role').eq('user_id', userId).limit(1)
   if (error) throw error
-  if (data.length > 0) return data[0].household_id
+  if (data.length > 0) return { id: data[0].household_id, role: data[0].role === 'owner' ? 'owner' : 'member' }
 
   const { data: id, error: createError } = await supabase.rpc('create_household', { household_name: 'Home' })
   if (createError) throw createError
-  return id
+  return { id, role: 'owner' }
 }
 
-/** Household id for a signed-in user: undefined while loading; error if it could not be found or made. */
+/**
+ * Joins the household of the invite this device is holding, if any, then finds the user's
+ * household. A refused invite is reported as `inviteError` and kept until `skipInvite` drops it.
+ */
+async function joinOrEnsureHousehold(userId: string): Promise<Household> {
+  const token = pendingInvite()
+  if (token) {
+    try {
+      await acceptInvite(token)
+    } catch (e) {
+      throw new InviteError((e as { message?: string }).message ?? String(e))
+    }
+    clearPendingInvite()
+  }
+  return ensureHousehold(userId)
+}
+
+class InviteError extends Error {}
+
+type HouseholdState = { userId?: string; household?: Household; error?: string; inviteError?: string }
+
+/**
+ * Household for a signed-in user: undefined while loading; `error` if it could not be found or
+ * made; `inviteError` if the invite they came with was refused. `skipInvite` forgets the invite
+ * and carries on to their own household.
+ */
 export function useHousehold(userId: string | undefined) {
-  const [state, setState] = useState<{ userId?: string; id?: string; error?: string }>({})
+  const [state, setState] = useState<HouseholdState>({})
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     if (!userId) return
     let live = true
-    ensureHousehold().then(
-      (id) => live && setState({ userId, id }),
-      (e: { message?: string }) => live && setState({ userId, error: e.message ?? String(e) }),
+    joinOrEnsureHousehold(userId).then(
+      (household) => live && setState({ userId, household }),
+      (e: { message?: string }) =>
+        live && setState(e instanceof InviteError ? { userId, inviteError: e.message } : { userId, error: e.message ?? String(e) }),
     )
     return () => {
       live = false
     }
-  }, [userId])
+  }, [userId, attempt])
 
-  return state.userId === userId ? state : {}
+  const skipInvite = () => {
+    clearPendingInvite()
+    setState({})
+    setAttempt((a) => a + 1)
+  }
+
+  return { ...(state.userId === userId ? state : {}), skipInvite }
 }

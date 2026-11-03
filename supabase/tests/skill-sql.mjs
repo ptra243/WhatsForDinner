@@ -24,6 +24,11 @@ const avoidQueries = blocks.filter((b) => b.includes("settings->'avoid'"));
 if (avoidQueries.length !== 2) throw new Error(`Expected 2 allergen queries in SKILL.md, found ${avoidQueries.length}`);
 const [recipesWithAvoided, weekWithAvoided] = avoidQueries.map((b) => fill(b).replace(/;\s*$/, ''));
 
+// The query that finds the owner's household, so it can be checked with a member in the household (#16).
+const ownerQueries = blocks.filter((b) => b.includes("m.role = 'owner'"));
+if (ownerQueries.length !== 1) throw new Error(`Expected 1 owner household query in SKILL.md, found ${ownerQueries.length}`);
+const ownerHousehold = fill(ownerQueries[0]).replace(/;\s*$/, '');
+
 console.log(`\\set QUIET on
 \\o /dev/null
 begin;
@@ -38,12 +43,16 @@ end $$;
 
 ${seed}
 
-insert into auth.users (id, email) values ('00000000-0000-4000-8000-0000000000c1', 'skill-owner@example.test');
+insert into auth.users (id, email) values ('00000000-0000-4000-8000-0000000000c1', 'skill-owner@example.test'),
+  ('00000000-0000-4000-8000-0000000000c2', 'skill-member@example.test');
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "00000000-0000-4000-8000-0000000000c1", "role": "authenticated"}';
 select public.create_household('Skill test') as hid \\gset
 reset role;
+insert into household_members (household_id, user_id, role) values (:'hid', '00000000-0000-4000-8000-0000000000c2', 'member');
 select '00000000-0000-4000-8000-0000000000c1' as uid \\gset
+select pg_temp.expect('owner household query with a member in the household',
+  (select string_agg(owner_id::text, ',') from (${ownerHousehold}) q where household_id = :'hid'), :'uid'::text);
 select '2026-11-02' as week \\gset
 select count(*) as others from meal_plan_dishes \\gset
 update household_settings set settings = settings || '{"avoid": ["egg", "milk"]}' where household_id = :'hid';

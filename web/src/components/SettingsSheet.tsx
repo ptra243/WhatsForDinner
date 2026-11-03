@@ -13,22 +13,26 @@ import {
 import type { MealRule } from '../lib/plan'
 import { supabase } from '../lib/supabase'
 import { DAY_NAMES, DAYS, ymd, type Day } from '../lib/week'
+import { HouseholdMembers } from './HouseholdMembers'
 import { Sheet } from './Sheet'
 
 const errorText = (e: unknown) => (e as { message?: string }).message ?? String(e)
 
 /**
- * Household settings (what Claude plans with and what the week checks), the JSON export,
- * clearing the example recipes, and signing out. `onChanged` runs after a save or a clear.
+ * Household settings (what Claude plans with and what the week checks), who is in the
+ * household (and inviting someone), the JSON export, clearing the example recipes, and
+ * signing out. `onChanged` runs after a save or a clear.
  */
 export function SettingsSheet({
   householdId,
-  email,
+  user,
+  isOwner,
   onChanged,
   onClose,
 }: {
   householdId: string
-  email: string
+  user: { id: string; email: string }
+  isOwner: boolean
   onChanged: () => void
   onClose: () => void
 }) {
@@ -214,6 +218,8 @@ export function SettingsSheet({
         {busy === 'save' ? 'Saving…' : 'Save settings'}
       </button>
 
+      <HouseholdMembers householdId={householdId} userId={user.id} isOwner={isOwner} onLeft={() => window.location.reload()} />
+
       <h3 className="label flat">Your data</h3>
       {notice && (
         <p className="small muted flat" role="status">
@@ -246,7 +252,7 @@ export function SettingsSheet({
           </button>
         ))}
 
-      <p className="small muted flat">Signed in as {email}</p>
+      <p className="small muted flat">Signed in as {user.email}</p>
       <button className="btn ghost wide" type="button" onClick={() => supabase.auth.signOut()}>
         Sign out
       </button>
