@@ -1,6 +1,7 @@
 // Service worker: keeps the app shell and the last-loaded data so the app opens with no signal.
 // The build (vite.config.ts) fills in SHELL, the built files, and VERSION, a hash of them.
-// Writes are never cached: ticking and other changes need signal (full offline ticking is M2).
+// Writes are never cached or replayed here: the app queues list changes made offline in local
+// storage and sends them itself when the signal returns (web/src/lib/offlineQueue.ts).
 
 const SHELL = self.__SHELL__
 const VERSION = self.__VERSION__

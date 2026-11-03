@@ -9,6 +9,7 @@ import { Tabs } from './components/Tabs'
 import { WeekTab } from './components/WeekTab'
 import { useHousehold, useSession } from './lib/auth'
 import { addRecipePrompt } from './lib/claude'
+import { flush, flushWhenShown, usePendingCount, useStalled } from './lib/offlineQueue'
 import { useOnline } from './lib/online'
 import { supabase } from './lib/supabase'
 import { TABS, type Tab } from './tabs'
@@ -61,6 +62,16 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
   const [adding, setAdding] = useState(false)
   const [settingsVersion, setSettingsVersion] = useState(0)
   const online = useOnline()
+  const waiting = usePendingCount(householdId)
+  const stalled = useStalled(householdId)
+  const changes = `${waiting} ${waiting === 1 ? 'change' : 'changes'}`
+
+  // List changes made with no signal are sent when the app opens, when the signal returns and
+  // when the app is shown again; the queue also retries on a timer while sends get no answer.
+  useEffect(() => {
+    if (online) void flush(householdId)
+  }, [householdId, online])
+  useEffect(() => flushWhenShown(householdId), [householdId])
 
   useEffect(() => {
     const onHash = () => setTab(tabFromHash())
@@ -85,7 +96,7 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
   )
 
   const addButton = (
-    <button className="btn ghost" type="button" disabled={!online} onClick={() => setAdding(true)}>
+    <button className="btn ghost" type="button" onClick={() => setAdding(true)}>
       Add item
     </button>
   )
@@ -97,10 +108,18 @@ function Shell({ email, householdId }: { email: string; householdId: string }) {
       <Header title={TITLES[tab]} action={tab === 'week' ? settingsButton : tab === 'list' ? addButton : addRecipeButton} />
       <main>
         <div className="wrap">
-          {!online && (
+          {!online ? (
             <p className="banner" role="status">
-              <b>Offline, ticks need signal.</b> Showing what was last loaded.
+              <b>{waiting ? `Offline, ${changes} will sync.` : 'Offline.'}</b> Showing what was last loaded; list changes sync when the
+              signal is back.
             </p>
+          ) : (
+            stalled &&
+            waiting > 0 && (
+              <p className="banner" role="status">
+                <b>Weak signal, {changes} waiting to sync.</b> They send by themselves when the signal is better.
+              </p>
+            )
           )}
           {tab === 'recipes' ? (
             <RecipesTab householdId={householdId} />
