@@ -10,6 +10,7 @@ import {
   parseEquipment,
   saveHouseholdSettings,
 } from '../lib/household'
+import { usePendingCount } from '../lib/offlineQueue'
 import type { MealRule } from '../lib/plan'
 import { supabase } from '../lib/supabase'
 import { DAY_NAMES, DAYS, ymd, type Day } from '../lib/week'
@@ -50,6 +51,8 @@ export function SettingsSheet({
   const [busy, setBusy] = useState<'save' | 'export' | 'clear'>()
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
+  const [confirmSignOut, setConfirmSignOut] = useState(false)
+  const waiting = usePendingCount(householdId)
 
   useEffect(() => {
     let live = true
@@ -253,9 +256,26 @@ export function SettingsSheet({
         ))}
 
       <p className="small muted flat">Signed in as {user.email}</p>
-      <button className="btn ghost wide" type="button" onClick={() => supabase.auth.signOut()}>
-        Sign out
-      </button>
+      {confirmSignOut ? (
+        <div className="card stack confirm">
+          <b>
+            {waiting} list {waiting === 1 ? 'change has' : 'changes have'} not synced yet
+          </b>
+          <span className="small">Signing out now loses {waiting === 1 ? 'it' : 'them'}. Wait for signal to keep {waiting === 1 ? 'it' : 'them'}.</span>
+          <div className="row">
+            <button className="btn danger grow" type="button" onClick={() => supabase.auth.signOut()}>
+              Sign out anyway
+            </button>
+            <button className="btn ghost grow" type="button" onClick={() => setConfirmSignOut(false)}>
+              Stay signed in
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn ghost wide" type="button" onClick={() => (waiting ? setConfirmSignOut(true) : supabase.auth.signOut())}>
+          Sign out
+        </button>
+      )}
     </Sheet>
   )
 }

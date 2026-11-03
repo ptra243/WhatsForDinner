@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
 import { SUPABASE_URL } from '../config'
 import { acceptInvite, clearPendingInvite, pendingInvite } from './invites'
+import { clearQueues } from './offlineQueue'
 import { supabase } from './supabase'
 
 /** Where supabase-js keeps the session (its default key for this project). */
@@ -20,9 +21,10 @@ export function storedSession(): Session | null {
   }
 }
 
-/** Removes the last-loaded data the service worker keeps for offline use. */
+/** Removes the last-loaded data the service worker keeps for offline use, and unsent list changes. */
 const clearOfflineData = () => {
   if ('caches' in window) caches.delete('wfd-data').catch(() => {})
+  clearQueues()
 }
 
 /**

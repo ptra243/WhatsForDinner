@@ -86,6 +86,12 @@ export async function loadList(householdId: string, weekStart: string): Promise<
 export const applyMark = (mark: Mark | undefined, change: Partial<Mark>): Mark => ({ ...(mark ?? NO_MARK), ...change })
 
 /**
+ * Gives up on a list save after 20 seconds. On a bad connection a request can hang for minutes;
+ * an abort comes back with no error code, so the queue keeps the change and tries again.
+ */
+const giveUp = () => AbortSignal.timeout(20_000)
+
+/**
  * Saves a change to an item's mark, making the mark if there is none. Only the changed
  * columns are written, so two people shopping at once do not undo each other's changes.
  */
@@ -96,19 +102,24 @@ export async function setMark(householdId: string, weekStart: string, itemKey: s
   if (change.boughtUnit !== undefined) row.bought_unit = change.boughtUnit
   if (change.missing !== undefined) row.status = change.missing ? 'missing' : null
   if (change.haveIt !== undefined) row.have_it = change.haveIt
-  const { error } = await supabase.from('list_marks').upsert(row as never)
+  const { error } = await supabase.from('list_marks').upsert(row as never).abortSignal(giveUp())
   if (error) throw error
 }
 
-export async function addExtra(householdId: string, weekStart: string, extra: Omit<ListExtra, 'id'>): Promise<void> {
+/**
+ * Adds a hand-added item with the id the app made for it (so it can be removed before it is
+ * saved). Sent again after an answer was lost, it is already there, which counts as saved.
+ */
+export async function addExtra(householdId: string, weekStart: string, extra: ListExtra): Promise<void> {
   const { error } = await supabase
     .from('list_extras')
     .insert({ household_id: householdId, week_start: weekStart, ...extra, name: extra.name.toLowerCase().trim() })
-  if (error) throw error
+    .abortSignal(giveUp())
+  if (error && error.code !== '23505') throw error
 }
 
 export async function removeExtra(id: string): Promise<void> {
-  const { error } = await supabase.from('list_extras').delete().eq('id', id)
+  const { error } = await supabase.from('list_extras').delete().eq('id', id).abortSignal(giveUp())
   if (error) throw error
 }
 

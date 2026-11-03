@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { flush, pending } from '../lib/offlineQueue'
 import type { RecipeIngredient } from '../lib/recipes'
 import type { ListData } from '../lib/shop'
 import { Toast } from './AskClaude'
@@ -91,7 +92,7 @@ describe('Shopping list', () => {
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1')
     expect(api.setMark).toHaveBeenCalledWith('h1', '2026-10-26', 'lettuce|each', { ticked: true, missing: false })
     fireEvent.click(tick('lettuce'))
-    expect(api.setMark).toHaveBeenLastCalledWith('h1', '2026-10-26', 'lettuce|each', { ticked: false })
+    await waitFor(() => expect(api.setMark).toHaveBeenLastCalledWith('h1', '2026-10-26', 'lettuce|each', { ticked: false }))
   })
 
   it('hides ticked items when asked and remembers it', async () => {
@@ -203,7 +204,7 @@ describe('Add item', () => {
     fireEvent.change(within(sheet).getByLabelText('Amount'), { target: { value: '3' } })
     fireEvent.click(within(sheet).getByRole('button', { name: 'Add to list' }))
     await waitFor(() =>
-      expect(api.addExtra).toHaveBeenCalledWith('h1', '2026-10-26', { name: 'onion', qty: 3, unit: 'each', section: 'fruit and veg' }),
+      expect(api.addExtra).toHaveBeenCalledWith('h1', '2026-10-26', { id: expect.any(String), name: 'onion', qty: 3, unit: 'each', section: 'fruit and veg' }),
     )
     expect(onAddClose).toHaveBeenCalled()
   })
@@ -223,25 +224,61 @@ describe('Offline', () => {
     })
   afterEach(() => setOnline(true))
 
-  it('shows the last-loaded list but no ticking or other changes', async () => {
+  it('ticks offline, keeps the tick through a reload, and sends it when the signal is back', async () => {
     renderTab()
     await screen.findByText('lettuce')
     setOnline(false)
-    expect(tick('lettuce')).toBeDisabled()
+    fireEvent.click(tick('lettuce'))
+    expect(tick('lettuce')).toBeChecked()
+    expect(api.setMark).not.toHaveBeenCalled()
+    expect(pending('h1')).toMatchObject([{ kind: 'mark', week: '2026-10-26', key: 'lettuce|each', change: { ticked: true, missing: false } }])
+
+    // Back online the list reloads before the queue is sent; the tick still shows.
+    setOnline(true)
+    await waitFor(() => expect(api.loadList).toHaveBeenCalledTimes(3))
+    expect(tick('lettuce')).toBeChecked()
+    await act(() => flush('h1'))
+    expect(api.setMark).toHaveBeenCalledWith('h1', '2026-10-26', 'lettuce|each', { ticked: true, missing: false })
+    expect(pending('h1')).toEqual([])
+  })
+
+  it('allows every change but moving a section', async () => {
+    renderTab()
+    await screen.findByText('lettuce')
+    setOnline(false)
+    expect(tick('lettuce')).toBeEnabled()
     const sheet = await openItem('milk')
     for (const name of ['Save and tick', 'Couldn’t get it', 'Already have it', 'Remove from list']) {
-      expect(within(sheet).getByRole('button', { name })).toBeDisabled()
+      expect(within(sheet).getByRole('button', { name })).toBeEnabled()
     }
     expect(within(sheet).getByLabelText('Section')).toBeDisabled()
   })
 
-  it('reloads and allows ticking again when the signal is back', async () => {
-    renderTab()
+  it('adds and removes a hand-added item offline without sending either', async () => {
+    renderTab(true)
     await screen.findByText('lettuce')
     setOnline(false)
-    expect(api.loadList).toHaveBeenCalledTimes(2)
+    const sheet = screen.getByRole('dialog', { name: 'Add an item' })
+    fireEvent.change(within(sheet).getByLabelText('Item'), { target: { value: 'bread' } })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Add to list' }))
+    expect(await screen.findByText('bread')).toBeInTheDocument()
+    fireEvent.click(within(await openItem('bread')).getByRole('button', { name: 'Remove from list' }))
+    expect(screen.queryByText('bread')).not.toBeInTheDocument()
+    expect(pending('h1')).toEqual([])
     setOnline(true)
-    await waitFor(() => expect(api.loadList).toHaveBeenCalledTimes(3))
-    expect(tick('lettuce')).toBeEnabled()
+    await act(() => flush('h1'))
+    expect(api.addExtra).not.toHaveBeenCalled()
+    expect(api.removeExtra).not.toHaveBeenCalled()
+  })
+
+  it('drops a change the database refuses, with a toast, and reloads', async () => {
+    api.setMark.mockRejectedValueOnce({ code: '42501', message: 'not allowed' })
+    renderTab()
+    await screen.findByText('lettuce')
+    fireEvent.click(tick('lettuce'))
+    expect(await screen.findByText('A change could not be saved, so it was dropped: not allowed')).toBeInTheDocument()
+    await waitFor(() => expect(api.loadList).toHaveBeenCalledTimes(2))
+    expect(tick('lettuce')).not.toBeChecked()
+    expect(pending('h1')).toEqual([])
   })
 })
