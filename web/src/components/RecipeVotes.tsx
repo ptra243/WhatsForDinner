@@ -33,7 +33,7 @@ export function RecipeVotes({ householdId, recipeId }: { householdId: string; re
 
   return (
     <section className="card stack tight" aria-label="Votes">
-      <div className="row spread">
+      <div className="row spread wrap-row">
         <span className="label">Want it {weekWords(week)}?</span>
         <span className="row" role="group" aria-label="Week to vote for">
           {weeks.map(([w, label]) => (
