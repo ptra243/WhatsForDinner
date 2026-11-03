@@ -7,6 +7,7 @@ import { WeekTab } from './WeekTab'
 const api = vi.hoisted(() => ({
   loadWeek: vi.fn(),
   loadSettings: vi.fn(),
+  loadCookedNights: vi.fn(),
   setServings: vi.fn(async () => {}),
   removeDish: vi.fn(async () => {}),
   setNightFlags: vi.fn(async () => {}),
@@ -65,6 +66,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   api.loadWeek.mockImplementation(async (_h: string, week: string) => (week === '2026-10-26' ? plan() : emptyWeek()))
   api.loadSettings.mockResolvedValue(DEFAULT_SETTINGS)
+  api.loadCookedNights.mockResolvedValue([])
   api.loadRecipes.mockResolvedValue(RECIPES)
   api.subscribePlan.mockImplementation((_h: string, cb: () => void) => {
     realtime = cb
@@ -261,6 +263,28 @@ describe('Night sheet', () => {
     expect(chips.map((c) => c.textContent)).toEqual(['+ Naan', '+ Steamed rice'])
     fireEvent.click(chips[0])
     await waitFor(() => expect(api.addToNight).toHaveBeenCalledWith('h1', RECIPES[3], '2026-10-26', 'wed', 4, expect.any(String)))
+  })
+
+  it('offers the sides the main was cooked with and leaves them out of the gap suggestions', async () => {
+    api.loadCookedNights.mockResolvedValue([
+      [{ recipeId: 'curry', role: 'main' }, { recipeId: 'rice', role: 'side' }],
+      [{ recipeId: 'curry', role: 'main' }, { recipeId: 'rice', role: 'side' }, { recipeId: 'salad', role: 'side' }],
+      [{ recipeId: 'stew', role: 'main' }, { recipeId: 'naan', role: 'side' }],
+    ])
+    render(<WeekTab householdId="h1" />)
+    const sheet = await openNight(/^Wed 28/)
+    expect(api.loadCookedNights).toHaveBeenCalledWith('h1', '2026-04-27')
+    expect(within(sheet).getByText('Usually with')).toBeInTheDocument()
+    const chips = within(sheet).getAllByRole('button', { name: /^\+ / })
+    expect(chips.map((c) => c.textContent)).toEqual(['+ Steamed rice (2×)', '+ Green salad (1×)', '+ Naan'])
+    fireEvent.click(chips[0])
+    await waitFor(() => expect(api.addToNight).toHaveBeenCalledWith('h1', RECIPES[2], '2026-10-26', 'wed', 4, expect.any(String)))
+  })
+
+  it('shows no usual sides for a main never cooked with any', async () => {
+    render(<WeekTab householdId="h1" />)
+    const sheet = await openNight(/^Wed 28/)
+    expect(within(sheet).queryByText('Usually with')).not.toBeInTheDocument()
   })
 
   it('adds a main or side from a searchable picker', async () => {
