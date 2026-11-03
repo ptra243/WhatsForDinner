@@ -34,6 +34,8 @@ jobs:
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/move_night.sql
       - name: Household invites work once and only for the owner
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/invites.sql
+      - name: Members vote only for themselves
+        run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/votes.sql
       - name: Dinner Planner skill SQL examples run
         run: node supabase/tests/skill-sql.mjs | psql "$DB_URL" -v ON_ERROR_STOP=1
 

@@ -15,7 +15,7 @@ The human-readable copy of these rules is `docs/claude-instructions.md` in the r
 - Find the household once per chat (query below). If it returns more than one row, ask which email is the owner's.
 - Never plan in or edit the template household (`private.template_household_id()`, named "Example recipes (template)", no members). It holds the examples copied into new households and follows the repo's `seed/`.
 - Use only the tables below. Never change the schema (no `create`, `alter`, `drop`); schema changes are migrations in the repo.
-- Don't change `list_marks`, `list_extras` or `meal_plan_nights` (ticks, hand-added items, cooked flags): they are the shoppers' and cook's. Reading cooked flags is fine. The shopping list is worked out from the plan, so saving the plan updates it.
+- Don't change `list_marks`, `list_extras`, `meal_plan_nights` or `recipe_votes` (ticks, hand-added items, cooked flags, votes): they are the shoppers', cook's and members'. Reading cooked flags is fine. The shopping list is worked out from the plan, so saving the plan updates it.
 
 ```sql
 -- The owner's household and settings
@@ -36,6 +36,7 @@ where h.id <> private.template_household_id();
 - `recipe_steps`: recipe_id, position (from 0), text, timer_mins (null unless the step involves waiting).
 - `ingredients`: slug (PK), name (unique), section, allergens text[] (below). Shared by all households.
 - `meal_plan_dishes`: household_id, week_start (always a Monday), day (`mon`..`sun`), position (order in the night, from 0), recipe_id, role (`main` / `side`), servings, swaps jsonb `[{"from", "to", "qty", "unit"}]`.
+- `recipe_votes`: household_id, week_start (a Monday), recipe_id, user_id, vote (`1` 👍, `-1` 👎). Each member's say on a recipe for a coming week, set in the app. Read only for you: never write votes.
 - `household_settings`, `households`, `household_members`, `household_invites`: read only for you. A household can have members besides the owner (`role = 'member'`, a partner who joined by invite); they use the app, and you still plan for the household and set `created_by` to the owner.
 
 ## Units and sections
@@ -66,9 +67,10 @@ The database rejects anything else.
 
 ## Planning
 
-1. Read the settings, the recipes (with when each was last cooked) and the week if anything is already planned.
+1. Read the settings, the recipes (with when each was last cooked), the week's votes (query below) and the week if anything is already planned.
 2. Check the week before for dinners that were planned but not marked cooked (plans change: a night out, a late finish). List them and ask whether to put any on the new week; don't assume, since the cook may have cooked and not ticked it. Leave the old week as it is.
-3. Favour well-rated recipes; don't repeat anything cooked in the last two weeks; spread proteins across the week. A dinner planned but not cooked doesn't count as a repeat.
+3. Favour recipes with a 👍 for the week, then well-rated ones. Leave out any recipe with a 👎 for the week unless asked to plan it. Say in the proposal which votes you followed ("Fish tacos: 👍 Sam. Left out beef ragù: 👎 you"); name members by the part of their email before the @. Votes are for that week only.
+   Don't repeat anything cooked in the last two weeks; spread proteins across the week. A dinner planned but not cooked doesn't count as a repeat.
 4. Keep each night's hands-on minutes (`active_mins` of its dishes) within that weekday's `minutes`. Put long cooks on weekends, or use the household's equipment (pressure cooker) on weeknights.
 5. Follow `mealRule`: with `veg+carb` every night covers a vegetable and a carb (from the main's `provides` or added sides); with `veg` just a vegetable; `off` no rule.
    When a main needs sides, prefer the ones the household actually cooks with it (the pairing query below: nights marked cooked in the last 26 weeks), then other sides that fill the gap. Pairings are worked out from the plan; there is nothing to save.
@@ -123,6 +125,22 @@ left join meal_plan_nights n on n.household_id = d.household_id
 where d.household_id = '<household_id>' and d.week_start = '<week_start>'::date - 7
   and not coalesce(n.cooked, false)
 order by array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day), d.position;
+```
+
+The week's votes, recipes with a 👎 first (leave them out), then the most 👍:
+
+```sql
+select r.slug, r.name,
+       count(*) filter (where v.vote = 1) as likes,
+       count(*) filter (where v.vote = -1) as dislikes,
+       string_agg(case when v.vote = 1 then '👍 ' else '👎 ' end || split_part(u.email, '@', 1), ', '
+                  order by u.email) as votes
+from recipe_votes v
+join recipes r on r.id = v.recipe_id
+join auth.users u on u.id = v.user_id
+where v.household_id = '<household_id>' and v.week_start = '<week_start>'
+group by r.slug, r.name
+order by dislikes desc, likes desc, r.name;
 ```
 
 The sides each main was cooked with in the 26 weeks before `<week_start>`, most often first (a night counts once):

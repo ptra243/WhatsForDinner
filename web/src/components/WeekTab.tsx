@@ -26,6 +26,7 @@ import {
   type Week,
 } from '../lib/plan'
 import { addToNight, loadRecipes, matches, type Course, type Recipe } from '../lib/recipes'
+import { tallyText, useVotes } from '../lib/votes'
 import { DAY_FULL, DAY_NAMES, DAYS, addDays, dateOf, dayLabel, parseYmd, rangeLabel, weekStartOf, ymd, type Day } from '../lib/week'
 import { AskClaudeButton } from './AskClaude'
 import { CookMode } from './CookMode'
@@ -50,8 +51,19 @@ type Target = { week: string; day: Day; night: Night }
  * the rest of a night opens its sheet. Changes from anywhere (this app or Claude) reload the week
  * as they happen; `settingsVersion` goes up when the settings sheet saves or clears the examples.
  */
-export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: string; settingsVersion?: number }) {
+export function WeekTab({
+  householdId,
+  settingsVersion = 0,
+  onShowVotes,
+}: {
+  householdId: string
+  settingsVersion?: number
+  /** Opens the recipes someone gave 👍 for the week, from the week's vote tally. */
+  onShowVotes?: (week: string) => void
+}) {
   const [week, setWeek] = useState(() => weekStartOf(new Date()))
+  const { votes } = useVotes(householdId, week)
+  const votesText = votes ? tallyText(votes, week) : ''
   const canAskClaude = useCanAskClaude()
   const [plan, setPlan] = useState<{ week: string; nights: Week }>()
   const [recipes, setRecipes] = useState<Recipe[]>([])
@@ -157,6 +169,11 @@ export function WeekTab({ householdId, settingsVersion = 0 }: { householdId: str
   return (
     <>
       <WeekNav week={week} onChange={setWeek} />
+      {votesText && (
+        <button type="button" className="btn quiet wide tally" onClick={() => onShowVotes?.(week)}>
+          👍 {votesText} ›
+        </button>
+      )}
       {error && (
         <p className="small warn" role="alert">
           Could not load the week: {error}

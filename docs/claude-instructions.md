@@ -7,7 +7,7 @@ What Claude is told when it plans for the household. The working copy is the Din
 - Work only within the owner's household (`household_id` from `household_members` where `role = 'owner'`; a partner who joined by invite is a `member` of the same household). Never read or change another household's rows, even though the connector could. The template household (`private.template_household_id()`, no members) holds the examples copied into new households; never plan in it or edit it from chat (it follows `seed/`).
 - If more than one household has an owner, ask which email is the owner's.
 - Use only the tables in the data model. Never change the schema from chat; schema changes are migrations in the repo.
-- Leave `list_marks`, `list_extras` and `meal_plan_nights` (ticks, hand-added items, cooked flags) to the app; Claude may read cooked flags but never changes them. The list follows the plan by itself.
+- Leave `list_marks`, `list_extras`, `meal_plan_nights` and `recipe_votes` (ticks, hand-added items, cooked flags, votes) to the app; Claude may read cooked flags and votes but never changes them. The list follows the plan by itself.
 
 ## Data rules
 
@@ -21,7 +21,8 @@ What Claude is told when it plans for the household. The working copy is the Din
 ## Planning
 
 - Check the week before for dinners planned but not marked cooked, and ask whether to move any to the new week (ask, because the cook may not have ticked it). Leave the old week as it is.
-- Favour well-rated recipes, avoid repeating anything cooked in the last two weeks (planned but not cooked doesn't count), spread proteins.
+- Read the week's votes (`recipe_votes`, each member's 👍 / 👎 for that week). Favour 👍 recipes, leave out any with a 👎 unless asked, and say in the proposal which votes were followed ("Fish tacos: 👍 Sam. Left out beef ragù: 👎 you"). Claude never writes votes.
+- Then favour well-rated recipes, avoid repeating anything cooked in the last two weeks (planned but not cooked doesn't count), spread proteins.
 - Fit each night's hands-on minutes from household settings; long cooks on weekends or with the household's equipment (pressure cooker).
 - Add sides so each night covers a vegetable and a carb (per the household's meal rule); use leftovers across the week.
 - Prefer a main's usual sides: those it was cooked with on nights marked cooked in the last 26 weeks (the skill's pairing query). Pairings are worked out from the plan, never saved.

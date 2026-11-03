@@ -82,12 +82,12 @@ async function allRows<T>(page: (from: number, to: number) => PromiseLike<{ data
 
 /**
  * All of the household's data as one object: the household, its members, settings, recipes
- * (with ingredients and steps), plans, list marks and hand-added items, plus the shared
+ * (with ingredients and steps), plans, list marks and hand-added items, votes, plus the shared
  * ingredient list the recipes refer to. Rows are as stored, so the file can be loaded back.
  */
 export async function exportHousehold(householdId: string) {
   const hid = householdId
-  const [household, members, settings, ingredients, recipes, nights, dishes, marks, extras] = await Promise.all([
+  const [household, members, settings, ingredients, recipes, nights, dishes, marks, extras, votes] = await Promise.all([
     supabase.from('households').select('*').eq('id', hid).maybeSingle(),
     supabase.from('household_members').select('*').eq('household_id', hid),
     supabase.from('household_settings').select('*').eq('household_id', hid).maybeSingle(),
@@ -108,6 +108,16 @@ export async function exportHousehold(householdId: string) {
       supabase.from('list_marks').select('*').eq('household_id', hid).order('week_start').order('item_key').range(a, b),
     ),
     allRows((a, b) => supabase.from('list_extras').select('*').eq('household_id', hid).order('id').range(a, b)),
+    allRows((a, b) =>
+      supabase
+        .from('recipe_votes')
+        .select('*')
+        .eq('household_id', hid)
+        .order('week_start')
+        .order('recipe_id')
+        .order('user_id')
+        .range(a, b),
+    ),
   ])
   for (const r of [household, members, settings]) if (r.error) throw r.error
   return {
@@ -123,6 +133,7 @@ export async function exportHousehold(householdId: string) {
     meal_plan_dishes: dishes,
     list_marks: marks,
     list_extras: extras,
+    recipe_votes: votes,
   }
 }
 

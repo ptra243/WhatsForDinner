@@ -9,6 +9,11 @@ const api = vi.hoisted(() => ({
   markCooked: vi.fn(async () => true),
 }))
 vi.mock('../lib/recipes', async (actual) => ({ ...(await actual<typeof import('../lib/recipes')>()), ...api }))
+vi.mock('../lib/votes', async (actual) => ({
+  ...(await actual<typeof import('../lib/votes')>()),
+  useVotes: () => ({ votes: [], loadError: undefined, saveError: undefined, vote: () => {} }),
+  useMemberNames: () => new Map<string, string>(),
+}))
 
 const DAL: Recipe = {
   id: 'dal',
