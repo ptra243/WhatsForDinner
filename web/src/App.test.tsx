@@ -39,6 +39,8 @@ vi.mock('./lib/supabase', () => ({ supabase: db.client }))
 vi.mock('./components/WeekTab', () => ({ WeekTab: () => null }))
 // So has the Shopping list tab (components/ListTab.test.tsx).
 vi.mock('./components/ListTab', () => ({ ListTab: () => null }))
+// And the suggestions on the Recipes tab (components/Suggestions.test.tsx).
+vi.mock('./components/Suggestions', () => ({ Suggestions: () => null }))
 vi.mock('./lib/votes', async (actual) => ({
   ...(await actual<typeof import('./lib/votes')>()),
   useVotes: () => ({ votes: [], loadError: undefined, saveError: undefined, vote: () => {} }),

@@ -289,6 +289,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"suggestions": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"description": string,"handled_at": string | null,"household_id": string,"id": string,"name": string,"recipe_id": string | null,"reply": string,"status": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"description"?: string,"handled_at"?: string | null,"household_id": string,"id"?: string,"name": string,"recipe_id"?: string | null,"reply"?: string,"status"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"description"?: string,"handled_at"?: string | null,"household_id"?: string,"id"?: string,"name"?: string,"recipe_id"?: string | null,"reply"?: string,"status"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "suggestions_household_id_fkey"
+      columns: ["household_id"]
+isOneToOne: false
+      referencedRelation: "households"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "suggestions_recipe_id_fkey"
+      columns: ["recipe_id"]
+isOneToOne: false
+      referencedRelation: "recipes"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {

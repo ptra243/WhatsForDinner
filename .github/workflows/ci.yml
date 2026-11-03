@@ -36,6 +36,8 @@ jobs:
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/invites.sql
       - name: Members vote only for themselves
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/votes.sql
+      - name: Only the author edits a suggestion, only while open
+        run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/suggestions.sql
       - name: Saving a recipe is one atomic call
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/save_recipe.sql
       - name: Dinner Planner skill SQL examples run

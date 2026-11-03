@@ -48,3 +48,8 @@ export const nightPrompt = (weekStart: string, day: Day) =>
 export const recipePrompt = (name: string, id: string) => `About my What's for Dinner recipe "${name}" (id ${id}): `
 
 export const addRecipePrompt = () => `Add this recipe to my What's for Dinner recipes:\n`
+
+export const refineSuggestionPrompt = (name: string, description: string, id: string) =>
+  `Refine this What's for Dinner suggestion into a recipe: "${name}"${description ? ` (${description})` : ''} (suggestion id ${id}).`
+
+export const refineAllPrompt = () => `Refine all open What's for Dinner suggestions into recipes.`

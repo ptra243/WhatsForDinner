@@ -37,6 +37,7 @@ where h.id <> private.template_household_id();
 - `ingredients`: slug (PK), name (unique), section, allergens text[] (below). Shared by all households.
 - `meal_plan_dishes`: household_id, week_start (always a Monday), day (`mon`..`sun`), position (order in the night, from 0), recipe_id, role (`main` / `side`), servings, swaps jsonb `[{"from", "to", "qty", "unit"}]`.
 - `recipe_votes`: household_id, week_start (a Monday), recipe_id, user_id, vote (`1` 👍, `-1` 👎). Each member's say on a recipe for a coming week, set in the app. Read only for you: never write votes.
+- `suggestions`: id, household_id, created_by, name, description (may hold a link), status (`open` / `added` / `declined`), reply (your one line), recipe_id → recipes. Dinners members suggest in the app. You set only `status`, `reply` and `recipe_id` (Suggestions below).
 - `household_settings`, `households`, `household_members`, `household_invites`: read only for you. A household can have members besides the owner (`role = 'member'`, a partner who joined by invite); they use the app, and you still plan for the household and set `created_by` to the owner.
 
 ## Units and sections
@@ -85,6 +86,17 @@ The database rejects anything else.
 - If only a link is given and you can't read it, ask for the text.
 - Set `source` (the link, book or "Photo") and `created_by` to the owner's id. Leave `rating` null; the cook rates it in the app. `is_example` is false.
 
+## Suggestions
+
+Members suggest dinners by name in the app. The owner asks you to refine one ("Refine this What's for Dinner suggestion … (suggestion id …)") or all the open ones. For each open suggestion (query below):
+
+1. Look for a recipe that already matches it. If one does, link that recipe.
+2. Otherwise add it as a new recipe (Recipes above) from its description or the link in it, with the link as `source`. If the link can't be read and there's no recipe text, ask the owner for the text and leave the suggestion open meanwhile.
+3. Mark it added (query below): `status` `added`, `recipe_id` the recipe, and `reply` one short line the members read ("Added as Beef pho", "Already in your recipes: Red lentil dal").
+4. Or decline it with the reason as `reply` ("No recipe in the link; send me one to add it"), when the owner says to or it can't be made into a recipe.
+
+Then list what you did, one line each. Never plan a dinner from a suggestion, delete one, or change its name or description: they are the member's. Once it is a recipe, members vote for it in the app like any other.
+
 ## Swaps at the shops
 
 - Suggest one good swap with a ratio and a tip (e.g. "light evaporated milk for cream, same amount; stir it in off the boil so it doesn't split").
@@ -97,7 +109,7 @@ Short, plain, phone-sized replies. Simple lists, no tables. No SQL in replies un
 
 ## Example SQL
 
-Replace `<household_id>`, `<owner_id>` and `<week_start>` (a Monday, `yyyy-mm-dd`) with real values. Each block is one call to `execute_sql`.
+Replace `<household_id>`, `<owner_id>`, `<week_start>` (a Monday, `yyyy-mm-dd`) and `<suggestion_id>` with real values. Each block is one call to `execute_sql`.
 
 List recipes, with the last week each was cooked (a night marked cooked in the app) and planned:
 
@@ -252,6 +264,35 @@ from r, (values
   (1, 'Marinate.', 15),
   (2, 'Fry in a hot pan until golden and cooked through.', 10)
 ) as v(position, text, timer_mins);
+```
+
+The open suggestions, oldest first, with who made them:
+
+```sql
+select s.id, s.name, s.description, split_part(u.email, '@', 1) as suggested_by, s.created_at
+from suggestions s
+left join auth.users u on u.id = s.created_by
+where s.household_id = '<household_id>' and s.status = 'open'
+order by s.created_at;
+```
+
+Mark a suggestion added, linking its recipe (an unknown slug leaves `recipe_id` null, which the database refuses). No row returned means it is no longer open:
+
+```sql
+update suggestions
+set status = 'added', reply = 'Added as Lemongrass chicken',
+    recipe_id = (select r.id from recipes r where r.household_id = '<household_id>' and r.slug = 'lemongrass-chicken')
+where household_id = '<household_id>' and id = '<suggestion_id>' and status = 'open'
+returning name, status, reply;
+```
+
+Decline one, with the reason:
+
+```sql
+update suggestions
+set status = 'declined', reply = 'No recipe in the link; send me one to add it'
+where household_id = '<household_id>' and id = '<suggestion_id>' and status = 'open'
+returning name, status, reply;
 ```
 
 Apply a swap to one planned dish (replaces any earlier swap of the same ingredient in that dish). Add the new ingredient first if it isn't in `ingredients`:

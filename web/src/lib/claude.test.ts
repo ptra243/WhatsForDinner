@@ -1,6 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CLAUDE_PROJECT_ID } from '../config'
-import { addRecipePrompt, askClaude, claudeUrl, nightPrompt, planWeekPrompt, recipePrompt, weekPrompt } from './claude'
+import {
+  addRecipePrompt,
+  askClaude,
+  claudeUrl,
+  nightPrompt,
+  planWeekPrompt,
+  recipePrompt,
+  refineAllPrompt,
+  refineSuggestionPrompt,
+  weekPrompt,
+} from './claude'
 
 const clipboard = (writeText: (text: string) => Promise<void>) =>
   Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn(writeText) }, configurable: true })
@@ -43,5 +53,15 @@ describe('prompts', () => {
     expect(nightPrompt('2026-10-26', 'thu')).toBe("About Thursday 29 Oct in my What's for Dinner plan (week starting 2026-10-26): ")
     expect(recipePrompt('Beef stew', 'r1')).toBe(`About my What's for Dinner recipe "Beef stew" (id r1): `)
     expect(addRecipePrompt()).toBe("Add this recipe to my What's for Dinner recipes:\n")
+  })
+
+  it('carry a suggestion’s name, description and id, or ask for every open one', () => {
+    expect(refineSuggestionPrompt('Pho', 'https://example.test/pho', 's1')).toBe(
+      `Refine this What's for Dinner suggestion into a recipe: "Pho" (https://example.test/pho) (suggestion id s1).`,
+    )
+    expect(refineSuggestionPrompt('Laksa', '', 's2')).toBe(
+      `Refine this What's for Dinner suggestion into a recipe: "Laksa" (suggestion id s2).`,
+    )
+    expect(refineAllPrompt()).toBe("Refine all open What's for Dinner suggestions into recipes.")
   })
 })

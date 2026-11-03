@@ -23,6 +23,7 @@ Table privileges are granted explicitly, because the live project gives `anon` a
 | `list_marks` | household_id, week_start, item_key, ticked, bought_qty, bought_unit, status (`missing` / null), have_it, updated_by | PK (household_id, week_start, item_key) |
 | `list_extras` | household_id, week_start, name, qty, unit, section, added_by | Hand-added list items |
 | `recipe_votes` | household_id, week_start (a Monday, checked), recipe_id → recipes, user_id → auth.users, vote (`1` 👍 / `-1` 👎) | PK (household_id, week_start, recipe_id, user_id); no `id`. Members read all the household's votes and write only their own (`user_id = auth.uid()`), for the household's own recipes. Goes with the recipe or the user |
+| `suggestions` | id, household_id, created_by → auth.users, name, description, status (`open` / `added` / `declined`, checked), reply, recipe_id → recipes, handled_at | Members read the household's; the author edits name and description (column grant) or deletes, only while open. A new one is open with no reply or recipe. Status, reply and recipe are Claude's. `added` needs a recipe of the same household; deleting the recipe or the author clears the link |
 
 ## Rules enforced by the database
 
@@ -70,11 +71,15 @@ These functions are security definer and check the caller. CI checks them in `su
 
 ## Export and clearing examples
 
-The settings sheet (`web/src/lib/household.ts`) saves `household_settings.settings` keeping any keys it does not show. **Export** downloads one JSON file (`format: 1`) with the household, its members and settings, recipes with their ingredients and steps, plan nights and dishes, list marks and extras, votes, and the shared `ingredients` list; rows are as stored and read a page at a time past the API row limit. **Clear examples** deletes the household's `is_example` recipes; their ingredients, steps and planned dishes go with them by `on delete cascade`.
+The settings sheet (`web/src/lib/household.ts`) saves `household_settings.settings` keeping any keys it does not show. **Export** downloads one JSON file (`format: 1`) with the household, its members and settings, recipes with their ingredients and steps, plan nights and dishes, list marks and extras, votes, suggestions, and the shared `ingredients` list; rows are as stored and read a page at a time past the API row limit. **Clear examples** deletes the household's `is_example` recipes; their ingredients, steps and planned dishes go with them by `on delete cascade`.
 
 ## Votes
 
 Each member says 👍 or 👎 to a recipe for a week; no row means no vote, and tapping the same vote again deletes the row. The recipe view (`web/src/components/RecipeVotes.tsx`) votes for the coming week (next Monday's) with a switch to this week, and shows who voted what ("👍 you · 👎 Sam"; a member's name is their email before the @). The Recipes tab filters to recipes with a 👍 from anyone for a week, and the Week tab shows that week's tally ("4 liked, 1 not this week": recipes with a 👍, recipes with a 👎; one with both counts in each), which opens the filtered list. Votes update live for the other member. Logic in `web/src/lib/votes.ts` with Vitest tests. The Dinner Planner skill reads the week's votes when planning and never writes them. CI checks the policies in `supabase/tests/votes.sql`.
+
+## Suggestions
+
+Any member suggests a dinner by name, with an optional description (a link can go there): **Suggest a dinner** on the Week and Recipes tabs (`web/src/components/Suggestions.tsx`). The list beside it shows each suggestion with who made it, its status and Claude's one-line reply; open ones first, then handled ones (added or declined) for two weeks after `handled_at`, which a trigger stamps when the status changes. Older handled ones stay in the table, just off the list. The author edits or deletes their own while it is open. The owner sees "N to refine" and the Ask Claude buttons **Refine this** (the prompt carries the name, description and id) and **Refine all**; members don't. The Dinner Planner skill links an existing recipe or adds one, then sets `status`, `reply` and `recipe_id`, or declines with a reason; it never plans from a suggestion, deletes one or changes its text. An added suggestion opens its recipe, where members vote for it. Suggestions update live. Logic in `web/src/lib/suggestions.ts` with Vitest tests; CI checks the policies in `supabase/tests/suggestions.sql`.
 
 ## Side-dish pairings
 
@@ -82,4 +87,4 @@ Pairings are derived, not stored: a main's usual sides are the sides planned wit
 
 ## Later (additive)
 
-suggestions, pantry (with location and best-before), ingredient shelf life and pack size columns, ingredient_substitutes, recipe_methods (equipment variants), per-night time overrides and locks.
+pantry (with location and best-before), ingredient shelf life and pack size columns, ingredient_substitutes, recipe_methods (equipment variants), per-night time overrides and locks.

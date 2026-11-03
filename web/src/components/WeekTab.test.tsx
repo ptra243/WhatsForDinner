@@ -27,6 +27,10 @@ vi.mock('../lib/votes', async (actual) => ({
   useVotes: () => ({ votes: votes.list, loadError: undefined, saveError: undefined, vote: votes.vote }),
   useMemberNames: () => new Map<string, string>(),
 }))
+vi.mock('../lib/suggestions', async (actual) => ({
+  ...(await actual<typeof import('../lib/suggestions')>()),
+  useSuggestions: () => ({ suggestions: [], error: undefined, reload: () => {} }),
+}))
 
 const recipe = (r: Partial<Recipe> & Pick<Recipe, 'id' | 'name'>): Recipe => ({
   course: 'main',
