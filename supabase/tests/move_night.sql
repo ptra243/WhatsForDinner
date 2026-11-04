@@ -1,7 +1,8 @@
 -- move_night checks CI runs on a fresh local database. Raises on failure; rolls back at the end.
 -- Usage: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/move_night.sql
 -- A dinner moves to an empty night or swaps with a planned one, within a week or into the
--- next, keeping each dish's role, position, servings and swaps; cooked nights and other
+-- next, keeping each dish's role, position, servings and swaps; the skip-check and the lock
+-- go with the dinner and the time override stays with the night; cooked nights and other
 -- households are refused, and a refused move changes nothing.
 
 \set QUIET on
@@ -55,28 +56,35 @@ insert into public.meal_plan_dishes (household_id, week_start, day, position, re
   (:'hid', '2026-11-02', 'thu', 1, '00000000-0000-4000-8000-0000000000e2', 'side', 4, '[]'),
   (:'hid', '2026-11-02', 'fri', 0, '00000000-0000-4000-8000-0000000000e3', 'main', 4, '[]'),
   (:'hid', '2026-11-02', 'mon', 0, '00000000-0000-4000-8000-0000000000e3', 'main', 4, '[]');
-insert into public.meal_plan_nights (household_id, week_start, day, cooked, skip_check) values
-  (:'hid', '2026-11-02', 'mon', true, false),
-  (:'hid', '2026-11-02', 'thu', false, true);
+insert into public.meal_plan_nights (household_id, week_start, day, cooked, skip_check, locked, minutes) values
+  (:'hid', '2026-11-02', 'mon', true, false, false, null),
+  (:'hid', '2026-11-02', 'thu', false, true, true, 20);
 select pg_temp.night(:'hid', '2026-11-02', 'thu') as thu_dinner \gset
 select pg_temp.night(:'hid', '2026-11-02', 'fri') as fri_dinner \gset
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub": "00000000-0000-4000-8000-0000000000c1", "role": "authenticated"}';
 
--- 1. To an empty night: Thursday's dinner (and its skip-check) goes to Saturday.
+-- A night's flags as "skip_check:locked:minutes".
+create function pg_temp.flags(hid uuid, wk date, d text) returns text language sql as $$
+  select format('%s:%s:%s', skip_check, locked, coalesce(minutes::text, '-'))
+  from public.meal_plan_nights where household_id = hid and week_start = wk and day = d
+$$;
+
+-- 1. To an empty night: Thursday's dinner (with its skip-check and lock) goes to Saturday;
+-- Thursday keeps its 20 minutes.
 select public.move_night(:'hid', '2026-11-02', 'thu', '2026-11-02', 'sat');
 select pg_temp.expect('Saturday after the move', pg_temp.night(:'hid', '2026-11-02', 'sat'), :'thu_dinner'::text);
 select pg_temp.expect('Thursday after the move', pg_temp.night(:'hid', '2026-11-02', 'thu'), ''::text);
-select pg_temp.expect('Saturday skip-check', (select skip_check from public.meal_plan_nights
-  where household_id = :'hid' and week_start = '2026-11-02' and day = 'sat'), true);
-select pg_temp.expect('Thursday skip-check', (select skip_check from public.meal_plan_nights
-  where household_id = :'hid' and week_start = '2026-11-02' and day = 'thu'), false);
+select pg_temp.expect('Saturday flags', pg_temp.flags(:'hid', '2026-11-02', 'sat'), 't:t:-'::text);
+select pg_temp.expect('Thursday flags', pg_temp.flags(:'hid', '2026-11-02', 'thu'), 'f:f:20'::text);
 
 -- 2. With a planned night: Saturday and Friday swap.
 select public.move_night(:'hid', '2026-11-02', 'sat', '2026-11-02', 'fri');
 select pg_temp.expect('Friday after the swap', pg_temp.night(:'hid', '2026-11-02', 'fri'), :'thu_dinner'::text);
 select pg_temp.expect('Saturday after the swap', pg_temp.night(:'hid', '2026-11-02', 'sat'), :'fri_dinner'::text);
+select pg_temp.expect('Friday flags', pg_temp.flags(:'hid', '2026-11-02', 'fri'), 't:t:-'::text);
+select pg_temp.expect('Saturday flags after the swap', pg_temp.flags(:'hid', '2026-11-02', 'sat'), 'f:f:-'::text);
 
 -- 3. Into next week, and back.
 select public.move_night(:'hid', '2026-11-02', 'fri', '2026-11-09', 'tue');
@@ -84,6 +92,7 @@ select pg_temp.expect('next Tuesday', pg_temp.night(:'hid', '2026-11-09', 'tue')
 select pg_temp.expect('Friday after moving out', pg_temp.night(:'hid', '2026-11-02', 'fri'), ''::text);
 select public.move_night(:'hid', '2026-11-09', 'tue', '2026-11-02', 'thu');
 select pg_temp.expect('Thursday after moving back', pg_temp.night(:'hid', '2026-11-02', 'thu'), :'thu_dinner'::text);
+select pg_temp.expect('Thursday flags after moving back', pg_temp.flags(:'hid', '2026-11-02', 'thu'), 't:t:20'::text);
 
 -- 4. Refused: a cooked night either way, the same night, another household.
 select pg_temp.refused(:'hid', '2026-11-02', 'mon', '2026-11-02', 'tue', 'A cooked night cannot be moved');

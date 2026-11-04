@@ -21,7 +21,7 @@ Table privileges are granted explicitly, because the live project gives `anon` a
 | `recipe_methods` | recipe_id, name, equipment, active_mins, total_mins | Another way to cook the recipe ([below](#equipment-methods)). Unique (recipe_id, name); total ≥ hands-on |
 | `recipe_step_ingredients` | step_id → recipe_steps, recipe_ingredient_id → recipe_ingredients | PK (step_id, recipe_ingredient_id); no `id` or `updated_at`. The ingredients a step uses ([below](#step-ingredients)); only its own recipe's, checked by a trigger. Goes with the step or the ingredient row |
 | `meal_plan_dishes` | household_id, week_start date (a Monday, checked), day (`mon`..`sun`), position, recipe_id → recipes, role (`main` / `side`), servings, swaps jsonb, method_id → recipe_methods | swaps: `[{from, to, qty, unit}]`. method_id null = the recipe's usual way; it must be a method of the same recipe |
-| `meal_plan_nights` | household_id, week_start, day, cooked, skip_check | PK (household_id, week_start, day) |
+| `meal_plan_nights` | household_id, week_start, day, cooked, skip_check, minutes, locked | PK (household_id, week_start, day). minutes: that night's own hands-on time (> 0; null = the weekday's setting); locked: Claude leaves the night's dishes alone ([below](#a-nights-time-and-lock)) |
 | `list_marks` | household_id, week_start, item_key, ticked, bought_qty, bought_unit, status (`missing` / null), have_it, updated_by | PK (household_id, week_start, item_key) |
 | `list_extras` | household_id, week_start, name, qty, unit, section, added_by | Hand-added list items |
 | `recipe_votes` | household_id, week_start (a Monday, checked), recipe_id → recipes, user_id → auth.users, vote (`1` 👍 / `-1` 👎) | PK (household_id, week_start, recipe_id, user_id); no `id`. Members read all the household's votes and write only their own (`user_id = auth.uid()`), for the household's own recipes. Goes with the recipe or the user |
@@ -43,7 +43,11 @@ When an ingredient has a pack size in the same unit as an item (kg and l compare
 
 ## Moving a night's dinner
 
-The night sheet's **Move** calls `move_night(hid, from_week, from_day, to_week, to_day)`, one write that succeeds or fails as a whole. Every dish on the night moves to the other night (this week or another) keeping its role, position, servings and swaps; if the other night has dishes, the two nights swap, so nothing is merged or lost. The skip-check flag goes with the dinner; each night keeps its own cooked flag, and a cooked night on either side is refused. It runs as the caller and checks membership, so it is for the app, not the Claude connector (Claude moves rows with plain SQL). The shopping list follows because it is derived from the dishes; list marks stay with their week. CI checks it in `supabase/tests/move_night.sql`.
+The night sheet's **Move** calls `move_night(hid, from_week, from_day, to_week, to_day)`, one write that succeeds or fails as a whole. Every dish on the night moves to the other night (this week or another) keeping its role, position, servings and swaps; if the other night has dishes, the two nights swap, so nothing is merged or lost. The skip-check flag and the lock go with the dinner; each night keeps its own cooked flag and time override (it belongs to the day), and a cooked night on either side is refused. It runs as the caller and checks membership, so it is for the app, not the Claude connector (Claude moves rows with plain SQL). The shopping list follows because it is derived from the dishes; list marks stay with their week. CI checks it in `supabase/tests/move_night.sql`.
+
+### A night's time and lock
+
+A busy night can have its own hands-on time: the night sheet's **Time tonight** stepper (5-minute steps) sets `meal_plan_nights.minutes`, and stepping back to the weekday's setting or **Reset** clears it to null. The night's budget, the over-budget check and the Week tab row ("20 min tonight") follow it (`nightInfo` in `web/src/lib/plan.ts`). **Lock this dinner** sets `locked`, shown as "Locked" on the row; the Dinner Planner skill never changes a locked night's dishes unless asked. Both are the household's: Claude reads them and never writes them.
 
 ## Adding and editing recipes by hand
 

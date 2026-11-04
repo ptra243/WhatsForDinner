@@ -185,14 +185,14 @@ isOneToOne: false
                   ]
                 },"meal_plan_nights": {
                   Row: {
-                    "cooked": boolean,"day": string,"household_id": string,"skip_check": boolean,"updated_at": string,"week_start": string
+                    "cooked": boolean,"day": string,"household_id": string,"locked": boolean,"minutes": number | null,"skip_check": boolean,"updated_at": string,"week_start": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "cooked"?: boolean,"day": string,"household_id": string,"skip_check"?: boolean,"updated_at"?: string,"week_start": string
+                    "cooked"?: boolean,"day": string,"household_id": string,"locked"?: boolean,"minutes"?: number | null,"skip_check"?: boolean,"updated_at"?: string,"week_start": string
                   }
                   Update: {
-                    "cooked"?: boolean,"day"?: string,"household_id"?: string,"skip_check"?: boolean,"updated_at"?: string,"week_start"?: string
+                    "cooked"?: boolean,"day"?: string,"household_id"?: string,"locked"?: boolean,"minutes"?: number | null,"skip_check"?: boolean,"updated_at"?: string,"week_start"?: string
                   }
                   Relationships: [
                     {

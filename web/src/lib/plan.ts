@@ -41,12 +41,16 @@ export type Dish = {
   swaps?: TaggedSwap[]
   methodId?: string | null
 }
-export type Night = { dishes: Dish[]; cooked: boolean; skipCheck: boolean }
+/**
+ * `minutes` is this night's own hands-on time (null = the weekday's setting); `locked` asks
+ * Claude to leave the night's dishes alone when replanning.
+ */
+export type Night = { dishes: Dish[]; cooked: boolean; skipCheck: boolean; minutes: number | null; locked: boolean }
 export type Week = Record<Day, Night>
 
 export function emptyWeek(): Week {
   const week = {} as Week
-  for (const d of DAYS) week[d] = { dishes: [], cooked: false, skipCheck: false }
+  for (const d of DAYS) week[d] = { dishes: [], cooked: false, skipCheck: false, minutes: null, locked: false }
   return week
 }
 
@@ -61,13 +65,14 @@ export function withDish(night: Night, dish: Omit<Dish, 'position'>): Night {
 }
 
 /**
- * Two nights after `move_night` swaps them: the dishes and the skip-check change places,
- * each night keeps its own cooked flag. Moving to an empty night is a swap with nothing.
+ * Two nights after `move_night` swaps them: the dishes, the skip-check and the lock change
+ * places; each night keeps its own cooked flag and time override. Moving to an empty night is
+ * a swap with nothing.
  */
 export function swapDinners(from: Night, to: Night): [Night, Night] {
   return [
-    { ...from, dishes: to.dishes, skipCheck: to.skipCheck },
-    { ...to, dishes: from.dishes, skipCheck: from.skipCheck },
+    { ...from, dishes: to.dishes, skipCheck: to.skipCheck, locked: to.locked },
+    { ...to, dishes: from.dishes, skipCheck: from.skipCheck, locked: from.locked },
   ]
 }
 
@@ -84,7 +89,10 @@ export type NightInfo = {
   total: number
   /** What the meal rule wants and no dish provides. */
   gaps: ('veg' | 'carb')[]
+  /** Hands-on minutes allowed: the night's override, else the weekday's setting. */
   budget: number
+  /** Whether `budget` is the night's own override. */
+  override: boolean
   over: boolean
   /** Avoided allergens some dish still contains (no swap clears them), in list order. */
   allergens: Allergen[]
@@ -114,8 +122,9 @@ export function nightInfo(night: Night, day: Day, recipes: Map<string, Recipe>, 
     if (!provides.has('veg')) gaps.push('veg')
     if (settings.mealRule === 'veg+carb' && !provides.has('carb')) gaps.push('carb')
   }
-  const budget = settings.minutes[day]
-  return { dishes, main, sides, active, total, gaps, budget, over: !!budget && active > budget, allergens }
+  const override = night.minutes != null
+  const budget = night.minutes ?? settings.minutes[day]
+  return { dishes, main, sides, active, total, gaps, budget, override, over: !!budget && active > budget, allergens }
 }
 
 /** When to start cooking to eat at dinner time: "5:45 pm". */
@@ -216,7 +225,7 @@ export async function loadWeek(householdId: string, weekStart: string): Promise<
       .eq('week_start', weekStart)
       .order('position')
       .order('created_at'),
-    supabase.from('meal_plan_nights').select('day, cooked, skip_check').eq('household_id', householdId).eq('week_start', weekStart),
+    supabase.from('meal_plan_nights').select('day, cooked, skip_check, minutes, locked').eq('household_id', householdId).eq('week_start', weekStart),
   ])
   if (dishes.error) throw dishes.error
   if (nights.error) throw nights.error
@@ -240,7 +249,7 @@ export async function loadWeek(householdId: string, weekStart: string): Promise<
       methodId: d.method_id,
     })
   }
-  for (const n of nights.data) Object.assign(week[n.day as Day], { cooked: n.cooked, skipCheck: n.skip_check })
+  for (const n of nights.data) Object.assign(week[n.day as Day], { cooked: n.cooked, skipCheck: n.skip_check, minutes: n.minutes, locked: n.locked })
   return week
 }
 
@@ -303,12 +312,15 @@ export async function moveNight(
   if (error) throw error
 }
 
-/** Sets a night's cooked or skip-check flag, making the night's row if there is none. */
+/**
+ * Sets a night's cooked, skip-check or lock flag or its time override (null = the weekday's
+ * setting), making the night's row if there is none.
+ */
 export async function setNightFlags(
   householdId: string,
   weekStart: string,
   day: Day,
-  flags: { cooked?: boolean; skip_check?: boolean },
+  flags: { cooked?: boolean; skip_check?: boolean; locked?: boolean; minutes?: number | null },
 ): Promise<void> {
   const { error } = await supabase.from('meal_plan_nights').upsert({ household_id: householdId, week_start: weekStart, day, ...flags })
   if (error) throw error

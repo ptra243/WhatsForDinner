@@ -40,6 +40,8 @@ const night = (ids: [string, 'main' | 'side'][], extra: Partial<Night> = {}): Ni
   dishes: ids.map(([recipeId, role], position) => ({ id: `d${position}`, recipeId, role, servings: 4, position })),
   cooked: false,
   skipCheck: false,
+  minutes: null,
+  locked: false,
   ...extra,
 })
 
@@ -59,6 +61,22 @@ describe('a night', () => {
     const settings = { ...DEFAULT_SETTINGS, minutes: { ...DEFAULT_SETTINGS.minutes, tue: 30 } }
     const i = nightInfo(night([['curry', 'main'], ['rice', 'side']]), 'tue', RECIPES, settings)
     expect(i.over).toBe(true)
+  })
+
+  it('takes the night’s own time over the weekday’s', () => {
+    const tight = nightInfo(night([['curry', 'main'], ['rice', 'side']], { minutes: 20 }), 'mon', RECIPES, DEFAULT_SETTINGS)
+    expect(tight.budget).toBe(20)
+    expect(tight.override).toBe(true)
+    expect(tight.over).toBe(true)
+    const roomy = nightInfo(night([['curry', 'main'], ['rice', 'side']], { minutes: 90 }), 'tue', RECIPES, {
+      ...DEFAULT_SETTINGS,
+      minutes: { ...DEFAULT_SETTINGS.minutes, tue: 30 },
+    })
+    expect(roomy.budget).toBe(90)
+    expect(roomy.over).toBe(false)
+    const usual = nightInfo(night([['curry', 'main']]), 'sat', RECIPES, DEFAULT_SETTINGS)
+    expect(usual.budget).toBe(120)
+    expect(usual.override).toBe(false)
   })
 
   it('takes a dish’s times from the method it is cooked by', () => {
@@ -114,6 +132,8 @@ describe('adding a dish', () => {
     ],
     cooked: false,
     skipCheck: false,
+    minutes: null,
+    locked: false,
   }
 
   it('puts a main first and makes the other dishes sides', () => {
@@ -211,13 +231,15 @@ describe('settings', () => {
 })
 
 describe('swapDinners', () => {
-  it('swaps the dishes and skip-check and keeps each night’s cooked flag', () => {
-    const from = night([['curry', 'main'], ['rice', 'side']], { skipCheck: true })
+  it('swaps the dishes, skip-check and lock and keeps each night’s cooked flag and time', () => {
+    const from = night([['curry', 'main'], ['rice', 'side']], { skipCheck: true, locked: true, minutes: 20 })
     const to = night([], { cooked: false })
     const [a, b] = swapDinners(from, to)
-    expect(a).toEqual({ dishes: [], cooked: false, skipCheck: false })
+    expect(a).toEqual({ dishes: [], cooked: false, skipCheck: false, minutes: 20, locked: false })
     expect(b.dishes).toBe(from.dishes)
     expect(b.skipCheck).toBe(true)
+    expect(b.locked).toBe(true)
+    expect(b.minutes).toBe(null)
     const [c, d] = swapDinners(b, night([['salad', 'main']]))
     expect(c.dishes.map((x) => x.recipeId)).toEqual(['salad'])
     expect(d.dishes.map((x) => x.recipeId)).toEqual(['curry', 'rice'])

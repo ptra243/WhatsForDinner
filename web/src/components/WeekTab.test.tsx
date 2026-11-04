@@ -61,7 +61,7 @@ const RECIPES = [
 /** This week (Mon 26 Oct 2026): curry tonight (Wednesday), stew with rice on Thursday, Monday cooked. */
 const plan = (): Week => {
   const w = emptyWeek()
-  w.mon = { dishes: [{ id: 'm1', recipeId: 'stew', role: 'main', servings: 4, position: 0 }], cooked: true, skipCheck: false }
+  w.mon = { dishes: [{ id: 'm1', recipeId: 'stew', role: 'main', servings: 4, position: 0 }], cooked: true, skipCheck: false, minutes: null, locked: false }
   w.wed.dishes = [{ id: 'w1', recipeId: 'curry', role: 'main', servings: 4, position: 0 }]
   w.thu.dishes = [
     { id: 't1', recipeId: 'stew', role: 'main', servings: 4, position: 0 },
@@ -346,6 +346,25 @@ describe('Night sheet', () => {
     fireEvent.click(within(sheet).getByLabelText('Skip the veg and carb check this night'))
     expect(api.setNightFlags).toHaveBeenCalledWith('h1', '2026-10-26', 'wed', { skip_check: true })
     await waitFor(() => expect(within(sheet).queryByText('No carb yet')).not.toBeInTheDocument())
+  })
+
+  it('sets the time tonight and locks the dinner', async () => {
+    render(<WeekTab householdId="h1" />)
+    const sheet = await openNight(/^Wed 28/)
+    const time = within(sheet).getByRole('group', { name: 'Time tonight' })
+    expect(time).toHaveTextContent('45 min')
+    expect(within(time).queryByRole('button', { name: /Reset/ })).not.toBeInTheDocument()
+    fireEvent.click(within(time).getByRole('button', { name: 'Less time tonight' }))
+    expect(api.setNightFlags).toHaveBeenCalledWith('h1', '2026-10-26', 'wed', { minutes: 40 })
+    expect(time).toHaveTextContent('40 min')
+    expect(night(/^Wed 28/)).toHaveTextContent('40 min tonight')
+    fireEvent.click(await within(time).findByRole('button', { name: 'Reset to 45 min' }))
+    expect(api.setNightFlags).toHaveBeenCalledWith('h1', '2026-10-26', 'wed', { minutes: null })
+    expect(night(/^Wed 28/)).not.toHaveTextContent('min tonight')
+
+    fireEvent.click(within(sheet).getByLabelText('Lock this dinner'))
+    expect(api.setNightFlags).toHaveBeenCalledWith('h1', '2026-10-26', 'wed', { locked: true })
+    expect(night(/^Wed 28/)).toHaveTextContent('Locked')
   })
 
   /** A write that waits until the test lets it finish (or fail). */

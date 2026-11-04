@@ -51,6 +51,11 @@ const weekQueries = blocks.filter((b) => b.includes('as method,') && b.includes(
 if (weekQueries.length !== 1) throw new Error(`Expected 1 read-a-week query in SKILL.md, found ${weekQueries.length}`);
 const readWeek = fill(weekQueries[0]).replace(/;s*$/, '');
 
+// The nights query (#70), checked with a night that has its own time and a lock.
+const nightQueries = blocks.filter((b) => b.includes('own_time'));
+if (nightQueries.length !== 1) throw new Error(`Expected 1 nights query in SKILL.md, found ${nightQueries.length}`);
+const weekNights = fill(nightQueries[0]).replace(/;s*$/, '');
+
 // The ingredients missing a pack size or shelf life (#25), checked before and after the fill example.
 const gapQueries = blocks.filter((b) => b.includes('i.pack_qty is null or i.shelf_days is null') && b.startsWith('select'));
 if (gapQueries.length !== 1) throw new Error(`Expected 1 missing pack size query in SKILL.md, found ${gapQueries.length}`);
@@ -115,6 +120,12 @@ returning id as sid2 \\gset
 -- Beef ragù on Tuesday, for the example that cooks it by its pressure cooker method (#24).
 insert into meal_plan_dishes (household_id, week_start, day, position, recipe_id, role, servings)
 select :'hid', :'week', 'tue', 0, r.id, 'main', 6 from recipes r where r.household_id = :'hid' and r.slug = 'beef-ragu';
+-- Wednesday has its own 20 minutes and is locked; Thursday's override is cleared (#70).
+insert into meal_plan_nights (household_id, week_start, day, minutes, locked) values
+  (:'hid', :'week', 'wed', 20, true), (:'hid', :'week', 'thu', null, false);
+select pg_temp.expect('the week''s nights, each with its minutes and lock',
+  (select string_agg(day || ' ' || minutes || ' ' || own_time || ' ' || locked, ', ') from (${weekNights}) q),
+  'mon 45 false false, tue 45 false false, wed 20 true true, thu 45 false false, fri 45 false false, sat 120 false false, sun 120 false false');
 -- Honey has a pack size the household set but no shelf life, for the fill example (#25).
 update ingredients set pack_qty = 250, pack_unit = 'g', shelf_days = null where name = 'honey';
 select pg_temp.expect('ingredients missing a pack size or shelf life',
