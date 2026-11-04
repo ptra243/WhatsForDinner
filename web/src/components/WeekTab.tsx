@@ -3,6 +3,7 @@ import { containsText, type TaggedSwap } from '../lib/allergens'
 import { useCanAskClaude } from '../lib/askAccess'
 import { nightPrompt, planWeekPrompt, weekPrompt } from '../lib/claude'
 import { mins } from '../lib/format'
+import { methodChoices } from '../lib/methods'
 import {
   DEFAULT_SETTINGS,
   loadCookedNights,
@@ -12,6 +13,7 @@ import {
   nightInfo,
   pairedSides,
   removeDish,
+  setDishMethod,
   setNightFlags,
   setServings,
   startBy,
@@ -40,8 +42,11 @@ const errorText = (e: unknown) => (e as { message?: string }).message ?? String(
 /** How far back cooked nights count towards a main's usual sides. */
 const PAIRING_WEEKS = 26
 
-/** A dish to open from the card: its recipe at the night's servings (the recipe's own when left out), with the night's swaps. */
-type Opened = { recipeId: string; servings?: number; swaps?: TaggedSwap[] }
+/**
+ * A dish to open from the card: its recipe at the night's servings (the recipe's own when left
+ * out), with the night's swaps and method.
+ */
+type Opened = { recipeId: string; servings?: number; swaps?: TaggedSwap[]; methodId?: string | null }
 
 /** Where a night's dinner can move: another night this week or next, with what is planned there. */
 type Target = { week: string; day: Day; night: Night }
@@ -232,10 +237,10 @@ export function WeekTab({
                   recipes={byId}
                   settings={settings}
                   onOpen={() => setOpenDay(d)}
-                  onView={(recipeId, servings, swaps) => setViewing({ recipeId, servings, swaps })}
-                  onCook={(recipeId, servings) => {
+                  onView={(opened) => setViewing(opened)}
+                  onCook={(opened) => {
                     setStatus(undefined)
-                    setCooking({ recipeId, servings })
+                    setCooking(opened)
                   }}
                 />
               )
@@ -273,6 +278,7 @@ export function WeekTab({
           servings={viewing.servings}
           avoid={settings.avoid}
           swaps={viewing.swaps}
+          methodId={viewing.methodId}
           onChange={changeRecipe}
           onDeleted={() => {
             setViewing(undefined)
@@ -289,6 +295,7 @@ export function WeekTab({
           householdId={householdId}
           recipe={cooked}
           servings={cooking.servings ?? cooked.serves}
+          methodId={cooking.methodId}
           onChange={changeRecipe}
           onExit={() => setCooking(undefined)}
           onDone={(message) => {
@@ -320,15 +327,20 @@ function NightRow({
   recipes: Map<string, Recipe>
   settings: Settings
   onOpen: () => void
-  onView: (recipeId: string, servings: number, swaps?: TaggedSwap[]) => void
-  onCook: (recipeId: string, servings: number) => void
+  onView: (dish: Opened) => void
+  onCook: (dish: Opened) => void
 }) {
   const i = nightInfo(night, day, recipes, settings)
   const label = `${DAY_NAMES[day]} ${parseYmd(date).getDate()}`
   /** A dish's name, a button to its recipe when the recipe is still there. */
   const dish = (d: (typeof i.dishes)[number], className?: string) =>
     d.recipe ? (
-      <button key={d.id} type="button" className={className} onClick={() => onView(d.recipeId, d.servings, d.swaps)}>
+      <button
+        key={d.id}
+        type="button"
+        className={className}
+        onClick={() => onView({ recipeId: d.recipeId, servings: d.servings, swaps: d.swaps, methodId: d.methodId })}
+      >
         {d.recipe.name}
       </button>
     ) : (
@@ -389,7 +401,9 @@ function NightRow({
             type="button"
             className="cook"
             aria-label={`Cook ${i.main.recipe.name}`}
-            onClick={() => i.main && onCook(i.main.recipeId, i.main.servings)}
+            onClick={() =>
+              i.main && onCook({ recipeId: i.main.recipeId, servings: i.main.servings, methodId: i.main.methodId })
+            }
           >
             Cook
           </button>
@@ -400,8 +414,8 @@ function NightRow({
 }
 
 /**
- * One night: its dishes with servings, the main's usual sides, gap suggestions, a picker,
- * and the cooked and skip-check toggles.
+ * One night: its dishes with servings and the method each is cooked by (from the household's
+ * equipment), the main's usual sides, gap suggestions, a picker, and the cooked and skip-check toggles.
  */
 function NightSheet({
   householdId,
@@ -509,39 +523,66 @@ function NightSheet({
                 (x) => ({ ...x, dishes: x.dishes.map((y) => (y.id === d.id ? { ...y, servings } : y)) }),
               )
             }
+            const choices = d.recipe ? methodChoices(d.recipe, settings.equipment, d.methodId) : []
+            const pickMethod = (methodId: string | null) => {
+              if (methodId === (d.methodId ?? null)) return
+              save(
+                () => setDishMethod(d.id, methodId),
+                (x) => ({ ...x, dishes: x.dishes.map((y) => (y.id === d.id ? { ...y, methodId } : y)) }),
+              )
+            }
             return (
-              <div className="dish" key={d.id}>
-                <div className="nm">
-                  <span className="strong">{name}</span>
-                  <span className="pill">{d === i.main ? 'Main' : 'Side'}</span>
-                  {d.allergens.length > 0 && (
-                    <span className="small warn">{containsText(d.allergens.map((w) => w.allergen))}</span>
-                  )}
-                </div>
-                <div className="stepper">
-                  <button type="button" aria-label={`Fewer servings of ${name}`} onClick={() => step(-1)}>
-                    −
+              <Fragment key={d.id}>
+                <div className="dish">
+                  <div className="nm">
+                    <span className="strong">{name}</span>
+                    <span className="pill">{d === i.main ? 'Main' : 'Side'}</span>
+                    {d.allergens.length > 0 && (
+                      <span className="small warn">{containsText(d.allergens.map((w) => w.allergen))}</span>
+                    )}
+                  </div>
+                  <div className="stepper">
+                    <button type="button" aria-label={`Fewer servings of ${name}`} onClick={() => step(-1)}>
+                      −
+                    </button>
+                    <span>{d.servings} serves</span>
+                    <button type="button" aria-label={`More servings of ${name}`} onClick={() => step(1)}>
+                      +
+                    </button>
+                  </div>
+                  <button
+                    className="xbtn"
+                    type="button"
+                    aria-label={`Remove ${name}`}
+                    disabled={busy}
+                    onClick={() =>
+                      save(
+                        () => removeDish(d.id),
+                        (x) => ({ ...x, dishes: x.dishes.filter((y) => y.id !== d.id) }),
+                      )
+                    }
+                  >
+                    ×
                   </button>
-                  <span>{d.servings} serves</span>
-                  <button type="button" aria-label={`More servings of ${name}`} onClick={() => step(1)}>
-                    +
-                  </button>
                 </div>
-                <button
-                  className="xbtn"
-                  type="button"
-                  aria-label={`Remove ${name}`}
-                  disabled={busy}
-                  onClick={() =>
-                    save(
-                      () => removeDish(d.id),
-                      (x) => ({ ...x, dishes: x.dishes.filter((y) => y.id !== d.id) }),
-                    )
-                  }
-                >
-                  ×
-                </button>
-              </div>
+                {choices.length > 0 && (
+                  <div className="row wrap-row" role="group" aria-label={`Method for ${name}`}>
+                    {choices.map((m) => (
+                      <button
+                        key={m.id ?? 'default'}
+                        type="button"
+                        className="chip small"
+                        aria-pressed={m.id === (d.methodId ?? null)}
+                        disabled={busy}
+                        onClick={() => pickMethod(m.id)}
+                      >
+                        {m.name}
+                        {m.totalMins ? ` · ${mins(m.totalMins)}` : ''}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </Fragment>
             )
           })}
         </div>

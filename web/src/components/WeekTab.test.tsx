@@ -9,6 +9,7 @@ const api = vi.hoisted(() => ({
   loadSettings: vi.fn(),
   loadCookedNights: vi.fn(),
   setServings: vi.fn(async () => {}),
+  setDishMethod: vi.fn(async () => {}),
   removeDish: vi.fn(async () => {}),
   setNightFlags: vi.fn(async () => {}),
   moveNight: vi.fn(async () => {}),
@@ -636,5 +637,84 @@ describe('Allergens to avoid', () => {
     expect(within(screen.getByRole('dialog')).getByRole('note', { name: 'Allergens' })).toHaveTextContent(
       'Contains egg (wonton wrapper)',
     )
+  })
+})
+
+describe('Methods', () => {
+  const STEW = {
+    ...RECIPES[1],
+    steps: [{ text: 'Simmer the stew slowly.', timerMins: 120 }],
+    methods: [
+      {
+        id: 'pc',
+        name: 'Pressure cooker',
+        equipment: 'pressure cooker',
+        activeMins: 20,
+        totalMins: 50,
+        steps: [{ text: 'Cook the stew on high pressure.', timerMins: 30 }],
+      },
+      { id: 'sc', name: 'Slow cooker', equipment: 'slow cooker', activeMins: 15, totalMins: 480, steps: [] },
+    ],
+  }
+  beforeEach(() => {
+    api.loadRecipes.mockResolvedValue([RECIPES[0], STEW, ...RECIPES.slice(2)])
+    api.loadSettings.mockResolvedValue({ ...DEFAULT_SETTINGS, equipment: ['Pressure cooker'] })
+  })
+
+  it('offers the methods for the household’s equipment and changes the night’s times', async () => {
+    render(<WeekTab householdId="h1" />)
+    const sheet = await openNight(/^Thu 29/)
+    const methods = within(sheet).getByRole('group', { name: 'Method for Beef stew' })
+    expect(within(methods).getAllByRole('button').map((b) => b.textContent)).toEqual([
+      'Usual way · 2 h 30',
+      'Pressure cooker · 50 min',
+    ])
+    expect(within(methods).getByRole('button', { name: /Usual way/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(sheet).queryByRole('group', { name: 'Method for Steamed rice' })).not.toBeInTheDocument()
+
+    fireEvent.click(within(methods).getByRole('button', { name: /Pressure cooker/ }))
+    expect(api.setDishMethod).toHaveBeenCalledWith('t1', 'pc')
+    expect(sheet).toHaveTextContent('25 min hands-on · 50 min total · budget 45 min')
+    expect(sheet).not.toHaveTextContent('over the budget')
+    expect(within(methods).getByRole('button', { name: /Pressure cooker/ })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('offers no method without the equipment', async () => {
+    api.loadSettings.mockResolvedValue(DEFAULT_SETTINGS)
+    render(<WeekTab householdId="h1" />)
+    const sheet = await openNight(/^Thu 29/)
+    expect(within(sheet).queryByRole('group', { name: 'Method for Beef stew' })).not.toBeInTheDocument()
+  })
+
+  it('shows the chosen method on the card, in the recipe view and in cook mode', async () => {
+    api.loadWeek.mockImplementation(async () => {
+      const w = plan()
+      w.wed.dishes = [{ id: 'w1', recipeId: 'stew', role: 'main', servings: 4, position: 0, methodId: 'pc' }]
+      return w
+    })
+    render(<WeekTab householdId="h1" />)
+    const wed = await screen.findByRole('group', { name: /^Wed 28/ })
+    expect(wed).toHaveTextContent('50 min')
+    expect(wed).toHaveTextContent('Start by 5:40 pm')
+
+    fireEvent.click(within(wed).getByRole('button', { name: 'Beef stew' }))
+    const view = screen.getByRole('dialog', { name: 'Beef stew' })
+    const ways = within(view).getByRole('group', { name: 'Ways to cook it' })
+    expect(within(ways).getByRole('button', { name: /Pressure cooker/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(ways).getByRole('button', { name: /Slow cooker/ })).toBeInTheDocument()
+    expect(view).toHaveTextContent('20 min hands-on · 50 min total')
+    expect(within(view).getByRole('region', { name: 'Method' })).toHaveTextContent('Method: Pressure cooker')
+    expect(within(view).getByRole('region', { name: 'Method' })).toHaveTextContent('Cook the stew on high pressure.')
+    fireEvent.click(within(ways).getByRole('button', { name: /Usual way/ }))
+    expect(within(view).getByRole('region', { name: 'Method' })).toHaveTextContent('Simmer the stew slowly.')
+    expect(view).toHaveTextContent('50 min hands-on · 2 h 30 total')
+    expect(api.setDishMethod).not.toHaveBeenCalled()
+    fireEvent.click(within(view).getByRole('button', { name: '‹ Back' }))
+
+    fireEvent.click(within(wed).getByRole('button', { name: 'Cook Beef stew' }))
+    const cook = screen.getByRole('dialog', { name: 'Cooking Beef stew' })
+    expect(cook).toHaveTextContent('Pressure cooker · Step 1 of 1')
+    expect(cook).toHaveTextContent('Cook the stew on high pressure.')
+    expect(within(cook).getByRole('timer')).toHaveTextContent('30:00')
   })
 })

@@ -41,6 +41,16 @@ const suggestionQueries = blocks.filter((b) => b.includes('from suggestions'));
 if (suggestionQueries.length !== 1) throw new Error(`Expected 1 open suggestions query in SKILL.md, found ${suggestionQueries.length}`);
 const openSuggestions = fill(suggestionQueries[0]).replace(/;\s*$/, '');
 
+// The methods query, checked once the dal has its pressure cooker method too (#24).
+const methodQueries = blocks.filter((b) => b.includes('household_has_it'));
+if (methodQueries.length !== 1) throw new Error(`Expected 1 methods query in SKILL.md, found ${methodQueries.length}`);
+const recipeMethods = fill(methodQueries[0]).replace(/;s*$/, '');
+
+// The read-a-week query, checked for the method a dish is cooked by.
+const weekQueries = blocks.filter((b) => b.includes('as method,') && b.includes('coalesce(m.total_mins'));
+if (weekQueries.length !== 1) throw new Error(`Expected 1 read-a-week query in SKILL.md, found ${weekQueries.length}`);
+const readWeek = fill(weekQueries[0]).replace(/;s*$/, '');
+
 // The query that finds the owner's household, so it can be checked with a member in the household (#16).
 const ownerQueries = blocks.filter((b) => b.includes("m.role = 'owner'"));
 if (ownerQueries.length !== 1) throw new Error(`Expected 1 owner household query in SKILL.md, found ${ownerQueries.length}`);
@@ -88,6 +98,9 @@ returning id as sid \\gset
 insert into suggestions (household_id, created_by, name, description) values
   (:'hid', '00000000-0000-4000-8000-0000000000c2', 'Pho', 'https://example.test/pho')
 returning id as sid2 \\gset
+-- Beef ragù on Tuesday, for the example that cooks it by its pressure cooker method (#24).
+insert into meal_plan_dishes (household_id, week_start, day, position, recipe_id, role, servings)
+select :'hid', :'week', 'tue', 0, r.id, 'main', 6 from recipes r where r.household_id = :'hid' and r.slug = 'beef-ragu';
 select pg_temp.expect('both suggestions open, oldest first, with who made them',
   (select string_agg(name || ' by ' || suggested_by, ', ') from (${openSuggestions}) q), 'Lemongrass chicken by skill-member, Pho by skill-member');
 `);
@@ -140,6 +153,20 @@ select pg_temp.expect('suggestion added with its recipe, the other declined',
    from suggestions s left join recipes r on r.id = s.recipe_id where s.household_id = :'hid'),
   'Lemongrass chicken added lemongrass-chicken Added as Lemongrass chicken; Pho declined - No recipe in the link; send me one to add it');
 select pg_temp.expect('no suggestions left open', (select count(*) from (${openSuggestions}) q), 0::bigint);
+select pg_temp.expect('Tuesday''s ragù in the pressure cooker, by the read-a-week query',
+  (select string_agg(name || ' ' || coalesce(method, '-') || ' ' || total_mins, ', ') from (${readWeek}) q where day = 'tue'),
+  'Beef ragù Pressure cooker 80');
+select pg_temp.expect('Monday''s dishes the usual way',
+  (select count(*) from (${readWeek}) q where day = 'mon' and method is null), 3::bigint);
+select pg_temp.expect('methods, with the household''s equipment',
+  (select string_agg(slug || ' ' || method || ' ' || total_mins || ' ' || household_has_it, ', ' order by slug) from (${recipeMethods}) q),
+  'beef-ragu Pressure cooker 80 true, red-lentil-dal Pressure cooker 25 true');
+select pg_temp.expect('the dal''s new method steps',
+  (select count(*) from recipe_steps s join recipe_methods m on m.id = s.method_id join recipes r on r.id = m.recipe_id
+   where r.household_id = :'hid' and r.slug = 'red-lentil-dal'), 3::bigint);
+update household_settings set settings = settings || '{"equipment": []}' where household_id = :'hid';
+select pg_temp.expect('methods without the equipment',
+  (select count(*) from (${recipeMethods}) q where household_has_it), 0::bigint);
 select pg_temp.expect('other households untouched',
   (select count(*) from meal_plan_dishes where household_id <> :'hid'), :others::bigint);
 

@@ -40,6 +40,8 @@ jobs:
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/suggestions.sql
       - name: Saving a recipe is one atomic call
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/save_recipe.sql
+      - name: Methods stay with their recipe and household
+        run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/methods.sql
       - name: Dinner Planner skill SQL examples run
         run: node supabase/tests/skill-sql.mjs | psql "$DB_URL" -v ON_ERROR_STOP=1
 
