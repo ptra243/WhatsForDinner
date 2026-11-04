@@ -33,11 +33,17 @@
   "steps": [
     {
       "text": "Halve the carrots, toss with oil and honey.",
-      "timerMins": null
+      "timerMins": null,
+      "uses": [
+        "carrot",
+        "olive oil",
+        "honey"
+      ]
     },
     {
       "text": "Roast until tender and caramelised.",
-      "timerMins": 35
+      "timerMins": 35,
+      "uses": []
     }
   ],
   "rating": null,

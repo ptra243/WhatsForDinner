@@ -58,19 +58,34 @@
   "steps": [
     {
       "text": "Season the fish with cumin, salt and lime zest.",
-      "timerMins": null
+      "timerMins": null,
+      "uses": [
+        "white fish fillet",
+        "ground cumin",
+        "lime"
+      ]
     },
     {
       "text": "Pan-fry the fish until just cooked, then flake.",
-      "timerMins": 6
+      "timerMins": 6,
+      "uses": []
     },
     {
       "text": "Stir the chipotle into the yoghurt with a squeeze of lime.",
-      "timerMins": null
+      "timerMins": null,
+      "uses": [
+        "chipotle in adobo",
+        "greek yoghurt",
+        "lime"
+      ]
     },
     {
       "text": "Warm the tortillas and fill with fish, avocado and the sauce.",
-      "timerMins": null
+      "timerMins": null,
+      "uses": [
+        "tortilla",
+        "avocado"
+      ]
     }
   ],
   "rating": 4,

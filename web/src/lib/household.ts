@@ -78,7 +78,7 @@ async function allRows<T>(page: (from: number, to: number) => PromiseLike<{ data
 
 /**
  * All of the household's data as one object: the household, its members, settings, recipes
- * (with ingredients, steps and methods), plans, list marks and hand-added items, votes and suggestions, plus the shared
+ * (with ingredients, steps and the ingredients each uses, and methods), plans, list marks and hand-added items, votes and suggestions, plus the shared
  * ingredient list the recipes refer to. Rows are as stored, so the file can be loaded back.
  */
 export async function exportHousehold(householdId: string) {
@@ -91,7 +91,7 @@ export async function exportHousehold(householdId: string) {
     allRows((a, b) =>
       supabase
         .from('recipes')
-        .select('*, recipe_ingredients(*), recipe_steps(*), recipe_methods(*)')
+        .select('*, recipe_ingredients(*), recipe_steps(*, recipe_step_ingredients(*)), recipe_methods(*)')
         .eq('household_id', hid)
         .order('id')
         .range(a, b),

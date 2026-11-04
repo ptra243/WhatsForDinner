@@ -21,11 +21,15 @@
   "steps": [
     {
       "text": "Rinse the rice, add 450 ml water, bring to the boil, cover and cook on low.",
-      "timerMins": 12
+      "timerMins": 12,
+      "uses": [
+        "jasmine rice"
+      ]
     },
     {
       "text": "Leave covered off the heat, then fluff with a fork.",
-      "timerMins": 5
+      "timerMins": 5,
+      "uses": []
     }
   ],
   "rating": null,

@@ -33,11 +33,18 @@
   "steps": [
     {
       "text": "Boil the beans until just tender, then drain.",
-      "timerMins": 4
+      "timerMins": 4,
+      "uses": [
+        "green bean"
+      ]
     },
     {
       "text": "Toss in butter with sliced garlic for a minute.",
-      "timerMins": null
+      "timerMins": null,
+      "uses": [
+        "butter",
+        "garlic clove"
+      ]
     }
   ],
   "rating": null,

@@ -35,6 +35,7 @@ where h.id <> private.template_household_id();
 - `recipe_ingredients`: recipe_id, position (from 0), ingredient_slug → `ingredients`, qty (null for "to taste"), unit, note.
 - `recipe_steps`: recipe_id, method_id (null for the recipe's own steps), position (from 0 within each method), text, timer_mins (null unless the step involves waiting).
 - `recipe_methods`: recipe_id, name (unique in the recipe, e.g. `Pressure cooker`), equipment (as named in settings `equipment`; null when it needs nothing special), active_mins, total_mins. Another way to cook the recipe, with its own times and steps (`recipe_steps.method_id`). The recipe's own times and steps are its usual way.
+- `recipe_step_ingredients`: step_id → `recipe_steps`, recipe_ingredient_id → `recipe_ingredients`. The ingredients each step uses, for every method's steps. The database refuses a link to another recipe's ingredient; deleting the step or the ingredient row deletes the link. Cook mode shows each step's ingredients, lists them to get ready before step 1, and flags any no step used.
 - `ingredients`: slug (PK), name (unique), section, allergens text[] (below), pack_qty and pack_unit (how it is usually sold, both or neither), shelf_days (days it keeps once bought). Shared by all households.
 - `meal_plan_dishes`: household_id, week_start (always a Monday), day (`mon`..`sun`), position (order in the night, from 0), recipe_id, role (`main` / `side`), servings, swaps jsonb `[{"from", "to", "qty", "unit"}]`, method_id (null for the recipe's usual way; the database refuses another recipe's method).
 - `recipe_votes`: household_id, week_start (a Monday), recipe_id, user_id, vote (`1` 👍, `-1` 👎). Each member's say on a recipe for a coming week, set in the app. Read only for you: never write votes.
@@ -92,6 +93,8 @@ The database rejects anything else.
 - If only a link is given and you can't read it, ask for the text.
 - Set `source` (the link, book or "Photo") and `created_by` to the owner's id. Leave `rating` null; the cook rates it in the app. `is_example` is false.
 - When a recipe gives another way to cook it with a piece of equipment ("or 45 minutes in the pressure cooker"), save the usual way as the recipe and the other as a method (query below), named after the equipment, with its own active and total minutes and its full steps. Name the equipment as the household does in `settings.equipment` when it has it. The app doesn't edit methods; you add and change them.
+- Link every step you write to the ingredients it uses (`recipe_step_ingredients`), a method's steps too: each ingredient on the step where it goes in, and again on any later step that adds more of it. A step that only waits, rests or serves uses nothing. Each way of cooking the recipe uses every ingredient at least once; check with the query below and fix the links (or ask) when one is left over.
+- When asked to link the household's recipes' steps ("link my recipes' steps"), find the methods with no links (query below), read each recipe in full, and link its steps from their text without changing it. Reply with one line per recipe, naming anything you weren't sure of.
 
 ## Suggestions
 
@@ -273,7 +276,7 @@ insert into ingredients (slug, name, section, allergens, pack_qty, pack_unit, sh
 on conflict do nothing;
 ```
 
-Then the recipe, its ingredients and its steps in one statement (an unknown ingredient name fails it, so nothing is half-saved):
+Then the recipe, its ingredients, its steps and the ingredients each step uses (step position, ingredient position) in one statement (an unknown ingredient name fails it, so nothing is half-saved):
 
 ```sql
 with r as (
@@ -292,17 +295,25 @@ with r as (
     (3, 'fish sauce', 2, 'tbsp', ''),
     (4, 'olive oil', null, 'tbsp', 'to fry')
   ) as v(position, name, qty, unit, note)
+  returning id, position
+), st as (
+  insert into recipe_steps (recipe_id, position, text, timer_mins)
+  select r.id, v.position, v.text, v.timer_mins
+  from r, (values
+    (0, 'Mix the chicken with the lemongrass, garlic and fish sauce.', null::integer),
+    (1, 'Marinate.', 15),
+    (2, 'Fry in the oil in a hot pan until golden and cooked through.', 10)
+  ) as v(position, text, timer_mins)
+  returning id, position
 )
-insert into recipe_steps (recipe_id, position, text, timer_mins)
-select r.id, v.position, v.text, v.timer_mins
-from r, (values
-  (0, 'Mix the chicken with the lemongrass, garlic and fish sauce.', null::integer),
-  (1, 'Marinate.', 15),
-  (2, 'Fry in a hot pan until golden and cooked through.', 10)
-) as v(position, text, timer_mins);
+insert into recipe_step_ingredients (step_id, recipe_ingredient_id)
+select st.id, ing.id
+from (values (0, 0), (0, 1), (0, 2), (0, 3), (2, 4)) as u(step, ingredient)
+join st on st.position = u.step
+join ing on ing.position = u.ingredient;
 ```
 
-Add another method to a saved recipe, with its own times and steps, in one statement (the recipe's ingredients are shared):
+Add another method to a saved recipe, with its own times, steps and the ingredients each step uses (by name), in one statement (the recipe's ingredients are shared):
 
 ```sql
 with m as (
@@ -310,14 +321,76 @@ with m as (
   select r.id, 'Pressure cooker', 'pressure cooker', 10, 25
   from recipes r where r.household_id = '<household_id>' and r.slug = 'red-lentil-dal'
   returning id, recipe_id
+), st as (
+  insert into recipe_steps (recipe_id, method_id, position, text, timer_mins)
+  select m.recipe_id, m.id, v.position, v.text, v.timer_mins
+  from m, (values
+    (0, 'Soften the onion, garlic, ginger and spices on the sauté setting.', 5::integer),
+    (1, 'Add the lentils, crushed tomato, coconut milk and 400 ml water. Cook on high pressure, then release quickly.', 8),
+    (2, 'Stir in the spinach until wilted and season.', null)
+  ) as v(position, text, timer_mins)
+  returning id, recipe_id, position
 )
-insert into recipe_steps (recipe_id, method_id, position, text, timer_mins)
-select m.recipe_id, m.id, v.position, v.text, v.timer_mins
-from m, (values
-  (0, 'Soften the onion, garlic, ginger and spices on the sauté setting.', 5::integer),
-  (1, 'Add the lentils, crushed tomato, coconut milk and 400 ml water. Cook on high pressure, then release quickly.', 8),
-  (2, 'Stir in the spinach until wilted and season.', null)
-) as v(position, text, timer_mins);
+insert into recipe_step_ingredients (step_id, recipe_ingredient_id)
+select st.id, ri.id
+from (values
+  (0, 'onion'), (0, 'garlic clove'), (0, 'ginger'), (0, 'ground cumin'), (0, 'ground turmeric'),
+  (1, 'red lentil'), (1, 'crushed tomato'), (1, 'coconut milk'),
+  (2, 'baby spinach')
+) as u(step, ingredient)
+join st on st.position = u.step
+join recipe_ingredients ri on ri.recipe_id = st.recipe_id
+join ingredients i on i.slug = ri.ingredient_slug and i.name = u.ingredient;
+```
+
+The ways of cooking a recipe whose steps have no ingredients linked yet (for "link my recipes' steps"):
+
+```sql
+select r.slug, r.name, coalesce(m.name, 'Usual way') as method, count(distinct s.id) as steps
+from recipes r
+join recipe_steps s on s.recipe_id = r.id
+left join recipe_methods m on m.id = s.method_id
+left join recipe_step_ingredients l on l.step_id = s.id
+where r.household_id = '<household_id>'
+group by r.slug, r.name, m.name
+having count(l.step_id) = 0
+order by r.name, m.name nulls first;
+```
+
+Link a saved recipe's steps, by method (null for the usual way), step position and ingredient name. Read the recipe in full first; links already there are kept, and a name the recipe doesn't list is skipped, so check with the next query:
+
+```sql
+insert into recipe_step_ingredients (step_id, recipe_ingredient_id)
+select s.id, ri.id
+from recipes r
+cross join (values
+  (null::text, 0, 'potato'),
+  (null, 1, 'olive oil'),
+  (null, 1, 'rosemary')
+) as v(method, step, ingredient)
+left join recipe_methods m on m.recipe_id = r.id and m.name = v.method
+join recipe_steps s on s.recipe_id = r.id and s.method_id is not distinct from m.id and s.position = v.step
+join recipe_ingredients ri on ri.recipe_id = r.id
+join ingredients i on i.slug = ri.ingredient_slug and i.name = v.ingredient
+where r.household_id = '<household_id>' and r.slug = 'roast-potatoes'
+on conflict do nothing;
+```
+
+Ingredients no step uses, for each way of cooking a recipe that has steps (nothing returned means every ingredient is used):
+
+```sql
+select r.slug, coalesce(m.name, 'Usual way') as method, i.name as ingredient
+from recipes r
+join recipe_ingredients ri on ri.recipe_id = r.id
+join ingredients i on i.slug = ri.ingredient_slug
+cross join lateral (select null::uuid as id, null::text as name
+                    union all
+                    select x.id, x.name from recipe_methods x where x.recipe_id = r.id) m
+where r.household_id = '<household_id>'
+  and exists (select 1 from recipe_steps s where s.recipe_id = r.id and s.method_id is not distinct from m.id)
+  and not exists (select 1 from recipe_steps s join recipe_step_ingredients l on l.step_id = s.id
+                  where s.recipe_id = r.id and s.method_id is not distinct from m.id and l.recipe_ingredient_id = ri.id)
+order by r.slug, m.name nulls first, ri.position;
 ```
 
 The open suggestions, oldest first, with who made them:

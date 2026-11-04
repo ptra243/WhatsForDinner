@@ -57,23 +57,40 @@
   "steps": [
     {
       "text": "Heat the oven to 200°C and season the chicken.",
-      "timerMins": null
+      "timerMins": null,
+      "uses": [
+        "chicken thigh"
+      ]
     },
     {
       "text": "Brown the chicken skin-side down in the oil in an ovenproof pan.",
-      "timerMins": 6
+      "timerMins": 6,
+      "uses": [
+        "olive oil"
+      ]
     },
     {
       "text": "Turn the chicken skin-side up, add the garlic, lemon zest and juice, pour the stock around it and roast until golden.",
-      "timerMins": 20
+      "timerMins": 20,
+      "uses": [
+        "garlic clove",
+        "lemon",
+        "chicken stock"
+      ]
     },
     {
       "text": "Move the pan to the stove, stir in the cream and simmer.",
-      "timerMins": 3
+      "timerMins": 3,
+      "uses": [
+        "cream"
+      ]
     },
     {
       "text": "Scatter with chopped parsley and serve.",
-      "timerMins": null
+      "timerMins": null,
+      "uses": [
+        "parsley"
+      ]
     }
   ],
   "rating": 4,

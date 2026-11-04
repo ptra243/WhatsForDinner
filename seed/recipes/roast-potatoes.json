@@ -33,11 +33,18 @@
   "steps": [
     {
       "text": "Parboil the chunked potatoes, drain and rough them up.",
-      "timerMins": 8
+      "timerMins": 8,
+      "uses": [
+        "potato"
+      ]
     },
     {
       "text": "Roast in hot oil with rosemary, turning once.",
-      "timerMins": 50
+      "timerMins": 50,
+      "uses": [
+        "olive oil",
+        "rosemary"
+      ]
     }
   ],
   "rating": null,

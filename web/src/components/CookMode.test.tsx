@@ -66,7 +66,9 @@ const startCooking = async (servings = 0) => {
   const view = screen.getByRole('dialog', { name: 'Red lentil dal' })
   for (let i = 0; i < servings; i++) fireEvent.click(within(view).getByRole('button', { name: 'More servings' }))
   fireEvent.click(within(view).getByRole('button', { name: 'Start cooking' }))
-  return screen.getByRole('dialog', { name: 'Cooking Red lentil dal' })
+  const cook = screen.getByRole('dialog', { name: 'Cooking Red lentil dal' })
+  fireEvent.click(within(cook).getByRole('button', { name: 'Start step 1' }))
+  return cook
 }
 
 describe('Cook mode', () => {
@@ -76,7 +78,6 @@ describe('Cook mode', () => {
     expect(within(cook).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1')
     expect(within(cook).getByText('Fry the onion.')).toBeInTheDocument()
     expect(within(cook).getByRole('region', { name: 'This step uses' })).toHaveTextContent('onion diced2 each')
-    expect(within(cook).getByRole('button', { name: 'Back' })).toBeDisabled()
     expect(within(cook).queryByRole('region', { name: 'Timer' })).not.toBeInTheDocument()
 
     fireEvent.click(within(cook).getByRole('button', { name: 'Next' }))
@@ -88,6 +89,57 @@ describe('Cook mode', () => {
 
     fireEvent.click(within(cook).getByRole('button', { name: 'Back' }))
     expect(cook).toHaveTextContent('Step 1 of 3')
+    fireEvent.click(within(cook).getByRole('button', { name: 'Back' }))
+    expect(within(cook).getByRole('heading', { name: 'Get these ready' })).toBeInTheDocument()
+  })
+
+  it('starts with what to get ready, grouped by the step that first needs it', async () => {
+    render(<RecipesTab householdId="h1" />)
+    fireEvent.click(await screen.findByRole('button', { name: /Red lentil dal/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Start cooking' }))
+    const cook = screen.getByRole('dialog', { name: 'Cooking Red lentil dal' })
+    expect(within(cook).getByRole('heading', { name: 'Get these ready' })).toBeInTheDocument()
+    expect(within(cook).getByRole('region', { name: 'For step 1' })).toHaveTextContent('onion diced1 each')
+    expect(within(cook).getByRole('region', { name: 'For step 2' })).toHaveTextContent('red lentil500 gwater1 l')
+    expect(within(cook).queryByRole('region', { name: 'For step 3' })).not.toBeInTheDocument()
+    expect(within(cook).queryByRole('progressbar')).not.toBeInTheDocument()
+  })
+
+  it('follows the saved links over the step text, and flags what no step used at the last step', async () => {
+    const ingredients = [
+      { id: 'lentil', name: 'red lentil', qty: 0.5, unit: 'kg', note: '' },
+      { id: 'onion', name: 'onion', qty: 1, unit: 'each', note: 'diced' },
+      { id: 'water', name: 'water', qty: 1, unit: 'l', note: '' },
+      { id: 'butter', name: 'butter', qty: 20, unit: 'g', note: '' },
+    ]
+    api.loadRecipes.mockResolvedValue([
+      {
+        ...DAL,
+        ingredients,
+        steps: [
+          { text: 'Fry the veg.', timerMins: null, uses: ['onion'] },
+          { text: 'Add the lentils and water and simmer.', timerMins: 2, uses: ['water', 'lentil'] },
+          { text: 'Rest, then serve.', timerMins: 1, uses: [] },
+        ],
+      },
+    ])
+    render(<RecipesTab householdId="h1" />)
+    fireEvent.click(await screen.findByRole('button', { name: /Red lentil dal/ }))
+    const view = screen.getByRole('dialog', { name: 'Red lentil dal' })
+    const method = within(within(view).getByRole('region', { name: 'Method' }).querySelector('ol')!).getAllByRole('listitem')
+    expect(method.map((li) => li.querySelector('.uses')?.textContent ?? '')).toEqual(['onion', 'red lentil, water', ''])
+    fireEvent.click(within(view).getByRole('button', { name: 'Start cooking' }))
+    const cook = screen.getByRole('dialog', { name: 'Cooking Red lentil dal' })
+    expect(within(cook).getByRole('region', { name: 'Also' })).toHaveTextContent('butter20 g')
+
+    fireEvent.click(within(cook).getByRole('button', { name: 'Start step 1' }))
+    expect(within(cook).getByRole('region', { name: 'This step uses' })).toHaveTextContent(/^This step usesonion diced1 each$/)
+    expect(within(cook).queryByRole('note')).not.toBeInTheDocument()
+    fireEvent.click(within(cook).getByRole('button', { name: 'Next' }))
+    expect(within(cook).getByRole('region', { name: 'This step uses' })).toHaveTextContent('red lentil500 gwater1 l')
+    fireEvent.click(within(cook).getByRole('button', { name: 'Next' }))
+    expect(within(cook).queryByRole('region', { name: 'This step uses' })).not.toBeInTheDocument()
+    expect(within(cook).getByRole('note')).toHaveTextContent('Didn’t use: butter')
   })
 
   it('runs a step timer: start, pause, resume, reset, and time’s up with a sound', async () => {
@@ -192,6 +244,7 @@ describe('Cook mode', () => {
 
     fireEvent.click(within(view).getByRole('button', { name: 'Start cooking' }))
     cook = screen.getByRole('dialog', { name: 'Cooking Red lentil dal' })
+    fireEvent.click(within(cook).getByRole('button', { name: 'Start step 1' }))
     for (let i = 0; i < 3; i++) fireEvent.click(within(cook).getByRole('button', { name: /Next|Finish/ }))
     const done = screen.getByRole('dialog', { name: 'Finished cooking' })
     fireEvent.click(within(done).getByRole('button', { name: 'Mark as cooked' }))

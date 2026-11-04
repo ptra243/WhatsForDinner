@@ -1,6 +1,7 @@
-// Cook mode helpers: which ingredients a step uses, step timers, the screen wake lock and the timer sound.
+// Cook mode helpers: which ingredients a step uses, what to get ready and what was left over,
+// step timers, the screen wake lock and the timer sound.
 import { useEffect, useState } from 'react'
-import type { RecipeIngredient } from './recipes'
+import type { RecipeIngredient, RecipeStep } from './recipes'
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
@@ -13,6 +14,48 @@ export function stepUses(text: string, ingredients: RecipeIngredient[]): RecipeI
     const word = i.name.trim().toLowerCase().split(/\s+/).pop()
     return !!word && new RegExp(`\\b${escape(word)}(e?s)?\\b`, 'i').test(text)
   })
+}
+
+/** Whether a method's steps have their ingredients saved: then each step's own links are what it uses. */
+export const isLinked = (steps: readonly RecipeStep[]) => steps.some((s) => (s.uses?.length ?? 0) > 0)
+
+/**
+ * The ingredients each step uses, in recipe order: the saved links when the steps have any (a
+ * step with none uses nothing), otherwise guessed from each step's text (`stepUses`).
+ */
+export function stepIngredients(steps: readonly RecipeStep[], ingredients: RecipeIngredient[]): RecipeIngredient[][] {
+  if (!isLinked(steps)) return steps.map((s) => stepUses(s.text, ingredients))
+  return steps.map((s) => ingredients.filter((i) => i.id != null && s.uses?.includes(i.id)))
+}
+
+/**
+ * The ingredients no step uses ("Didn't use: butter"). Only for linked steps: a guess from the
+ * text would flag ingredients the steps call something else ("the veg").
+ */
+export function unusedIngredients(steps: readonly RecipeStep[], ingredients: RecipeIngredient[]): RecipeIngredient[] {
+  if (!isLinked(steps)) return []
+  const used = new Set(stepIngredients(steps, ingredients).flat())
+  return ingredients.filter((i) => !used.has(i))
+}
+
+/** A group on the prep list: the step (from 0) that first needs these, or null for the rest. */
+export type PrepGroup = { step: number | null; ingredients: RecipeIngredient[] }
+
+/**
+ * What to get ready before step 1: each ingredient under the first step that needs it, in step
+ * order, then any no step needs. Steps that bring nothing new are left out.
+ */
+export function prepList(steps: readonly RecipeStep[], ingredients: RecipeIngredient[]): PrepGroup[] {
+  const seen = new Set<RecipeIngredient>()
+  const groups: PrepGroup[] = []
+  stepIngredients(steps, ingredients).forEach((uses, step) => {
+    const first = uses.filter((i) => !seen.has(i))
+    first.forEach((i) => seen.add(i))
+    if (first.length) groups.push({ step, ingredients: first })
+  })
+  const rest = ingredients.filter((i) => !seen.has(i))
+  if (rest.length) groups.push({ step: null, ingredients: rest })
+  return groups
 }
 
 /** Seconds as "4:05". */

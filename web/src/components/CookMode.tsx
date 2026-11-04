@@ -4,15 +4,17 @@ import {
   doneTimer,
   makeChime,
   pauseTimer,
+  prepList,
   remaining,
   startTimer,
-  stepUses,
+  stepIngredients,
+  unusedIngredients,
   useWakeLock,
   type Timer,
 } from '../lib/cook'
 import { scaledQty } from '../lib/format'
 import { methodOf } from '../lib/methods'
-import { markCooked, updateRecipe, type Recipe } from '../lib/recipes'
+import { markCooked, updateRecipe, type Recipe, type RecipeIngredient } from '../lib/recipes'
 
 type Props = {
   householdId: string
@@ -26,13 +28,18 @@ type Props = {
 }
 
 /**
- * Full-screen cooking, one step at a time, then a finish screen to rate, note and mark as cooked.
- * Step timers keep running when you move to another step; the screen stays awake while it is open.
+ * Full-screen cooking: what to get ready, then one step at a time with the ingredients it uses,
+ * then a finish screen to rate, note and mark as cooked. The last step names any ingredient no
+ * step used. Step timers keep running when you move to another step; the screen stays awake while it is open.
  */
 export function CookMode({ householdId, recipe: r, servings, methodId, onChange, onExit, onDone }: Props) {
   const method = methodOf(r, methodId)
   const steps = method.steps.length ? method.steps : [{ text: 'No steps saved for this recipe.', timerMins: null }]
-  const [step, setStep] = useState(0)
+  const uses = stepIngredients(method.steps, r.ingredients)
+  const prep = method.steps.length ? prepList(method.steps, r.ingredients) : []
+  const unused = unusedIngredients(method.steps, r.ingredients)
+  // -1 is the prep list before step 1.
+  const [step, setStep] = useState(prep.length ? -1 : 0)
   const [finished, setFinished] = useState(false)
   const [timers, setTimers] = useState<Record<number, Timer>>({})
   const [now, setNow] = useState(() => Date.now())
@@ -173,8 +180,39 @@ export function CookMode({ householdId, recipe: r, servings, methodId, onChange,
     )
   }
 
+  const amount = (i: RecipeIngredient) => scaledQty(i.qty, i.unit, servings, r.serves)
+
+  if (step < 0) {
+    return (
+      <div ref={panel} className="panel" role="dialog" aria-modal="true" aria-label={`Cooking ${r.name}`}>
+        <div className="wrap">
+          <div className="row spread">
+            <button ref={back} className="back" type="button" onClick={onExit}>
+              ‹ Recipe
+            </button>
+            {method.id && <span className="small muted">{method.name}</span>}
+          </div>
+          <h1>Get these ready</h1>
+          {prep.map((g) => {
+            const label = g.step == null ? 'Also' : `For step ${g.step + 1}`
+            return (
+              <section key={label} className="stack tight" aria-label={label}>
+                <span className="label">{label}</span>
+                <Ingredients items={g.ingredients} amount={amount} />
+              </section>
+            )
+          })}
+          {awake && <span className="small muted">Screen stays awake while you cook.</span>}
+          <button className="btn" type="button" onClick={() => setStep(0)}>
+            Start step 1
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   const st = steps[step]
-  const uses = stepUses(st.text, r.ingredients)
+  const needs = uses[step] ?? []
   const last = step >= steps.length - 1
 
   return (
@@ -199,23 +237,13 @@ export function CookMode({ householdId, recipe: r, servings, methodId, onChange,
         >
           <span style={{ width: `${Math.round(((step + 1) / steps.length) * 100)}%` }} />
         </div>
-        <p className="bigstep">{st.text}</p>
-        {uses.length > 0 && (
+        {needs.length > 0 && (
           <section className="stack tight" aria-label="This step uses">
             <span className="label">This step uses</span>
-            <div>
-              {uses.map((i, ix) => (
-                <div key={ix} className="ing">
-                  <span>
-                    {i.name}
-                    {i.note && <small> {i.note}</small>}
-                  </span>
-                  <span>{scaledQty(i.qty, i.unit, servings, r.serves)}</span>
-                </div>
-              ))}
-            </div>
+            <Ingredients items={needs} amount={amount} />
           </section>
         )}
+        <p className="bigstep">{st.text}</p>
         {st.timerMins ? (
           <StepTimer
             timer={timers[step]}
@@ -231,9 +259,19 @@ export function CookMode({ householdId, recipe: r, servings, methodId, onChange,
             Step {ix + 1} timer: {t.done ? 'time’s up' : `${clock(remaining(t, now))}${t.endAt == null ? ' paused' : ''}`}
           </button>
         ))}
+        {last && unused.length > 0 && (
+          <p className="small warn flat" role="note">
+            Didn’t use: {unused.map((i) => i.name).join(', ')}
+          </p>
+        )}
         {awake && <span className="small muted">Screen stays awake while you cook.</span>}
         <div className="row">
-          <button className="btn ghost grow" type="button" disabled={step === 0} onClick={() => setStep(step - 1)}>
+          <button
+            className="btn ghost grow"
+            type="button"
+            disabled={step === 0 && !prep.length}
+            onClick={() => setStep(step - 1)}
+          >
             Back
           </button>
           <button
@@ -245,6 +283,23 @@ export function CookMode({ householdId, recipe: r, servings, methodId, onChange,
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+/** Ingredient rows with their amounts for the servings being cooked. */
+function Ingredients({ items, amount }: { items: RecipeIngredient[]; amount: (i: RecipeIngredient) => string }) {
+  return (
+    <div>
+      {items.map((i, ix) => (
+        <div key={ix} className="ing">
+          <span>
+            {i.name}
+            {i.note && <small> {i.note}</small>}
+          </span>
+          <span>{amount(i)}</span>
+        </div>
+      ))}
     </div>
   )
 }

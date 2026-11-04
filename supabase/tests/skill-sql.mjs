@@ -56,6 +56,15 @@ const gapQueries = blocks.filter((b) => b.includes('i.pack_qty is null or i.shel
 if (gapQueries.length !== 1) throw new Error(`Expected 1 missing pack size query in SKILL.md, found ${gapQueries.length}`);
 const packGaps = fill(gapQueries[0]).replace(/;s*$/, '');
 
+// The step link queries (#65): methods with no links, checked before and after the backfill
+// example, and ingredients no step uses.
+const unlinkedQueries = blocks.filter((b) => b.includes('having count(l.step_id) = 0'));
+if (unlinkedQueries.length !== 1) throw new Error(`Expected 1 unlinked steps query in SKILL.md, found ${unlinkedQueries.length}`);
+const unlinked = fill(unlinkedQueries[0]).replace(/;\s*$/, '');
+const unusedQueries = blocks.filter((b) => b.includes('l.recipe_ingredient_id = ri.id') && b.startsWith('select'));
+if (unusedQueries.length !== 1) throw new Error(`Expected 1 unused ingredients query in SKILL.md, found ${unusedQueries.length}`);
+const unused = fill(unusedQueries[0]).replace(/;\s*$/, '');
+
 // The query that finds the owner's household, so it can be checked with a member in the household (#16).
 const ownerQueries = blocks.filter((b) => b.includes("m.role = 'owner'"));
 if (ownerQueries.length !== 1) throw new Error(`Expected 1 owner household query in SKILL.md, found ${ownerQueries.length}`);
@@ -110,6 +119,14 @@ select :'hid', :'week', 'tue', 0, r.id, 'main', 6 from recipes r where r.househo
 update ingredients set pack_qty = 250, pack_unit = 'g', shelf_days = null where name = 'honey';
 select pg_temp.expect('ingredients missing a pack size or shelf life',
   (select string_agg(name || ' ' || recipes, ', ') from (${packGaps}) q), 'honey 1');
+-- The roast potatoes lose their step links, for the backfill example (#65).
+select pg_temp.expect('every example linked', (select count(*) from (${unlinked}) q), 0::bigint);
+delete from recipe_step_ingredients l using recipe_steps s, recipes r
+where s.id = l.step_id and r.id = s.recipe_id and r.household_id = :'hid' and r.slug = 'roast-potatoes';
+select pg_temp.expect('methods with no step links',
+  (select string_agg(slug || ' ' || method || ' ' || steps, ', ') from (${unlinked}) q), 'roast-potatoes Usual way 2');
+select pg_temp.expect('ingredients no step uses',
+  (select string_agg(ingredient, ', ') from (${unused}) q), 'potato, olive oil, rosemary');
 select pg_temp.expect('both suggestions open, oldest first, with who made them',
   (select string_agg(name || ' by ' || suggested_by, ', ') from (${openSuggestions}) q), 'Lemongrass chicken by skill-member, Pho by skill-member');
 `);
@@ -129,6 +146,24 @@ select pg_temp.expect('new recipe ingredients',
 select pg_temp.expect('new recipe steps',
   (select count(*) from recipe_steps rs join recipes r on r.id = rs.recipe_id
    where r.household_id = :'hid' and r.slug = 'lemongrass-chicken'), 3::bigint);
+select pg_temp.expect('new recipe step links',
+  (select string_agg(s.position || ' ' || i.name, ', ' order by s.position, ri.position)
+   from recipe_step_ingredients l join recipe_steps s on s.id = l.step_id
+   join recipe_ingredients ri on ri.id = l.recipe_ingredient_id join ingredients i on i.slug = ri.ingredient_slug
+   join recipes r on r.id = s.recipe_id where r.household_id = :'hid' and r.slug = 'lemongrass-chicken'),
+  '0 chicken thigh, 0 lemongrass, 0 garlic clove, 0 fish sauce, 2 olive oil');
+select pg_temp.expect('the dal''s new method step links',
+  (select count(*) from recipe_step_ingredients l join recipe_steps s on s.id = l.step_id
+   join recipe_methods m on m.id = s.method_id join recipes r on r.id = m.recipe_id
+   where r.household_id = :'hid' and r.slug = 'red-lentil-dal'), 9::bigint);
+select pg_temp.expect('backfilled roast potatoes',
+  (select string_agg(s.position || ' ' || i.name, ', ' order by s.position, ri.position)
+   from recipe_step_ingredients l join recipe_steps s on s.id = l.step_id
+   join recipe_ingredients ri on ri.id = l.recipe_ingredient_id join ingredients i on i.slug = ri.ingredient_slug
+   join recipes r on r.id = s.recipe_id where r.household_id = :'hid' and r.slug = 'roast-potatoes'),
+  '0 potato, 1 olive oil, 1 rosemary');
+select pg_temp.expect('no methods left with no step links', (select count(*) from (${unlinked}) q), 0::bigint);
+select pg_temp.expect('every ingredient used by a step', (select count(*) from (${unused}) q), 0::bigint);
 select pg_temp.expect('new recipe owner',
   (select created_by from recipes where household_id = :'hid' and slug = 'lemongrass-chicken'), :'uid'::uuid);
 select pg_temp.expect('new ingredients with pack size and shelf life',

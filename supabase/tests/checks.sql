@@ -19,7 +19,8 @@ begin
   select string_agg(t.table_name, ', ' order by t.table_name) into bad
   from information_schema.tables t
   where t.table_schema = 'public' and t.table_type = 'BASE TABLE'
-    and t.table_name not in ('households', 'ingredients', 'recipe_ingredients', 'recipe_steps', 'recipe_methods')
+    and t.table_name not in ('households', 'ingredients', 'recipe_ingredients', 'recipe_steps', 'recipe_methods',
+                             'recipe_step_ingredients')
     and not exists (select 1 from information_schema.columns c
                     where c.table_schema = 'public' and c.table_name = t.table_name
                       and c.column_name = 'household_id');
