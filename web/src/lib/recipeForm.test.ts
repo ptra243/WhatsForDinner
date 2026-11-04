@@ -39,8 +39,8 @@ const dal: Recipe = {
     { id: 'i2', name: 'onion', qty: 1, unit: 'each', note: 'diced' },
   ],
   steps: [
-    { id: 's1', text: 'Fry the onion.', timerMins: null },
-    { id: 's2', text: 'Simmer.', timerMins: 25 },
+    { id: 's1', text: 'Fry the onion.', timerMins: null, uses: ['i2'] },
+    { id: 's2', text: 'Simmer.', timerMins: 25, uses: ['i1', 'i2'] },
   ],
 }
 
@@ -77,6 +77,8 @@ describe('formFromRecipe', () => {
       ['s1', 'Fry the onion.', ''],
       ['s2', 'Simmer.', '25'],
     ])
+    const [lentil, onion] = f.ingredients
+    expect(f.steps.map((s) => s.uses)).toEqual([[onion.key], [lentil.key, onion.key]])
   })
 })
 
@@ -156,8 +158,9 @@ describe('toSaveRecipe', () => {
   it('sends the edit with row ids, in order, and drops blank rows', () => {
     const f = filled({ tags: ' Vegetarian, weeknight,, vegetarian ', provides: ['veg', 'protein'] })
     const leek = { ...emptyIngredient(), name: ' Leek ', qty: '1/2', unit: 'bunch' as const, section: 'fruit and veg' as const, allergens: [] }
-    const moved = moveItem([...f.ingredients, leek, emptyIngredient()], 1, 0)
-    expect(toSaveRecipe({ ...f, ingredients: moved, steps: [...f.steps, emptyStep()] }, known)).toEqual({
+    const moved = moveItem([emptyIngredient(), ...f.ingredients, leek], 2, 0)
+    const serve = { ...emptyStep(), text: 'Serve.', uses: [leek.key] }
+    expect(toSaveRecipe({ ...f, ingredients: moved, steps: [...f.steps, serve, emptyStep()] }, known)).toEqual({
       id: 'dal',
       name: 'Red lentil dal',
       course: 'main',
@@ -175,10 +178,21 @@ describe('toSaveRecipe', () => {
         { name: 'leek', qty: 0.5, unit: 'bunch', note: '', section: 'fruit and veg', allergens: [] },
       ],
       steps: [
-        { id: 's1', text: 'Fry the onion.', timer_mins: null },
-        { id: 's2', text: 'Simmer.', timer_mins: 25 },
+        { id: 's1', text: 'Fry the onion.', timer_mins: null, uses: [0] },
+        { id: 's2', text: 'Simmer.', timer_mins: 25, uses: [0, 1] },
+        { text: 'Serve.', timer_mins: null, uses: [2] },
       ],
     })
+  })
+
+  it('sends the ingredients a step uses by position, leaving out removed and blank rows', () => {
+    const f = filled()
+    const [lentil, onion] = f.ingredients
+    const blank = emptyIngredient()
+    const steps = [{ ...f.steps[1], uses: [lentil.key, blank.key, onion.key] }]
+    expect(toSaveRecipe({ ...f, ingredients: [blank, onion], steps }, known).steps).toEqual([
+      { id: 's2', text: 'Simmer.', timer_mins: 25, uses: [0] },
+    ])
   })
 
   it('sends a new recipe without an id and blank minutes as null', () => {

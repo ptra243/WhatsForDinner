@@ -73,19 +73,36 @@
   "steps": [
     {
       "text": "Soften the chopped onion in a little oil.",
-      "timerMins": 8
+      "timerMins": 8,
+      "uses": [
+        "onion"
+      ]
     },
     {
       "text": "Add the garlic, ginger and spices and cook for a minute.",
-      "timerMins": null
+      "timerMins": null,
+      "uses": [
+        "garlic clove",
+        "ginger",
+        "ground cumin",
+        "ground turmeric"
+      ]
     },
     {
       "text": "Add the lentils, crushed tomato, coconut milk and 500 ml water. Simmer, stirring now and then, until soft.",
-      "timerMins": 25
+      "timerMins": 25,
+      "uses": [
+        "red lentil",
+        "crushed tomato",
+        "coconut milk"
+      ]
     },
     {
       "text": "Stir in the spinach until wilted and season.",
-      "timerMins": null
+      "timerMins": null,
+      "uses": [
+        "baby spinach"
+      ]
     }
   ],
   "rating": 5,

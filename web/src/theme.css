@@ -121,6 +121,7 @@ textarea.field{min-height:84px;padding:10px 12px;resize:vertical}
 ol.steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:10px}
 ol.steps li{padding-left:4px}
 ol.steps .tm{color:var(--warn);font-family:var(--display);font-weight:700;font-size:14px}
+ol.steps .uses{display:block}
 .rate{display:flex;gap:2px}
 .rate button{width:44px;height:44px;border:0;background:none;font-size:28px;line-height:1;color:var(--line);padding:0}
 .rate button.on{color:var(--star)}

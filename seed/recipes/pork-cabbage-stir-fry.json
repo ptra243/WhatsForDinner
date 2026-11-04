@@ -67,19 +67,35 @@
   "steps": [
     {
       "text": "Cook the noodles, drain and rinse.",
-      "timerMins": 4
+      "timerMins": 4,
+      "uses": [
+        "egg noodle"
+      ]
     },
     {
       "text": "Brown the pork mince in a hot wok, breaking it up.",
-      "timerMins": 5
+      "timerMins": 5,
+      "uses": [
+        "pork mince"
+      ]
     },
     {
       "text": "Add the garlic, cabbage and carrot and stir-fry until just tender.",
-      "timerMins": 3
+      "timerMins": 3,
+      "uses": [
+        "garlic clove",
+        "cabbage",
+        "carrot"
+      ]
     },
     {
       "text": "Toss through the noodles, soy and hoisin, then the spring onion.",
-      "timerMins": null
+      "timerMins": null,
+      "uses": [
+        "soy sauce",
+        "hoisin sauce",
+        "spring onion"
+      ]
     }
   ],
   "rating": 4,

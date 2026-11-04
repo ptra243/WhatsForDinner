@@ -1,6 +1,7 @@
 -- create_household checks CI runs on a fresh local database. Raises on failure; rolls back at the end.
 -- Usage: psql "$DB_URL" -v ON_ERROR_STOP=1 $(node supabase/tests/seed-counts.mjs) -f supabase/tests/households.sql
--- A new household gets its own copy of every example (with ingredients, steps and methods) and the
+-- A new household gets its own copy of every example (with ingredients, steps, methods and the
+-- ingredients each step uses) and the
 -- example settings; two households get separate copies; re-seeding leaves them alone.
 
 \set QUIET on
@@ -17,19 +18,21 @@ end $$;
 
 -- Recipes, ingredient rows and step rows in one household.
 create function pg_temp.counts(hid uuid) returns text language sql as $$
-  select format('%s recipes, %s examples, %s ingredients, %s steps, %s methods, %s with created_by',
+  select format('%s recipes, %s examples, %s ingredients, %s steps, %s methods, %s step links, %s with created_by',
     (select count(*) from public.recipes where household_id = hid),
     (select count(*) from public.recipes where household_id = hid and is_example),
     (select count(*) from public.recipe_ingredients ri join public.recipes r on r.id = ri.recipe_id where r.household_id = hid),
     (select count(*) from public.recipe_steps rs join public.recipes r on r.id = rs.recipe_id where r.household_id = hid),
     (select count(*) from public.recipe_methods rm join public.recipes r on r.id = rm.recipe_id where r.household_id = hid),
+    (select count(*) from public.recipe_step_ingredients l join public.recipe_steps rs on rs.id = l.step_id
+     join public.recipes r on r.id = rs.recipe_id where r.household_id = hid),
     (select count(*) from public.recipes where household_id = hid and created_by is not null))
 $$;
 
 \ir ../seed/seed.sql
 select private.template_household_id() as tid \gset
-select format('%s recipes, %s examples, %s ingredients, %s steps, %s methods, 0 with created_by',
-              :recipes, :recipes, :recipe_ingredients, :steps, :methods) as want_counts \gset
+select format('%s recipes, %s examples, %s ingredients, %s steps, %s methods, %s step links, 0 with created_by',
+              :recipes, :recipes, :recipe_ingredients, :steps, :methods, :step_links) as want_counts \gset
 
 insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-00000000000a', 'household-a@example.test'),
@@ -100,6 +103,17 @@ select pg_temp.expect('A steps differ from template',
      select r.slug, m.name, rs.position, rs.text, rs.timer_mins
      from public.recipe_steps rs join public.recipes r on r.id = rs.recipe_id
      left join public.recipe_methods m on m.id = rs.method_id and m.recipe_id = r.id where r.household_id = :'hid_a') d), 0::bigint);
+select pg_temp.expect('A step links differ from template',
+  (select count(*) from (
+     select r.slug, m.name, rs.position, ri.position
+     from public.recipe_step_ingredients l join public.recipe_steps rs on rs.id = l.step_id
+     join public.recipe_ingredients ri on ri.id = l.recipe_ingredient_id join public.recipes r on r.id = rs.recipe_id
+     left join public.recipe_methods m on m.id = rs.method_id where r.household_id = :'tid'
+     except
+     select r.slug, m.name, rs.position, ri.position
+     from public.recipe_step_ingredients l join public.recipe_steps rs on rs.id = l.step_id
+     join public.recipe_ingredients ri on ri.id = l.recipe_ingredient_id join public.recipes r on r.id = rs.recipe_id
+     left join public.recipe_methods m on m.id = rs.method_id where r.household_id = :'hid_a') d), 0::bigint);
 select pg_temp.expect('A methods differ from template',
   (select count(*) from (
      select r.slug, m.name, m.equipment, m.active_mins, m.total_mins

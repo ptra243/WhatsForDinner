@@ -1,6 +1,6 @@
 -- Seed checks CI runs on a fresh local database. Raises on failure; rolls back at the end.
 -- Usage: psql "$DB_URL" -v ON_ERROR_STOP=1 $(node supabase/tests/seed-counts.mjs) -f supabase/tests/seed.sql
--- The expected counts (:ingredients, :recipes, :recipe_ingredients, :steps, :methods, :settings_keys)
+-- The expected counts (:ingredients, :recipes, :recipe_ingredients, :steps, :methods, :step_links, :settings_keys)
 -- come from seed/, so a seed that drops or duplicates rows fails here.
 
 \set QUIET on
@@ -31,6 +31,7 @@ select pg_temp.expect('template recipes', (select count(*) from public.recipes w
 select pg_temp.expect('recipe ingredients', (select count(*) from public.recipe_ingredients), :recipe_ingredients::bigint);
 select pg_temp.expect('recipe steps', (select count(*) from public.recipe_steps), :steps::bigint);
 select pg_temp.expect('recipe methods', (select count(*) from public.recipe_methods), :methods::bigint);
+select pg_temp.expect('step ingredient links', (select count(*) from public.recipe_step_ingredients), :step_links::bigint);
 select pg_temp.expect('household settings rows', (select count(*) from public.household_settings), 1::bigint);
 select pg_temp.expect('settings keys', (select count(*) from public.household_settings, jsonb_object_keys(settings)), :settings_keys::bigint);
 select pg_temp.expect('households after seeding', (select count(*) from public.households), 1::bigint);
@@ -51,6 +52,7 @@ select pg_temp.expect('stray template recipe removed', (select count(*) from pub
 select pg_temp.expect('edited template recipe name', (select name from public.recipes where slug = :'edited_slug'), :'edited_name'::text);
 select pg_temp.expect('recipe steps after restore', (select count(*) from public.recipe_steps), :steps::bigint);
 select pg_temp.expect('recipe methods after restore', (select count(*) from public.recipe_methods), :methods::bigint);
+select pg_temp.expect('step ingredient links after restore', (select count(*) from public.recipe_step_ingredients), :step_links::bigint);
 select pg_temp.expect('settings keys after restore', (select count(*) from public.household_settings, jsonb_object_keys(settings)), :settings_keys::bigint);
 select pg_temp.expect('recipes after restore', (select count(*) from public.recipes), :recipes::bigint);
 select pg_temp.expect('edited pack size and shelf life kept',

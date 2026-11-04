@@ -21,7 +21,10 @@
   "steps": [
     {
       "text": "Warm the loaf in a hot oven.",
-      "timerMins": 8
+      "timerMins": 8,
+      "uses": [
+        "crusty loaf"
+      ]
     }
   ],
   "rating": null,

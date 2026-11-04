@@ -216,6 +216,8 @@ describe('From the card to the recipe', () => {
     expect(within(night(/^Thu 29/)).queryByRole('button', { name: /^Cook/ })).not.toBeInTheDocument()
     fireEvent.click(within(wed).getByRole('button', { name: 'Cook Chicken curry' }))
     const cook = screen.getByRole('dialog', { name: 'Cooking Chicken curry' })
+    expect(within(cook).getByRole('region', { name: 'For step 1' })).toHaveTextContent('500 g')
+    fireEvent.click(within(cook).getByRole('button', { name: 'Start step 1' }))
     expect(within(cook).getByRole('region', { name: 'This step uses' })).toHaveTextContent('500 g')
     expect(screen.queryByRole('dialog', { name: /Wednesday/ })).not.toBeInTheDocument()
 

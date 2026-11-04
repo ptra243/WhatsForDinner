@@ -8,6 +8,7 @@ import {
   emptyStep,
   fieldOfError,
   formFromRecipe,
+  ingredientName,
   isNew,
   moveItem,
   problems as findProblems,
@@ -77,6 +78,8 @@ export function RecipeForm({ householdId, recipe, onSaved, onClose }: Props) {
     [recipe, known],
   )
   const found = findProblems(form, knownByName, others)
+  // The ingredient rows a step can say it uses: those with a name so far.
+  const named = form.ingredients.filter((row) => row.name.trim())
   const shown: Problems = tried ? { ...serverProblems, ...found } : serverProblems
 
   const set = (patch: Partial<RecipeFormState>) => {
@@ -288,6 +291,7 @@ export function RecipeForm({ householdId, recipe, onSaved, onClose }: Props) {
               step={step}
               index={ix}
               count={form.steps.length}
+              ingredients={named}
               problems={shown}
               onChange={(patch) => setStep(step.key, patch)}
               onMove={(to) => set({ steps: moveItem(form.steps, ix, to) })}
@@ -506,6 +510,7 @@ function StepEditor({
   step,
   index,
   count,
+  ingredients,
   problems,
   onChange,
   onMove,
@@ -514,6 +519,7 @@ function StepEditor({
   step: StepRow
   index: number
   count: number
+  ingredients: IngredientRow[]
   problems: Problems
   onChange: (patch: Partial<StepRow>) => void
   onMove: (to: number) => void
@@ -535,6 +541,28 @@ function StepEditor({
         onChange={(e) => onChange({ text: e.target.value })}
       />
       {p('text') && <span className="small warn">{p('text')}</span>}
+      {ingredients.length > 0 && (
+        <div className="stack tight">
+          <span className="small strong">Uses</span>
+          <div className="row wrap-row" role="group" aria-label={`Step ${index + 1} uses`}>
+            {ingredients.map((row) => (
+              <button
+                key={row.key}
+                type="button"
+                className="chip small"
+                aria-pressed={step.uses.includes(row.key)}
+                onClick={() =>
+                  onChange({
+                    uses: step.uses.includes(row.key) ? step.uses.filter((k) => k !== row.key) : [...step.uses, row.key],
+                  })
+                }
+              >
+                {ingredientName(row.name)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <label className="row small">
         Timer
         <input

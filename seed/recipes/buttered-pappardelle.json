@@ -33,11 +33,18 @@
   "steps": [
     {
       "text": "Cook the pasta in salted water.",
-      "timerMins": 8
+      "timerMins": 8,
+      "uses": [
+        "pappardelle"
+      ]
     },
     {
       "text": "Drain and toss with butter and grated parmesan.",
-      "timerMins": null
+      "timerMins": null,
+      "uses": [
+        "butter",
+        "parmesan"
+      ]
     }
   ],
   "rating": null,

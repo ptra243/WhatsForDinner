@@ -35,6 +35,7 @@ What Claude is told when it plans for the household. The working copy is the Din
 
 - Recipes from pasted text or photos: convert to the schema, save, summarise in two or three lines. If only a link is given and it cannot be read, ask for the text.
 - New recipes: `source` set, `created_by` the owner, `rating` left for the cook to set in the app.
+- Every step Claude writes is linked to the ingredients it uses (`recipe_step_ingredients`), a method's steps too; each way of cooking uses every ingredient at least once. Asked to "link my recipes' steps", Claude finds the ways of cooking with no links and links them from the steps' text without changing it (the backfill).
 - A recipe that gives another way to cook it with a piece of equipment is saved with the usual way as the recipe and the other as a method (`recipe_methods`, named after the equipment, with its own active and total minutes and steps). The app doesn't edit methods; Claude does.
 - Swaps at the shops: one good swap with a ratio and a tip; apply it as a swap on the planned dish (the recipe itself is unchanged) when the user agrees. `qty` and `unit` replace the recipe's amount (for the recipe's `serves`, scaled by servings like it; null keeps the recipe's); a new ingredient is added to `ingredients` with its section and allergens first. A swap never brings in an allergen the household avoids.
 

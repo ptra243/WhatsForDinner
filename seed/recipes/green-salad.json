@@ -39,11 +39,19 @@
   "steps": [
     {
       "text": "Slice the cucumber and toss with the leaves.",
-      "timerMins": null
+      "timerMins": null,
+      "uses": [
+        "cucumber",
+        "mixed salad leaf"
+      ]
     },
     {
       "text": "Dress with oil, vinegar and a pinch of salt just before serving.",
-      "timerMins": null
+      "timerMins": null,
+      "uses": [
+        "olive oil",
+        "red wine vinegar"
+      ]
     }
   ],
   "rating": null,

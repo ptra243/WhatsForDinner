@@ -36,7 +36,7 @@ const dal: Recipe = {
     { id: 'i1', name: 'red lentil', qty: 300, unit: 'g', note: '' },
     { id: 'i2', name: 'onion', qty: 1, unit: 'each', note: 'diced' },
   ],
-  steps: [{ id: 's1', text: 'Simmer.', timerMins: 25 }],
+  steps: [{ id: 's1', text: 'Simmer.', timerMins: 25, uses: ['i1', 'i2'] }],
 }
 
 const type = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
@@ -62,6 +62,7 @@ describe('RecipeForm', () => {
     fireEvent.change(screen.getByLabelText('Ingredient 1 unit'), { target: { value: 'each' } })
     type('Step 1', 'Bake.')
     type('Step 1 timer minutes', '30')
+    fireEvent.click(within(screen.getByRole('group', { name: 'Step 1 uses' })).getByRole('button', { name: 'leek' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Save recipe' }))
     expect(await screen.findByText('New ingredient: pick its section.')).toBeInTheDocument()
@@ -82,7 +83,7 @@ describe('RecipeForm', () => {
       source: '',
       notes: '',
       ingredients: [{ name: 'leek', qty: 2, unit: 'each', note: '', section: 'fruit and veg', allergens: [] }],
-      steps: [{ text: 'Bake.', timer_mins: 30 }],
+      steps: [{ text: 'Bake.', timer_mins: 30, uses: [0] }],
     })
   })
 
@@ -113,6 +114,10 @@ describe('RecipeForm', () => {
     expect(screen.getByLabelText('Ingredient 1 name')).toHaveValue('onion')
     fireEvent.click(screen.getByRole('button', { name: 'Add step' }))
     type('Step 2', 'Serve with rice.')
+    const uses = within(screen.getByRole('group', { name: 'Step 1 uses' }))
+    expect(uses.getByRole('button', { name: 'red lentil', pressed: true })).toBeInTheDocument()
+    fireEvent.click(uses.getByRole('button', { name: 'red lentil' }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Step 2 uses' })).getByRole('button', { name: 'onion' }))
     fireEvent.click(screen.getByRole('button', { name: 'Move step 2 up' }))
     fireEvent.click(screen.getByRole('button', { name: 'Remove ingredient 2' }))
     type('Name', 'Weeknight dal')
@@ -126,8 +131,8 @@ describe('RecipeForm', () => {
         name: 'Weeknight dal',
         ingredients: [{ id: 'i2', name: 'onion', qty: 1, unit: 'each', note: 'diced' }],
         steps: [
-          { text: 'Serve with rice.', timer_mins: null },
-          { id: 's1', text: 'Simmer.', timer_mins: 25 },
+          { text: 'Serve with rice.', timer_mins: null, uses: [0] },
+          { id: 's1', text: 'Simmer.', timer_mins: 25, uses: [0] },
         ],
       }),
     )

@@ -249,6 +249,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"recipe_step_ingredients": {
+                  Row: {
+                    "created_at": string,"recipe_ingredient_id": string,"step_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"recipe_ingredient_id": string,"step_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"recipe_ingredient_id"?: string,"step_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "recipe_step_ingredients_recipe_ingredient_id_fkey"
+      columns: ["recipe_ingredient_id"]
+isOneToOne: false
+      referencedRelation: "recipe_ingredients"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "recipe_step_ingredients_step_id_fkey"
+      columns: ["step_id"]
+isOneToOne: false
+      referencedRelation: "recipe_steps"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"recipe_steps": {
                   Row: {
                     "id": string,"method_id": string | null,"position": number,"recipe_id": string,"text": string,"timer_mins": number | null

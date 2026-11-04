@@ -18,7 +18,8 @@ export type IngredientRow = {
   section: Section | ''
   allergens: Allergen[]
 }
-export type StepRow = { key: string; id?: string; text: string; timer: string }
+/** A step row. `uses` holds the keys of the ingredient rows it uses. */
+export type StepRow = { key: string; id?: string; text: string; timer: string; uses: string[] }
 
 /** What the form holds, as typed. `id` is the recipe being edited. */
 export type RecipeFormState = {
@@ -51,7 +52,8 @@ export type SaveRecipe = {
   source: string
   notes: string
   ingredients: { id?: string; name: string; qty: number | null; unit: string; note: string; section?: string; allergens?: string[] }[]
-  steps: { id?: string; text: string; timer_mins: number | null }[]
+  /** `uses`: positions in `ingredients` of the ingredients the step uses. */
+  steps: { id?: string; text: string; timer_mins: number | null; uses: number[] }[]
 }
 
 /** Problems keyed by field: `name`, `serves`, `activeMins`, `totalMins`, `ing:<key>:<field>`, `step:<key>:<field>`. */
@@ -72,7 +74,7 @@ export const emptyIngredient = (): IngredientRow => ({
   section: '',
   allergens: [],
 })
-export const emptyStep = (): StepRow => ({ key: newKey(), text: '', timer: '' })
+export const emptyStep = (): StepRow => ({ key: newKey(), text: '', timer: '', uses: [] })
 
 /** The form for a recipe, or a blank one with a row each to start on. */
 export function formFromRecipe(r?: Recipe): RecipeFormState {
@@ -92,6 +94,17 @@ export function formFromRecipe(r?: Recipe): RecipeFormState {
       steps: [emptyStep()],
     }
   }
+  const ingredients: IngredientRow[] = r.ingredients.map((i) => ({
+    key: newKey(),
+    id: i.id,
+    name: i.name,
+    qty: text(i.qty),
+    unit: asUnit(i.unit),
+    note: i.note,
+    section: '',
+    allergens: toAllergens(i.allergens),
+  }))
+  const keyOf = new Map(ingredients.map((row) => [row.id, row.key]))
   return {
     id: r.id,
     name: r.name,
@@ -104,17 +117,14 @@ export function formFromRecipe(r?: Recipe): RecipeFormState {
     tags: r.tags.join(', '),
     source: r.source,
     notes: r.notes,
-    ingredients: r.ingredients.map((i) => ({
+    ingredients,
+    steps: r.steps.map((s) => ({
       key: newKey(),
-      id: i.id,
-      name: i.name,
-      qty: text(i.qty),
-      unit: asUnit(i.unit),
-      note: i.note,
-      section: '',
-      allergens: toAllergens(i.allergens),
+      id: s.id,
+      text: s.text,
+      timer: text(s.timerMins),
+      uses: (s.uses ?? []).flatMap((id) => keyOf.get(id) ?? []),
     })),
-    steps: r.steps.map((s) => ({ key: newKey(), id: s.id, text: s.text, timer: text(s.timerMins) })),
   }
 }
 
@@ -192,6 +202,8 @@ export function problems(
 /** The form as `save_recipe` takes it; blank rows are left out. Call only when `problems` is empty. */
 export function toSaveRecipe(form: RecipeFormState, known: ReadonlyMap<string, KnownIngredient>): SaveRecipe {
   const tags = [...new Set(form.tags.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean))]
+  const ingredients = form.ingredients.filter((r) => !blankIngredient(r))
+  const position = new Map(ingredients.map((r, ix) => [r.key, ix]))
   return {
     ...(form.id ? { id: form.id } : {}),
     name: form.name.trim(),
@@ -204,19 +216,23 @@ export function toSaveRecipe(form: RecipeFormState, known: ReadonlyMap<string, K
     tags,
     source: form.source.trim(),
     notes: form.notes.trim(),
-    ingredients: form.ingredients
-      .filter((r) => !blankIngredient(r))
-      .map((r) => ({
-        ...(r.id ? { id: r.id } : {}),
-        name: ingredientName(r.name),
-        qty: parseQty(r.qty) ?? null,
-        unit: r.unit,
-        note: r.note.trim(),
-        ...(isNew(r, known) ? { section: r.section, allergens: r.allergens } : {}),
-      })),
+    ingredients: ingredients.map((r) => ({
+      ...(r.id ? { id: r.id } : {}),
+      name: ingredientName(r.name),
+      qty: parseQty(r.qty) ?? null,
+      unit: r.unit,
+      note: r.note.trim(),
+      ...(isNew(r, known) ? { section: r.section, allergens: r.allergens } : {}),
+    })),
     steps: form.steps
       .filter((s) => !blankStep(s))
-      .map((s) => ({ ...(s.id ? { id: s.id } : {}), text: s.text.trim(), timer_mins: parseMins(s.timer) ?? null })),
+      .map((s) => ({
+        ...(s.id ? { id: s.id } : {}),
+        text: s.text.trim(),
+        timer_mins: parseMins(s.timer) ?? null,
+        // In recipe order; a removed or blank ingredient row drops out.
+        uses: s.uses.flatMap((k) => position.get(k) ?? []).sort((a, b) => a - b),
+      })),
   }
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { allergenWarnings, containsText, type TaggedSwap } from '../lib/allergens'
 import { recipePrompt } from '../lib/claude'
+import { stepIngredients } from '../lib/cook'
 import { mins, scaledQty } from '../lib/format'
 import { allMethods, methodOf } from '../lib/methods'
 import { deleteRecipe, updateRecipe, type Recipe } from '../lib/recipes'
@@ -94,6 +95,7 @@ export function RecipeView({
   const warnings = allergenWarnings(r.ingredients, avoid, swaps)
   const methods = allMethods(r)
   const method = methodOf(r, methodId)
+  const stepUse = stepIngredients(method.steps, r.ingredients)
 
   const meta = [
     r.course === 'side' ? 'Side' : 'Main',
@@ -212,6 +214,9 @@ export function RecipeView({
           <ol className="steps">
             {method.steps.map((s, ix) => (
               <li key={ix}>
+                {stepUse[ix].length > 0 && (
+                  <span className="small muted uses">{stepUse[ix].map((i) => i.name).join(', ')}</span>
+                )}
                 {s.text}
                 {s.timerMins ? <span className="tm"> {s.timerMins} min timer</span> : null}
               </li>

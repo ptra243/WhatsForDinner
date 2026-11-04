@@ -47,15 +47,24 @@
   "steps": [
     {
       "text": "Heat the oven to 200°C. Rub the chicken with butter, salt and thyme; put the lemon and garlic inside.",
-      "timerMins": null
+      "timerMins": null,
+      "uses": [
+        "whole chicken",
+        "butter",
+        "thyme",
+        "lemon",
+        "garlic clove"
+      ]
     },
     {
       "text": "Roast until the juices run clear.",
-      "timerMins": 75
+      "timerMins": 75,
+      "uses": []
     },
     {
       "text": "Rest before carving.",
-      "timerMins": 10
+      "timerMins": 10,
+      "uses": []
     }
   ],
   "rating": 5,

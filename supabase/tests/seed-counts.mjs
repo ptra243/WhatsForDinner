@@ -15,6 +15,10 @@ const counts = {
   recipe_ingredients: recipes.reduce((n, r) => n + r.ingredients.length, 0),
   steps: recipes.reduce((n, r) => n + r.steps.length + (r.methods ?? []).reduce((k, m) => k + m.steps.length, 0), 0),
   methods: recipes.reduce((n, r) => n + (r.methods ?? []).length, 0),
+  step_links: recipes.reduce(
+    (n, r) => n + [...r.steps, ...(r.methods ?? []).flatMap((m) => m.steps)].reduce((k, s) => k + (s.uses ?? []).length, 0),
+    0,
+  ),
   settings_keys: Object.keys(readJson('meta', 'household.json')).length,
 };
 console.log(Object.entries(counts).map(([k, v]) => `-v ${k}=${v}`).join(' '));
