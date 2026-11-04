@@ -61,7 +61,10 @@ Notes can arrive late or not at all: the app holds them after a long run of note
 - a `Review:` comment newer than your last relay: relay it;
 - after `CHANGES REQUESTED`, an author push or PR comment newer than the newest `Review:` comment, and the reviewer not yet asked: send it `Author updated PR #P; re-review.`;
 - an author session that is idle with no PR and not waiting: pass its question to the owner;
+- a waiting session (idle, its issue not built or its PR not reviewed) whose wait has died: read its newest events with `list_events`. A failed `wait-for.sh` notice with no output is a wait killed from outside (an app restart kills every background wait, and the session is not woken for it). `SendMessage` it `Your wait was killed; start it again.`;
 - a session whose wait timed out: tell the owner what it was waiting for.
+
+After an app restart the sweep is the only thing that notices killed waits, and it runs only when something wakes you. So when the owner's first message after a restart reaches you, sweep every waiting session.
 
 **When a start is refused** (the app does not let you start sessions in a turn another session's message or an automated event started): only needed once the deck is empty. Send the owner a push notification if the tool is available, and end your turn with one line naming each waiting step, for example `#21 is ready for a slot; reply "go" to start it.` The owner's reply is your next turn; the sweep starts it.
 
