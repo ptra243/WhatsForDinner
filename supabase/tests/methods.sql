@@ -134,7 +134,8 @@ select pg_temp.expect('moved dish keeps its method',
 delete from public.recipe_methods where id = '00000000-0000-4000-8000-0000000000f1';
 select pg_temp.expect('dish back on the default',
   (select method_id from public.meal_plan_dishes where id = '00000000-0000-4000-8000-0000000000d1'), null::uuid);
-select pg_temp.expect('dish still planned', (select count(*) from public.meal_plan_dishes), 1::bigint);
+select pg_temp.expect('dish still planned',
+  (select count(*) from public.meal_plan_dishes where household_id = '00000000-0000-4000-8000-0000000000a1'), 1::bigint);
 select pg_temp.expect('method steps gone',
   (select count(*) from public.recipe_steps where recipe_id = '00000000-0000-4000-8000-0000000000e1'), 1::bigint);
 
