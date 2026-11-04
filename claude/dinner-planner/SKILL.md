@@ -35,7 +35,7 @@ where h.id <> private.template_household_id();
 - `recipe_ingredients`: recipe_id, position (from 0), ingredient_slug → `ingredients`, qty (null for "to taste"), unit, note.
 - `recipe_steps`: recipe_id, method_id (null for the recipe's own steps), position (from 0 within each method), text, timer_mins (null unless the step involves waiting).
 - `recipe_methods`: recipe_id, name (unique in the recipe, e.g. `Pressure cooker`), equipment (as named in settings `equipment`; null when it needs nothing special), active_mins, total_mins. Another way to cook the recipe, with its own times and steps (`recipe_steps.method_id`). The recipe's own times and steps are its usual way.
-- `ingredients`: slug (PK), name (unique), section, allergens text[] (below). Shared by all households.
+- `ingredients`: slug (PK), name (unique), section, allergens text[] (below), pack_qty and pack_unit (how it is usually sold, both or neither), shelf_days (days it keeps once bought). Shared by all households.
 - `meal_plan_dishes`: household_id, week_start (always a Monday), day (`mon`..`sun`), position (order in the night, from 0), recipe_id, role (`main` / `side`), servings, swaps jsonb `[{"from", "to", "qty", "unit"}]`, method_id (null for the recipe's usual way; the database refuses another recipe's method).
 - `recipe_votes`: household_id, week_start (a Monday), recipe_id, user_id, vote (`1` 👍, `-1` 👎). Each member's say on a recipe for a coming week, set in the app. Read only for you: never write votes.
 - `suggestions`: id, household_id, created_by, name, description (may hold a link), status (`open` / `added` / `declined`), reply (your one line), recipe_id → recipes. Dinners members suggest in the app. You set only `status`, `reply` and `recipe_id` (Suggestions below).
@@ -59,6 +59,11 @@ The database rejects anything else.
   - `herbs and spices`: dried
   - `frozen`
   - `other`: only if nothing else fits
+
+## Pack sizes and shelf life
+
+- Every time you add an ingredient, set `pack_qty` and `pack_unit` to how an Australian supermarket usually sells it, in a unit from the list (`500 g` mince, `400 g` tin, `12 each` eggs, `1 bunch` coriander, `1 l` stock; `1 each` for things sold loose), and `shelf_days` to about how many days it keeps once bought, stored as it usually is (fresh meat and fish 2–3, soft herbs and salad leaves 5–7, most veg 7–21, dairy 10–30, dried and tinned 365–730). The list uses the pack to say "buy 2 × 500 g", and pantry best-before dates start from shelf_days.
+- When asked, or when an ingredient you use has none, fill the gaps (query below). Don't overwrite ones already set: the household may have set them in the app.
 
 ## Allergens
 
@@ -261,10 +266,10 @@ returning d.day, r.name, m.name as method, m.total_mins;
 Save a recipe with new ingredients. First add the ingredients it needs that aren't in `ingredients` yet (existing ones are left as they are):
 
 ```sql
-insert into ingredients (slug, name, section, allergens) values
-  ('fish-sauce', 'fish sauce', 'international', array['fish']),
-  ('lemongrass', 'lemongrass', 'fruit and veg', '{}'),
-  ('chicken-thigh', 'chicken thigh', 'meat and seafood', '{}')
+insert into ingredients (slug, name, section, allergens, pack_qty, pack_unit, shelf_days) values
+  ('fish-sauce', 'fish sauce', 'international', array['fish'], 200, 'ml', 730),
+  ('lemongrass', 'lemongrass', 'fruit and veg', '{}', 1, 'each', 14),
+  ('chicken-thigh', 'chicken thigh', 'meat and seafood', '{}', 500, 'g', 3)
 on conflict do nothing;
 ```
 
@@ -347,7 +352,8 @@ returning name, status, reply;
 Apply a swap to one planned dish (replaces any earlier swap of the same ingredient in that dish). Add the new ingredient first if it isn't in `ingredients`:
 
 ```sql
-insert into ingredients (slug, name, section, allergens) values ('evaporated-milk', 'evaporated milk', 'pantry', array['milk'])
+insert into ingredients (slug, name, section, allergens, pack_qty, pack_unit, shelf_days)
+values ('evaporated-milk', 'evaporated milk', 'pantry', array['milk'], 375, 'ml', 365)
 on conflict do nothing;
 ```
 
@@ -384,4 +390,32 @@ cross join lateral (select coalesce(swap.name, i.name) as ingredient,
 where d.household_id = '<household_id>' and d.week_start = '<week_start>'
   and x.allergens && array(select jsonb_array_elements_text(coalesce(s.settings->'avoid', '[]')))
 order by array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day), d.position;
+```
+
+Ingredients missing a pack size or shelf life, those the household's recipes use first:
+
+```sql
+select i.name, i.section, i.pack_qty, i.pack_unit, i.shelf_days,
+       count(distinct r.id) as recipes
+from ingredients i
+left join recipe_ingredients ri on ri.ingredient_slug = i.slug
+left join recipes r on r.id = ri.recipe_id and r.household_id = '<household_id>'
+where i.pack_qty is null or i.shelf_days is null
+group by i.slug
+order by recipes desc, i.name;
+```
+
+Fill them in, keeping any already set:
+
+```sql
+update ingredients i
+set pack_qty = coalesce(i.pack_qty, v.pack_qty),
+    pack_unit = case when i.pack_qty is null then v.pack_unit else i.pack_unit end,
+    shelf_days = coalesce(i.shelf_days, v.shelf_days)
+from (values
+  ('honey', 500::numeric, 'g', 730),
+  ('lemongrass', 1, 'each', 14)
+) as v(name, pack_qty, pack_unit, shelf_days)
+where i.name = v.name and (i.pack_qty is null or i.shelf_days is null)
+returning i.name, i.pack_qty, i.pack_unit, i.shelf_days;
 ```

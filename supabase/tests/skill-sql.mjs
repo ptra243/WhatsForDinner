@@ -51,6 +51,11 @@ const weekQueries = blocks.filter((b) => b.includes('as method,') && b.includes(
 if (weekQueries.length !== 1) throw new Error(`Expected 1 read-a-week query in SKILL.md, found ${weekQueries.length}`);
 const readWeek = fill(weekQueries[0]).replace(/;s*$/, '');
 
+// The ingredients missing a pack size or shelf life (#25), checked before and after the fill example.
+const gapQueries = blocks.filter((b) => b.includes('i.pack_qty is null or i.shelf_days is null') && b.startsWith('select'));
+if (gapQueries.length !== 1) throw new Error(`Expected 1 missing pack size query in SKILL.md, found ${gapQueries.length}`);
+const packGaps = fill(gapQueries[0]).replace(/;s*$/, '');
+
 // The query that finds the owner's household, so it can be checked with a member in the household (#16).
 const ownerQueries = blocks.filter((b) => b.includes("m.role = 'owner'"));
 if (ownerQueries.length !== 1) throw new Error(`Expected 1 owner household query in SKILL.md, found ${ownerQueries.length}`);
@@ -101,6 +106,10 @@ returning id as sid2 \\gset
 -- Beef ragù on Tuesday, for the example that cooks it by its pressure cooker method (#24).
 insert into meal_plan_dishes (household_id, week_start, day, position, recipe_id, role, servings)
 select :'hid', :'week', 'tue', 0, r.id, 'main', 6 from recipes r where r.household_id = :'hid' and r.slug = 'beef-ragu';
+-- Honey has a pack size the household set but no shelf life, for the fill example (#25).
+update ingredients set pack_qty = 250, pack_unit = 'g', shelf_days = null where name = 'honey';
+select pg_temp.expect('ingredients missing a pack size or shelf life',
+  (select string_agg(name || ' ' || recipes, ', ') from (${packGaps}) q), 'honey 1');
 select pg_temp.expect('both suggestions open, oldest first, with who made them',
   (select string_agg(name || ' by ' || suggested_by, ', ') from (${openSuggestions}) q), 'Lemongrass chicken by skill-member, Pho by skill-member');
 `);
@@ -122,6 +131,13 @@ select pg_temp.expect('new recipe steps',
    where r.household_id = :'hid' and r.slug = 'lemongrass-chicken'), 3::bigint);
 select pg_temp.expect('new recipe owner',
   (select created_by from recipes where household_id = :'hid' and slug = 'lemongrass-chicken'), :'uid'::uuid);
+select pg_temp.expect('new ingredients with pack size and shelf life',
+  (select string_agg(name || ' ' || pack_qty || ' ' || pack_unit || ' ' || shelf_days, ', ' order by name) from ingredients
+   where name in ('fish sauce', 'lemongrass', 'evaporated milk')),
+  'evaporated milk 375 ml 365, fish sauce 200 ml 730, lemongrass 1 each 14');
+select pg_temp.expect('gaps filled, keeping the pack size the household set',
+  (select pack_qty || ' ' || pack_unit || ' ' || shelf_days from ingredients where name = 'honey'), '250 g 730');
+select pg_temp.expect('no ingredients missing a pack size or shelf life', (select count(*) from (${packGaps}) q), 0::bigint);
 select pg_temp.expect('ingredient allergens saved',
   (select allergens from ingredients where name = 'fish sauce'), array['fish']);
 select pg_temp.expect('recipes with avoided allergens',

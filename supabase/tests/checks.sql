@@ -52,3 +52,24 @@ begin
     raise exception 'private.allergens() changed: update the app, the skill and the docs with it';
   end if;
 end $$;
+
+-- Pack sizes and shelf life (#25): a pack is a positive amount in a known unit, both or neither;
+-- shelf life is whole days from 0.
+do $$
+declare
+  bad text[] := array[
+    $q$insert into public.ingredients (slug, name, pack_qty, pack_unit) values ('check-pack', 'check pack', 0, 'g')$q$,
+    $q$insert into public.ingredients (slug, name, pack_qty, pack_unit) values ('check-pack', 'check pack', 500, 'packet')$q$,
+    $q$insert into public.ingredients (slug, name, pack_qty) values ('check-pack', 'check pack', 500)$q$,
+    $q$insert into public.ingredients (slug, name, pack_unit) values ('check-pack', 'check pack', 'g')$q$,
+    $q$insert into public.ingredients (slug, name, shelf_days) values ('check-pack', 'check pack', -1)$q$];
+  q text;
+begin
+  foreach q in array bad loop
+    begin
+      execute q;
+      raise exception 'ingredients accepted a bad pack size or shelf life: %', q;
+    exception when check_violation then null;
+    end;
+  end loop;
+end $$;

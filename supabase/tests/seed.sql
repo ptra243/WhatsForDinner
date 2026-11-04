@@ -42,6 +42,9 @@ update public.recipes set name = 'edited in the template' where slug = :'edited_
 delete from public.recipe_steps where recipe_id = (select id from public.recipes where slug = :'edited_slug');
 insert into public.recipes (household_id, slug, name) values (:'tid', 'not-in-seed', 'Not in seed');
 update public.household_settings set settings = '{"dinnerTime": "edited"}';
+select pack_qty || ' ' || pack_unit || ' ' || shelf_days as butter_seeded from public.ingredients where slug = 'butter' \gset
+update public.ingredients set pack_qty = 6, pack_unit = 'each', shelf_days = 21 where slug = 'egg';
+update public.ingredients set pack_qty = null, pack_unit = null, shelf_days = null where slug = 'butter';
 
 \ir ../seed/seed.sql
 select pg_temp.expect('stray template recipe removed', (select count(*) from public.recipes where slug = 'not-in-seed'), 0::bigint);
@@ -50,6 +53,12 @@ select pg_temp.expect('recipe steps after restore', (select count(*) from public
 select pg_temp.expect('recipe methods after restore', (select count(*) from public.recipe_methods), :methods::bigint);
 select pg_temp.expect('settings keys after restore', (select count(*) from public.household_settings, jsonb_object_keys(settings)), :settings_keys::bigint);
 select pg_temp.expect('recipes after restore', (select count(*) from public.recipes), :recipes::bigint);
+select pg_temp.expect('edited pack size and shelf life kept',
+  (select pack_qty || ' ' || pack_unit || ' ' || shelf_days from public.ingredients where slug = 'egg'), '6 each 21');
+select pg_temp.expect('cleared pack size and shelf life filled from the seed',
+  (select pack_qty || ' ' || pack_unit || ' ' || shelf_days from public.ingredients where slug = 'butter'), :'butter_seeded'::text);
+select pg_temp.expect('every seeded ingredient has a pack size and shelf life',
+  (select count(*) from public.ingredients where pack_qty is null or shelf_days is null), 0::bigint);
 
 \echo 'Seed checks passed'
 rollback;

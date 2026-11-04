@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   addExtra: vi.fn(async () => {}),
   removeExtra: vi.fn(async () => {}),
   setSection: vi.fn(async () => {}),
+  setPackAndShelf: vi.fn(async () => {}),
   subscribeList: vi.fn(),
   askClaude: vi.fn(async () => 'opened'),
 }))
@@ -32,6 +33,8 @@ const data = (change: Partial<ListData> = {}): ListData => ({
     { day: 'thu', servings: 2, swaps: [], recipe: { name: 'Green salad', serves: 2, ingredients: [ing('lettuce', 1, 'each')] } },
   ],
   sections: { 'beef mince': 'meat and seafood', onion: 'fruit and veg', salt: 'herbs and spices', lettuce: 'fruit and veg' },
+  packs: {},
+  shelfDays: {},
   extras: [{ id: 'x1', name: 'milk', qty: 2, unit: 'l', section: 'dairy and fridge' }],
   marks: {},
   ...change,
@@ -45,7 +48,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
   api.loadList.mockImplementation(async (_h: string, week: string) =>
-    week === '2026-10-26' ? data() : { dishes: [], sections: {}, extras: [], marks: {} },
+    week === '2026-10-26' ? data() : { dishes: [], sections: {}, packs: {}, shelfDays: {}, extras: [], marks: {} },
   )
   api.subscribeList.mockImplementation((_h: string, cb: () => void) => {
     realtime = cb
@@ -184,6 +187,49 @@ describe('Amount sheet', () => {
     await waitFor(() => expect(api.loadList).toHaveBeenCalledTimes(2))
   })
 
+  it('shows packs for an item whose pack size is known', async () => {
+    api.loadList.mockResolvedValue(data({ packs: { 'beef mince': { qty: 300, unit: 'g' }, milk: { qty: 1, unit: 'l' } } }))
+    renderTab()
+    expect(await screen.findByRole('button', { name: 'Change amount for beef mince' })).toHaveTextContent(/^500 g2 × 300 g$/)
+    expect(within(screen.getByRole('button', { name: 'Change amount for milk' })).getByText('2 × 1 l')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Change amount for onion' })).toHaveTextContent(/^1 each$/)
+    expect(within(await openItem('beef mince')).getByText(/^Needed 500 g · 2 × 300 g/)).toBeInTheDocument()
+  })
+
+  it('sets and clears an ingredient’s pack size and shelf life', async () => {
+    api.loadList.mockResolvedValue(data({ packs: { onion: { qty: 1, unit: 'kg' } }, shelfDays: { onion: 30 } }))
+    renderTab()
+    let sheet = await openItem('beef mince')
+    expect(within(sheet).getByLabelText('Pack size')).toHaveValue(null)
+    expect(within(sheet).getByLabelText('Pack unit')).toHaveValue('g')
+    fireEvent.change(within(sheet).getByLabelText('Pack size'), { target: { value: '0' } })
+    expect(within(sheet).getByText('Pack size must be more than 0.')).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'Save pack size and shelf life' })).toBeDisabled()
+    fireEvent.change(within(sheet).getByLabelText('Pack size'), { target: { value: '500' } })
+    fireEvent.change(within(sheet).getByLabelText(/Keeps for/), { target: { value: '2' } })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save pack size and shelf life' }))
+    await waitFor(() =>
+      expect(api.setPackAndShelf).toHaveBeenCalledWith(expect.objectContaining({ name: 'beef mince' }), { pack: { qty: 500, unit: 'g' }, shelfDays: 2 }),
+    )
+    sheet = await openItem('onion')
+    expect(within(sheet).getByLabelText('Pack size')).toHaveValue(1)
+    expect(within(sheet).getByLabelText('Pack unit')).toHaveValue('kg')
+    expect(within(sheet).getByLabelText(/Keeps for/)).toHaveValue(30)
+    fireEvent.change(within(sheet).getByLabelText('Pack size'), { target: { value: '' } })
+    fireEvent.change(within(sheet).getByLabelText(/Keeps for/), { target: { value: '' } })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save pack size and shelf life' }))
+    await waitFor(() => expect(api.setPackAndShelf).toHaveBeenLastCalledWith(expect.objectContaining({ name: 'onion' }), { pack: null, shelfDays: null }))
+  })
+
+  it('offers pack size on a hand-added item only when it is a known ingredient', async () => {
+    const { unmount } = renderTab()
+    expect(within(await openItem('milk')).queryByLabelText('Pack size')).not.toBeInTheDocument()
+    unmount()
+    api.loadList.mockResolvedValue(data({ sections: { milk: 'dairy and fridge' } }))
+    renderTab()
+    expect(within(await openItem('milk')).getByLabelText('Pack size')).toBeInTheDocument()
+  })
+
   it('removes a hand-added item, and only those', async () => {
     renderTab()
     expect(within(await openItem('onion')).queryByRole('button', { name: 'Remove from list' })).not.toBeInTheDocument()
@@ -252,6 +298,8 @@ describe('Offline', () => {
       expect(within(sheet).getByRole('button', { name })).toBeEnabled()
     }
     expect(within(sheet).getByLabelText('Section')).toBeDisabled()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(within(await openItem('lettuce')).getByRole('button', { name: 'Save pack size and shelf life' })).toBeDisabled()
   })
 
   it('adds and removes a hand-added item offline without sending either', async () => {

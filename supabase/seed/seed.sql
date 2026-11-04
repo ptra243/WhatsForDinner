@@ -4,7 +4,8 @@
 -- household (private.template_household_id(), created by the migrations; it has no
 -- members). create_household() copies the template into each new household; households
 -- that already exist are not touched. Safe to re-run:
--- - ingredients: added if missing; existing ones (and their sections and allergens) are kept.
+-- - ingredients: added if missing; existing ones (and their sections and allergens) are kept,
+--   and get the seed's pack size and shelf life only where they have none.
 -- - template recipes: upserted by slug, with ingredients, steps and methods replaced
 --   from the seed; template recipes no longer in seed/ are removed.
 -- - template settings: replaced by the seed's.
@@ -13,58 +14,58 @@ do $do$
 declare
   seed jsonb := $seed${
  "ingredients": [
-  {"slug":"lemon","name":"lemon","section":"fruit and veg","allergens":[]},
-  {"slug":"garlic-clove","name":"garlic clove","section":"fruit and veg","allergens":[]},
-  {"slug":"parsley","name":"parsley","section":"fruit and veg","allergens":[]},
-  {"slug":"onion","name":"onion","section":"fruit and veg","allergens":[]},
-  {"slug":"ginger","name":"ginger","section":"fruit and veg","allergens":[]},
-  {"slug":"baby-spinach","name":"baby spinach","section":"fruit and veg","allergens":[]},
-  {"slug":"cabbage","name":"cabbage","section":"fruit and veg","allergens":[]},
-  {"slug":"carrot","name":"carrot","section":"fruit and veg","allergens":[]},
-  {"slug":"spring-onion","name":"spring onion","section":"fruit and veg","allergens":[]},
-  {"slug":"capsicum","name":"capsicum","section":"fruit and veg","allergens":[]},
-  {"slug":"coriander","name":"coriander","section":"fruit and veg","allergens":[]},
-  {"slug":"lime","name":"lime","section":"fruit and veg","allergens":[]},
-  {"slug":"avocado","name":"avocado","section":"fruit and veg","allergens":[]},
-  {"slug":"celery","name":"celery","section":"fruit and veg","allergens":[]},
-  {"slug":"thyme","name":"thyme","section":"fruit and veg","allergens":[]},
-  {"slug":"green-bean","name":"green bean","section":"fruit and veg","allergens":[]},
-  {"slug":"mixed-salad-leaf","name":"mixed salad leaf","section":"fruit and veg","allergens":[]},
-  {"slug":"cucumber","name":"cucumber","section":"fruit and veg","allergens":[]},
-  {"slug":"rosemary","name":"rosemary","section":"fruit and veg","allergens":[]},
-  {"slug":"potato","name":"potato","section":"fruit and veg","allergens":[]},
-  {"slug":"chicken-thigh","name":"chicken thigh","section":"meat and seafood","allergens":[]},
-  {"slug":"pork-mince","name":"pork mince","section":"meat and seafood","allergens":[]},
-  {"slug":"white-fish-fillet","name":"white fish fillet","section":"meat and seafood","allergens":["fish"]},
-  {"slug":"beef-chuck","name":"beef chuck","section":"meat and seafood","allergens":[]},
-  {"slug":"whole-chicken","name":"whole chicken","section":"meat and seafood","allergens":[]},
-  {"slug":"cream","name":"cream","section":"dairy and fridge","allergens":["milk"]},
-  {"slug":"feta","name":"feta","section":"dairy and fridge","allergens":["milk"]},
-  {"slug":"greek-yoghurt","name":"greek yoghurt","section":"dairy and fridge","allergens":["milk"]},
-  {"slug":"butter","name":"butter","section":"dairy and fridge","allergens":["milk"]},
-  {"slug":"parmesan","name":"parmesan","section":"dairy and fridge","allergens":["milk"]},
-  {"slug":"egg","name":"egg","section":"dairy and fridge","allergens":["egg"]},
-  {"slug":"tortilla","name":"tortilla","section":"international","allergens":["wheat","gluten"]},
-  {"slug":"crusty-loaf","name":"crusty loaf","section":"bakery","allergens":["wheat","gluten"]},
-  {"slug":"chicken-stock","name":"chicken stock","section":"pantry","allergens":["wheat","gluten"]},
-  {"slug":"olive-oil","name":"olive oil","section":"pantry","allergens":[]},
-  {"slug":"red-lentil","name":"red lentil","section":"pantry","allergens":[]},
-  {"slug":"ground-cumin","name":"ground cumin","section":"herbs and spices","allergens":[]},
-  {"slug":"ground-turmeric","name":"ground turmeric","section":"herbs and spices","allergens":[]},
-  {"slug":"crushed-tomato","name":"crushed tomato","section":"canned veg","allergens":[]},
-  {"slug":"coconut-milk","name":"coconut milk","section":"international","allergens":[]},
-  {"slug":"soy-sauce","name":"soy sauce","section":"international","allergens":["soy","wheat","gluten"]},
-  {"slug":"hoisin-sauce","name":"hoisin sauce","section":"international","allergens":["soy","wheat","gluten","sesame"]},
-  {"slug":"egg-noodle","name":"egg noodle","section":"international","allergens":["egg","wheat","gluten"]},
-  {"slug":"smoked-paprika","name":"smoked paprika","section":"herbs and spices","allergens":[]},
-  {"slug":"chipotle-in-adobo","name":"chipotle in adobo","section":"international","allergens":["wheat","gluten"]},
-  {"slug":"red-wine","name":"red wine","section":"pantry","allergens":[]},
-  {"slug":"beef-stock","name":"beef stock","section":"pantry","allergens":["wheat","gluten"]},
-  {"slug":"tomato-paste","name":"tomato paste","section":"canned veg","allergens":[]},
-  {"slug":"jasmine-rice","name":"jasmine rice","section":"pantry","allergens":[]},
-  {"slug":"red-wine-vinegar","name":"red wine vinegar","section":"pantry","allergens":[]},
-  {"slug":"pappardelle","name":"pappardelle","section":"pantry","allergens":["egg","wheat","gluten"]},
-  {"slug":"honey","name":"honey","section":"pantry","allergens":[]}
+  {"slug":"lemon","name":"lemon","section":"fruit and veg","allergens":[],"pack_qty":1,"pack_unit":"each","shelf_days":21},
+  {"slug":"garlic-clove","name":"garlic clove","section":"fruit and veg","allergens":[],"pack_qty":10,"pack_unit":"each","shelf_days":60},
+  {"slug":"parsley","name":"parsley","section":"fruit and veg","allergens":[],"pack_qty":1,"pack_unit":"bunch","shelf_days":7},
+  {"slug":"onion","name":"onion","section":"fruit and veg","allergens":[],"pack_qty":1,"pack_unit":"each","shelf_days":30},
+  {"slug":"ginger","name":"ginger","section":"fruit and veg","allergens":[],"pack_qty":100,"pack_unit":"g","shelf_days":21},
+  {"slug":"baby-spinach","name":"baby spinach","section":"fruit and veg","allergens":[],"pack_qty":120,"pack_unit":"g","shelf_days":5},
+  {"slug":"cabbage","name":"cabbage","section":"fruit and veg","allergens":[],"pack_qty":1,"pack_unit":"each","shelf_days":21},
+  {"slug":"carrot","name":"carrot","section":"fruit and veg","allergens":[],"pack_qty":1,"pack_unit":"each","shelf_days":21},
+  {"slug":"spring-onion","name":"spring onion","section":"fruit and veg","allergens":[],"pack_qty":1,"pack_unit":"bunch","shelf_days":7},
+  {"slug":"capsicum","name":"capsicum","section":"fruit and veg","allergens":[],"pack_qty":1,"pack_unit":"each","shelf_days":10},
+  {"slug":"coriander","name":"coriander","section":"fruit and veg","allergens":[],"pack_qty":1,"pack_unit":"bunch","shelf_days":5},
+  {"slug":"lime","name":"lime","section":"fruit and veg","allergens":[],"pack_qty":1,"pack_unit":"each","shelf_days":21},
+  {"slug":"avocado","name":"avocado","section":"fruit and veg","allergens":[],"pack_qty":1,"pack_unit":"each","shelf_days":5},
+  {"slug":"celery","name":"celery","section":"fruit and veg","allergens":[],"pack_qty":1,"pack_unit":"bunch","shelf_days":14},
+  {"slug":"thyme","name":"thyme","section":"fruit and veg","allergens":[],"pack_qty":1,"pack_unit":"bunch","shelf_days":10},
+  {"slug":"green-bean","name":"green bean","section":"fruit and veg","allergens":[],"pack_qty":250,"pack_unit":"g","shelf_days":5},
+  {"slug":"mixed-salad-leaf","name":"mixed salad leaf","section":"fruit and veg","allergens":[],"pack_qty":120,"pack_unit":"g","shelf_days":5},
+  {"slug":"cucumber","name":"cucumber","section":"fruit and veg","allergens":[],"pack_qty":1,"pack_unit":"each","shelf_days":7},
+  {"slug":"rosemary","name":"rosemary","section":"fruit and veg","allergens":[],"pack_qty":1,"pack_unit":"bunch","shelf_days":14},
+  {"slug":"potato","name":"potato","section":"fruit and veg","allergens":[],"pack_qty":2,"pack_unit":"kg","shelf_days":30},
+  {"slug":"chicken-thigh","name":"chicken thigh","section":"meat and seafood","allergens":[],"pack_qty":500,"pack_unit":"g","shelf_days":3},
+  {"slug":"pork-mince","name":"pork mince","section":"meat and seafood","allergens":[],"pack_qty":500,"pack_unit":"g","shelf_days":2},
+  {"slug":"white-fish-fillet","name":"white fish fillet","section":"meat and seafood","allergens":["fish"],"pack_qty":400,"pack_unit":"g","shelf_days":2},
+  {"slug":"beef-chuck","name":"beef chuck","section":"meat and seafood","allergens":[],"pack_qty":1,"pack_unit":"kg","shelf_days":3},
+  {"slug":"whole-chicken","name":"whole chicken","section":"meat and seafood","allergens":[],"pack_qty":1.6,"pack_unit":"kg","shelf_days":3},
+  {"slug":"cream","name":"cream","section":"dairy and fridge","allergens":["milk"],"pack_qty":300,"pack_unit":"ml","shelf_days":10},
+  {"slug":"feta","name":"feta","section":"dairy and fridge","allergens":["milk"],"pack_qty":200,"pack_unit":"g","shelf_days":14},
+  {"slug":"greek-yoghurt","name":"greek yoghurt","section":"dairy and fridge","allergens":["milk"],"pack_qty":500,"pack_unit":"g","shelf_days":14},
+  {"slug":"butter","name":"butter","section":"dairy and fridge","allergens":["milk"],"pack_qty":250,"pack_unit":"g","shelf_days":60},
+  {"slug":"parmesan","name":"parmesan","section":"dairy and fridge","allergens":["milk"],"pack_qty":150,"pack_unit":"g","shelf_days":60},
+  {"slug":"egg","name":"egg","section":"dairy and fridge","allergens":["egg"],"pack_qty":12,"pack_unit":"each","shelf_days":28},
+  {"slug":"tortilla","name":"tortilla","section":"international","allergens":["wheat","gluten"],"pack_qty":8,"pack_unit":"each","shelf_days":14},
+  {"slug":"crusty-loaf","name":"crusty loaf","section":"bakery","allergens":["wheat","gluten"],"pack_qty":1,"pack_unit":"each","shelf_days":2},
+  {"slug":"chicken-stock","name":"chicken stock","section":"pantry","allergens":["wheat","gluten"],"pack_qty":1,"pack_unit":"l","shelf_days":365},
+  {"slug":"olive-oil","name":"olive oil","section":"pantry","allergens":[],"pack_qty":750,"pack_unit":"ml","shelf_days":540},
+  {"slug":"red-lentil","name":"red lentil","section":"pantry","allergens":[],"pack_qty":500,"pack_unit":"g","shelf_days":365},
+  {"slug":"ground-cumin","name":"ground cumin","section":"herbs and spices","allergens":[],"pack_qty":30,"pack_unit":"g","shelf_days":730},
+  {"slug":"ground-turmeric","name":"ground turmeric","section":"herbs and spices","allergens":[],"pack_qty":30,"pack_unit":"g","shelf_days":730},
+  {"slug":"crushed-tomato","name":"crushed tomato","section":"canned veg","allergens":[],"pack_qty":400,"pack_unit":"g","shelf_days":730},
+  {"slug":"coconut-milk","name":"coconut milk","section":"international","allergens":[],"pack_qty":400,"pack_unit":"ml","shelf_days":730},
+  {"slug":"soy-sauce","name":"soy sauce","section":"international","allergens":["soy","wheat","gluten"],"pack_qty":250,"pack_unit":"ml","shelf_days":730},
+  {"slug":"hoisin-sauce","name":"hoisin sauce","section":"international","allergens":["soy","wheat","gluten","sesame"],"pack_qty":250,"pack_unit":"ml","shelf_days":365},
+  {"slug":"egg-noodle","name":"egg noodle","section":"international","allergens":["egg","wheat","gluten"],"pack_qty":440,"pack_unit":"g","shelf_days":365},
+  {"slug":"smoked-paprika","name":"smoked paprika","section":"herbs and spices","allergens":[],"pack_qty":30,"pack_unit":"g","shelf_days":730},
+  {"slug":"chipotle-in-adobo","name":"chipotle in adobo","section":"international","allergens":["wheat","gluten"],"pack_qty":200,"pack_unit":"g","shelf_days":730},
+  {"slug":"red-wine","name":"red wine","section":"pantry","allergens":[],"pack_qty":750,"pack_unit":"ml","shelf_days":730},
+  {"slug":"beef-stock","name":"beef stock","section":"pantry","allergens":["wheat","gluten"],"pack_qty":1,"pack_unit":"l","shelf_days":365},
+  {"slug":"tomato-paste","name":"tomato paste","section":"canned veg","allergens":[],"pack_qty":140,"pack_unit":"g","shelf_days":730},
+  {"slug":"jasmine-rice","name":"jasmine rice","section":"pantry","allergens":[],"pack_qty":1,"pack_unit":"kg","shelf_days":730},
+  {"slug":"red-wine-vinegar","name":"red wine vinegar","section":"pantry","allergens":[],"pack_qty":500,"pack_unit":"ml","shelf_days":730},
+  {"slug":"pappardelle","name":"pappardelle","section":"pantry","allergens":["egg","wheat","gluten"],"pack_qty":500,"pack_unit":"g","shelf_days":730},
+  {"slug":"honey","name":"honey","section":"pantry","allergens":[],"pack_qty":500,"pack_unit":"g","shelf_days":730}
  ],
  "recipes": [
   {"slug":"beef-ragu","name":"Beef ragù","course":"main","serves":6,"active_mins":25,"total_mins":180,"provides":["protein","veg"],"spice":0,"tags":["weekend","freezes well"],"source":"Starter example","rating":5,"notes":"","ingredients":[{"name":"beef chuck","qty":1,"unit":"kg","note":"in large chunks"},{"name":"onion","qty":1,"unit":"each","note":""},{"name":"carrot","qty":2,"unit":"each","note":""},{"name":"celery","qty":2,"unit":"each","note":""},{"name":"garlic clove","qty":4,"unit":"each","note":""},{"name":"crushed tomato","qty":800,"unit":"g","note":""},{"name":"red wine","qty":250,"unit":"ml","note":""},{"name":"beef stock","qty":250,"unit":"ml","note":""},{"name":"tomato paste","qty":2,"unit":"tbsp","note":""}],"steps":[{"text":"Brown the beef in batches in a heavy pot.","timer_mins":10},{"text":"Soften the chopped onion, carrot and celery, then add the garlic and tomato paste.","timer_mins":8},{"text":"Add the wine and bubble for 2 minutes, then the tomato and stock. Return the beef.","timer_mins":null},{"text":"Cover and simmer gently until the beef falls apart.","timer_mins":150},{"text":"Shred the beef into the sauce and season.","timer_mins":null}],"methods":[{"name":"Pressure cooker","equipment":"pressure cooker","active_mins":25,"total_mins":80,"steps":[{"text":"Brown the beef in batches on the pressure cooker's sauté setting.","timer_mins":10},{"text":"Soften the chopped onion, carrot and celery, then add the garlic and tomato paste.","timer_mins":8},{"text":"Add the wine and bubble for 2 minutes, then the tomato and stock. Return the beef.","timer_mins":null},{"text":"Lock the lid and cook on high pressure for 45 minutes, then let the pressure release naturally.","timer_mins":45},{"text":"Shred the beef into the sauce and season.","timer_mins":null}]}]},
@@ -95,10 +96,18 @@ begin
     raise exception 'Template household % is missing: apply the migrations first', hid;
   end if;
 
-  insert into public.ingredients (slug, name, section, allergens)
-  select i->>'slug', i->>'name', i->>'section', array(select jsonb_array_elements_text(i->'allergens'))
+  insert into public.ingredients (slug, name, section, allergens, pack_qty, pack_unit, shelf_days)
+  select i->>'slug', i->>'name', i->>'section', array(select jsonb_array_elements_text(i->'allergens')),
+         (i->>'pack_qty')::numeric, i->>'pack_unit', (i->>'shelf_days')::integer
   from jsonb_array_elements(seed->'ingredients') i
   on conflict do nothing;
+
+  update public.ingredients g
+  set pack_qty = coalesce(g.pack_qty, (i->>'pack_qty')::numeric),
+      pack_unit = case when g.pack_qty is null then i->>'pack_unit' else g.pack_unit end,
+      shelf_days = coalesce(g.shelf_days, (i->>'shelf_days')::integer)
+  from jsonb_array_elements(seed->'ingredients') i
+  where g.slug = i->>'slug' and (g.pack_qty is null or g.shelf_days is null);
 
   insert into public.household_settings (household_id, settings)
   values (hid, seed->'settings')

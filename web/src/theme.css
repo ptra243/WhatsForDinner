@@ -196,6 +196,7 @@ h3.aisle{margin:18px 0 6px}
 .item .nm{display:flex;flex-direction:column;min-width:0}
 .item .nm b{font-family:var(--display);font-weight:700;font-size:16.5px;color:var(--accent);line-height:1.2}
 .item .nm small{font-size:12.5px;color:var(--muted)}
+.item .qty small{display:block;font-size:12px;text-decoration:none}
 .item.done .nm b{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--warn);text-decoration-thickness:2px}
 .item .qty{min-height:44px;min-width:72px;padding:0 14px;border:0;background:transparent;font-variant-numeric:tabular-nums;font-size:14px;color:var(--muted);text-align:right;text-decoration:underline dotted;text-underline-offset:4px}
 .item .tag{font-size:12px;font-weight:700;color:var(--warn)}
