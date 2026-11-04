@@ -1,5 +1,5 @@
 // Loading and saving the shopping list: the plan it is derived from, marks, extras and sections.
-import { NO_MARK, type ListDish, type ListExtra, type Mark, type Swap } from './list'
+import { NO_MARK, type ListDish, type ListExtra, type Mark, type Pack, type Swap } from './list'
 import { supabase } from './supabase'
 import type { Day } from './week'
 
@@ -7,6 +7,10 @@ export type ListData = {
   dishes: ListDish[]
   /** Ingredient name → section. */
   sections: Record<string, string>
+  /** Ingredient name → pack size, for those that have one. */
+  packs: Record<string, Pack>
+  /** Ingredient name → days it keeps once bought, for those that have one. */
+  shelfDays: Record<string, number>
   extras: ListExtra[]
   marks: Record<string, Mark>
 }
@@ -45,7 +49,7 @@ export async function loadList(householdId: string, weekStart: string): Promise<
         }[],
         { merge: false }
       >(),
-    supabase.from('ingredients').select('name, section'),
+    supabase.from('ingredients').select('name, section, pack_qty, pack_unit, shelf_days'),
     supabase.from('list_extras').select('id, name, qty, unit, section').match(week).order('created_at'),
     supabase.from('list_marks').select('item_key, ticked, bought_qty, bought_unit, status, have_it').match(week),
   ])
@@ -66,6 +70,10 @@ export async function loadList(householdId: string, weekStart: string): Promise<
         : undefined,
     })),
     sections: Object.fromEntries((ingredients.data ?? []).map((i) => [i.name, i.section])),
+    packs: Object.fromEntries(
+      (ingredients.data ?? []).flatMap((i) => (i.pack_qty != null && i.pack_unit ? [[i.name, { qty: Number(i.pack_qty), unit: i.pack_unit }]] : [])),
+    ),
+    shelfDays: Object.fromEntries((ingredients.data ?? []).flatMap((i) => (i.shelf_days != null ? [[i.name, i.shelf_days]] : []))),
     extras: (extras.data ?? []).map((x) => ({ ...x, qty: x.qty == null ? null : Number(x.qty) })),
     marks: Object.fromEntries(
       (marks.data ?? []).map((m) => [
@@ -147,6 +155,24 @@ export async function setSection(item: { name: string; extra?: string }, section
   const slug = slugOf(item.name)
   if (!slug) return
   const { error: insertError } = await supabase.from('ingredients').insert({ slug, name: item.name, section })
+  if (insertError) throw insertError
+}
+
+/**
+ * Sets or clears an item's pack size and shelf life. They belong to the shared ingredient, so
+ * they apply on every list; an ingredient only known from a swap is added in the item's section.
+ */
+export async function setPackAndShelf(
+  item: { name: string; section: string },
+  { pack, shelfDays }: { pack: Pack | null; shelfDays: number | null },
+): Promise<void> {
+  const values = { pack_qty: pack?.qty ?? null, pack_unit: pack?.unit ?? null, shelf_days: shelfDays }
+  const { data, error } = await supabase.from('ingredients').update(values).eq('name', item.name).select('slug')
+  if (error) throw error
+  if (data.length) return
+  const slug = slugOf(item.name)
+  if (!slug) return
+  const { error: insertError } = await supabase.from('ingredients').insert({ slug, name: item.name, section: item.section, ...values })
   if (insertError) throw insertError
 }
 

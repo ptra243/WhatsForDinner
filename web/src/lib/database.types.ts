@@ -99,14 +99,14 @@ isOneToOne: true
                   ]
                 },"ingredients": {
                   Row: {
-                    "allergens": (string)[],"created_at": string,"name": string,"section": string,"slug": string,"updated_at": string
+                    "allergens": (string)[],"created_at": string,"name": string,"pack_qty": number | null,"pack_unit": string | null,"section": string,"shelf_days": number | null,"slug": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "allergens"?: (string)[],"created_at"?: string,"name": string,"section"?: string,"slug": string,"updated_at"?: string
+                    "allergens"?: (string)[],"created_at"?: string,"name": string,"pack_qty"?: number | null,"pack_unit"?: string | null,"section"?: string,"shelf_days"?: number | null,"slug": string,"updated_at"?: string
                   }
                   Update: {
-                    "allergens"?: (string)[],"created_at"?: string,"name"?: string,"section"?: string,"slug"?: string,"updated_at"?: string
+                    "allergens"?: (string)[],"created_at"?: string,"name"?: string,"pack_qty"?: number | null,"pack_unit"?: string | null,"section"?: string,"shelf_days"?: number | null,"slug"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     

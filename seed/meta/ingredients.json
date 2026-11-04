@@ -2,148 +2,303 @@
   "items": {
     "lemon": {
       "name": "lemon",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 1,
+        "unit": "each"
+      },
+      "shelfDays": 21
     },
     "garlic-clove": {
       "name": "garlic clove",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 10,
+        "unit": "each"
+      },
+      "shelfDays": 60
     },
     "parsley": {
       "name": "parsley",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 1,
+        "unit": "bunch"
+      },
+      "shelfDays": 7
     },
     "onion": {
       "name": "onion",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 1,
+        "unit": "each"
+      },
+      "shelfDays": 30
     },
     "ginger": {
       "name": "ginger",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 100,
+        "unit": "g"
+      },
+      "shelfDays": 21
     },
     "baby-spinach": {
       "name": "baby spinach",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 120,
+        "unit": "g"
+      },
+      "shelfDays": 5
     },
     "cabbage": {
       "name": "cabbage",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 1,
+        "unit": "each"
+      },
+      "shelfDays": 21
     },
     "carrot": {
       "name": "carrot",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 1,
+        "unit": "each"
+      },
+      "shelfDays": 21
     },
     "spring-onion": {
       "name": "spring onion",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 1,
+        "unit": "bunch"
+      },
+      "shelfDays": 7
     },
     "capsicum": {
       "name": "capsicum",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 1,
+        "unit": "each"
+      },
+      "shelfDays": 10
     },
     "coriander": {
       "name": "coriander",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 1,
+        "unit": "bunch"
+      },
+      "shelfDays": 5
     },
     "lime": {
       "name": "lime",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 1,
+        "unit": "each"
+      },
+      "shelfDays": 21
     },
     "avocado": {
       "name": "avocado",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 1,
+        "unit": "each"
+      },
+      "shelfDays": 5
     },
     "celery": {
       "name": "celery",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 1,
+        "unit": "bunch"
+      },
+      "shelfDays": 14
     },
     "thyme": {
       "name": "thyme",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 1,
+        "unit": "bunch"
+      },
+      "shelfDays": 10
     },
     "green-bean": {
       "name": "green bean",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 250,
+        "unit": "g"
+      },
+      "shelfDays": 5
     },
     "mixed-salad-leaf": {
       "name": "mixed salad leaf",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 120,
+        "unit": "g"
+      },
+      "shelfDays": 5
     },
     "cucumber": {
       "name": "cucumber",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 1,
+        "unit": "each"
+      },
+      "shelfDays": 7
     },
     "rosemary": {
       "name": "rosemary",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 1,
+        "unit": "bunch"
+      },
+      "shelfDays": 14
     },
     "potato": {
       "name": "potato",
-      "aisle": "fruit and veg"
+      "aisle": "fruit and veg",
+      "pack": {
+        "qty": 2,
+        "unit": "kg"
+      },
+      "shelfDays": 30
     },
     "chicken-thigh": {
       "name": "chicken thigh",
-      "aisle": "meat and seafood"
+      "aisle": "meat and seafood",
+      "pack": {
+        "qty": 500,
+        "unit": "g"
+      },
+      "shelfDays": 3
     },
     "pork-mince": {
       "name": "pork mince",
-      "aisle": "meat and seafood"
+      "aisle": "meat and seafood",
+      "pack": {
+        "qty": 500,
+        "unit": "g"
+      },
+      "shelfDays": 2
     },
     "white-fish-fillet": {
       "name": "white fish fillet",
       "aisle": "meat and seafood",
       "allergens": [
         "fish"
-      ]
+      ],
+      "pack": {
+        "qty": 400,
+        "unit": "g"
+      },
+      "shelfDays": 2
     },
     "beef-chuck": {
       "name": "beef chuck",
-      "aisle": "meat and seafood"
+      "aisle": "meat and seafood",
+      "pack": {
+        "qty": 1,
+        "unit": "kg"
+      },
+      "shelfDays": 3
     },
     "whole-chicken": {
       "name": "whole chicken",
-      "aisle": "meat and seafood"
+      "aisle": "meat and seafood",
+      "pack": {
+        "qty": 1.6,
+        "unit": "kg"
+      },
+      "shelfDays": 3
     },
     "cream": {
       "name": "cream",
       "aisle": "dairy and fridge",
       "allergens": [
         "milk"
-      ]
+      ],
+      "pack": {
+        "qty": 300,
+        "unit": "ml"
+      },
+      "shelfDays": 10
     },
     "feta": {
       "name": "feta",
       "aisle": "dairy and fridge",
       "allergens": [
         "milk"
-      ]
+      ],
+      "pack": {
+        "qty": 200,
+        "unit": "g"
+      },
+      "shelfDays": 14
     },
     "greek-yoghurt": {
       "name": "greek yoghurt",
       "aisle": "dairy and fridge",
       "allergens": [
         "milk"
-      ]
+      ],
+      "pack": {
+        "qty": 500,
+        "unit": "g"
+      },
+      "shelfDays": 14
     },
     "butter": {
       "name": "butter",
       "aisle": "dairy and fridge",
       "allergens": [
         "milk"
-      ]
+      ],
+      "pack": {
+        "qty": 250,
+        "unit": "g"
+      },
+      "shelfDays": 60
     },
     "parmesan": {
       "name": "parmesan",
       "aisle": "dairy and fridge",
       "allergens": [
         "milk"
-      ]
+      ],
+      "pack": {
+        "qty": 150,
+        "unit": "g"
+      },
+      "shelfDays": 60
     },
     "egg": {
       "name": "egg",
       "aisle": "dairy and fridge",
       "allergens": [
         "egg"
-      ]
+      ],
+      "pack": {
+        "qty": 12,
+        "unit": "each"
+      },
+      "shelfDays": 28
     },
     "tortilla": {
       "name": "tortilla",
@@ -151,7 +306,12 @@
       "allergens": [
         "wheat",
         "gluten"
-      ]
+      ],
+      "pack": {
+        "qty": 8,
+        "unit": "each"
+      },
+      "shelfDays": 14
     },
     "crusty-loaf": {
       "name": "crusty loaf",
@@ -159,7 +319,12 @@
       "allergens": [
         "wheat",
         "gluten"
-      ]
+      ],
+      "pack": {
+        "qty": 1,
+        "unit": "each"
+      },
+      "shelfDays": 2
     },
     "chicken-stock": {
       "name": "chicken stock",
@@ -167,31 +332,66 @@
       "allergens": [
         "wheat",
         "gluten"
-      ]
+      ],
+      "pack": {
+        "qty": 1,
+        "unit": "l"
+      },
+      "shelfDays": 365
     },
     "olive-oil": {
       "name": "olive oil",
-      "aisle": "pantry"
+      "aisle": "pantry",
+      "pack": {
+        "qty": 750,
+        "unit": "ml"
+      },
+      "shelfDays": 540
     },
     "red-lentil": {
       "name": "red lentil",
-      "aisle": "pantry"
+      "aisle": "pantry",
+      "pack": {
+        "qty": 500,
+        "unit": "g"
+      },
+      "shelfDays": 365
     },
     "ground-cumin": {
       "name": "ground cumin",
-      "aisle": "herbs and spices"
+      "aisle": "herbs and spices",
+      "pack": {
+        "qty": 30,
+        "unit": "g"
+      },
+      "shelfDays": 730
     },
     "ground-turmeric": {
       "name": "ground turmeric",
-      "aisle": "herbs and spices"
+      "aisle": "herbs and spices",
+      "pack": {
+        "qty": 30,
+        "unit": "g"
+      },
+      "shelfDays": 730
     },
     "crushed-tomato": {
       "name": "crushed tomato",
-      "aisle": "canned veg"
+      "aisle": "canned veg",
+      "pack": {
+        "qty": 400,
+        "unit": "g"
+      },
+      "shelfDays": 730
     },
     "coconut-milk": {
       "name": "coconut milk",
-      "aisle": "international"
+      "aisle": "international",
+      "pack": {
+        "qty": 400,
+        "unit": "ml"
+      },
+      "shelfDays": 730
     },
     "soy-sauce": {
       "name": "soy sauce",
@@ -200,7 +400,12 @@
         "soy",
         "wheat",
         "gluten"
-      ]
+      ],
+      "pack": {
+        "qty": 250,
+        "unit": "ml"
+      },
+      "shelfDays": 730
     },
     "hoisin-sauce": {
       "name": "hoisin sauce",
@@ -210,7 +415,12 @@
         "wheat",
         "gluten",
         "sesame"
-      ]
+      ],
+      "pack": {
+        "qty": 250,
+        "unit": "ml"
+      },
+      "shelfDays": 365
     },
     "egg-noodle": {
       "name": "egg noodle",
@@ -219,11 +429,21 @@
         "egg",
         "wheat",
         "gluten"
-      ]
+      ],
+      "pack": {
+        "qty": 440,
+        "unit": "g"
+      },
+      "shelfDays": 365
     },
     "smoked-paprika": {
       "name": "smoked paprika",
-      "aisle": "herbs and spices"
+      "aisle": "herbs and spices",
+      "pack": {
+        "qty": 30,
+        "unit": "g"
+      },
+      "shelfDays": 730
     },
     "chipotle-in-adobo": {
       "name": "chipotle in adobo",
@@ -231,11 +451,21 @@
       "allergens": [
         "wheat",
         "gluten"
-      ]
+      ],
+      "pack": {
+        "qty": 200,
+        "unit": "g"
+      },
+      "shelfDays": 730
     },
     "red-wine": {
       "name": "red wine",
-      "aisle": "pantry"
+      "aisle": "pantry",
+      "pack": {
+        "qty": 750,
+        "unit": "ml"
+      },
+      "shelfDays": 730
     },
     "beef-stock": {
       "name": "beef stock",
@@ -243,19 +473,39 @@
       "allergens": [
         "wheat",
         "gluten"
-      ]
+      ],
+      "pack": {
+        "qty": 1,
+        "unit": "l"
+      },
+      "shelfDays": 365
     },
     "tomato-paste": {
       "name": "tomato paste",
-      "aisle": "canned veg"
+      "aisle": "canned veg",
+      "pack": {
+        "qty": 140,
+        "unit": "g"
+      },
+      "shelfDays": 730
     },
     "jasmine-rice": {
       "name": "jasmine rice",
-      "aisle": "pantry"
+      "aisle": "pantry",
+      "pack": {
+        "qty": 1,
+        "unit": "kg"
+      },
+      "shelfDays": 730
     },
     "red-wine-vinegar": {
       "name": "red wine vinegar",
-      "aisle": "pantry"
+      "aisle": "pantry",
+      "pack": {
+        "qty": 500,
+        "unit": "ml"
+      },
+      "shelfDays": 730
     },
     "pappardelle": {
       "name": "pappardelle",
@@ -264,11 +514,21 @@
         "egg",
         "wheat",
         "gluten"
-      ]
+      ],
+      "pack": {
+        "qty": 500,
+        "unit": "g"
+      },
+      "shelfDays": 730
     },
     "honey": {
       "name": "honey",
-      "aisle": "pantry"
+      "aisle": "pantry",
+      "pack": {
+        "qty": 500,
+        "unit": "g"
+      },
+      "shelfDays": 730
     }
   }
 }

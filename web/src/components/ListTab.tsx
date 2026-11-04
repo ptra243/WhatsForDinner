@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { num } from '../lib/format'
-import { deriveList, itemDetail, itemQty, rowQty, SECTIONS, shopList, swapPrompt, UNITS, type Mark, type ShopRow } from '../lib/list'
+import { deriveList, itemDetail, itemQty, readPackForm, rowPacks, rowQty, SECTIONS, shopList, swapPrompt, UNITS, type Mark, type Pack, type ShopRow } from '../lib/list'
 import { enqueue, flush, onDropped, pending, withPending, type Change } from '../lib/offlineQueue'
 import { useOnline } from '../lib/online'
-import { applyMark, loadList, setSection, subscribeList, type ListData } from '../lib/shop'
+import { applyMark, loadList, setPackAndShelf, setSection, subscribeList, type ListData } from '../lib/shop'
 import { weekStartOf } from '../lib/week'
 import { AskClaudeButton } from './AskClaude'
 import { Sheet } from './Sheet'
@@ -68,7 +68,7 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
 
   const reload = () => setVersion((v) => v + 1)
   const data = list?.week === week ? list.data : undefined
-  const items = data ? deriveList(data.dishes, data.sections, data.extras) : []
+  const items = data ? deriveList(data.dishes, data.sections, data.extras, data.packs) : []
   const view = data ? shopList(items, data.marks, hideTicked) : undefined
 
   /** Shows a change on screen at once and queues it, sending it now if there is signal. */
@@ -170,11 +170,21 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
           key={openKey}
           row={openRow}
           offline={!online}
+          // A hand-added item has a pack size only when it is a known ingredient; a planned one always can.
+          ingredient={
+            openRow && (!openRow.extra || openRow.name in data.sections)
+              ? { pack: data.packs[openRow.name] ?? null, shelfDays: data.shelfDays[openRow.name] ?? null }
+              : undefined
+          }
           onMark={(change) => {
             mark(openKey, change)
             setOpenKey(undefined)
           }}
           onSection={(section) => openRow && save(() => setSection(openRow, section))}
+          onPack={(values) => {
+            if (openRow) void save(() => setPackAndShelf(openRow, values))
+            setOpenKey(undefined)
+          }}
           onRemove={() => {
             const id = openRow?.extra
             if (id) change({ kind: 'remove', week, id }, (d) => ({ ...d, extras: d.extras.filter((x) => x.id !== id) }))
@@ -201,6 +211,7 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
 function ItemRow({ row, onTick, onOpen, swapPrompt }: { row: ShopRow; onTick: (ticked: boolean) => void; onOpen: () => void; swapPrompt: () => string }) {
   const { ticked, missing } = row.mark
   const detail = itemDetail(row)
+  const packs = rowPacks(row)
   const id = `tick-${row.key}`
   return (
     <>
@@ -215,6 +226,7 @@ function ItemRow({ row, onTick, onOpen, swapPrompt }: { row: ShopRow; onTick: (t
         </label>
         <button type="button" className="qty" aria-label={`Change amount for ${row.name}`} onClick={onOpen}>
           {rowQty(row)}
+          {packs && <small>{packs}</small>}
         </button>
       </div>
       {missing && (
@@ -228,19 +240,29 @@ function ItemRow({ row, onTick, onOpen, swapPrompt }: { row: ShopRow; onTick: (t
   )
 }
 
-/** One item: the amount bought, its section, couldn't get it, already have it, and removing a hand-added item. */
+type IngredientInfo = { pack: Pack | null; shelfDays: number | null }
+
+/**
+ * One item: the amount bought, its section, couldn't get it, already have it, its ingredient's
+ * pack size and shelf life, and removing a hand-added item.
+ */
 function ItemSheet({
   row,
   offline,
+  ingredient,
   onMark,
   onSection,
+  onPack,
   onRemove,
   onClose,
 }: {
   row?: ShopRow
   offline: boolean
+  /** The shared ingredient's pack size and shelf life; undefined when the item is not an ingredient. */
+  ingredient?: IngredientInfo
   onMark: (change: Partial<Mark>) => void
   onSection: (section: string) => void
+  onPack: (values: IngredientInfo) => void
   onRemove: () => void
   onClose: () => void
 }) {
@@ -319,12 +341,82 @@ function ItemSheet({
           {row.mark.haveIt ? 'Need to buy it' : 'Already have it'}
         </button>
       </div>
+      {ingredient && <PackFields key={row.key} unit={row.unit} ingredient={ingredient} offline={offline} onSave={onPack} />}
       {row.extra && (
         <button className="btn danger wide" type="button" onClick={onRemove}>
           Remove from list
         </button>
       )}
     </Sheet>
+  )
+}
+
+/** An ingredient's pack size and shelf life, shared by every household like its section. Blank clears. */
+function PackFields({
+  unit: itemUnit,
+  ingredient,
+  offline,
+  onSave,
+}: {
+  unit: string
+  ingredient: IngredientInfo
+  offline: boolean
+  onSave: (values: IngredientInfo) => void
+}) {
+  const [qty, setQty] = useState(ingredient.pack ? String(ingredient.pack.qty) : '')
+  const [unit, setUnit] = useState(ingredient.pack?.unit ?? itemUnit)
+  const [days, setDays] = useState(ingredient.shelfDays != null ? String(ingredient.shelfDays) : '')
+  const read = readPackForm(qty, unit, days)
+  const units: readonly string[] = UNITS.includes(unit as never) ? UNITS : [unit, ...UNITS]
+  return (
+    <form
+      className="stack tight"
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (!('error' in read)) onSave(read)
+      }}
+    >
+      <label className="lab" htmlFor="pack-qty">
+        Pack size
+      </label>
+      <div className="row">
+        <input
+          id="pack-qty"
+          className="field grow"
+          type="number"
+          inputMode="decimal"
+          min="0"
+          step="any"
+          placeholder="Not known"
+          value={qty}
+          onChange={(e) => setQty(e.target.value)}
+        />
+        <select className="field" aria-label="Pack unit" value={unit} onChange={(e) => setUnit(e.target.value)}>
+          {units.map((u) => (
+            <option key={u}>{u}</option>
+          ))}
+        </select>
+      </div>
+      <label className="lab" htmlFor="shelf-days">
+        Keeps for (days once bought)
+      </label>
+      <input
+        id="shelf-days"
+        className="field"
+        type="number"
+        inputMode="numeric"
+        min="0"
+        step="1"
+        placeholder="Not known"
+        value={days}
+        onChange={(e) => setDays(e.target.value)}
+      />
+      {'error' in read && (qty || days) && <p className="small warn flat">{read.error}</p>}
+      <button className="btn ghost wide" type="submit" disabled={offline || 'error' in read}>
+        Save pack size and shelf life
+      </button>
+      <p className="small muted flat">{offline ? 'Needs signal; it changes every list.' : 'Changes every list. Leave blank to clear.'}</p>
+    </form>
   )
 }
 
