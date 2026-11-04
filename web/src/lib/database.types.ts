@@ -153,14 +153,14 @@ isOneToOne: false
                   ]
                 },"meal_plan_dishes": {
                   Row: {
-                    "created_at": string,"day": string,"household_id": string,"id": string,"position": number,"recipe_id": string,"role": string,"servings": number,"swaps": NonNullable<Json>,"updated_at": string,"week_start": string
+                    "created_at": string,"day": string,"household_id": string,"id": string,"method_id": string | null,"position": number,"recipe_id": string,"role": string,"servings": number,"swaps": NonNullable<Json>,"updated_at": string,"week_start": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"day": string,"household_id": string,"id"?: string,"position"?: number,"recipe_id": string,"role"?: string,"servings": number,"swaps"?: NonNullable<Json>,"updated_at"?: string,"week_start": string
+                    "created_at"?: string,"day": string,"household_id": string,"id"?: string,"method_id"?: string | null,"position"?: number,"recipe_id": string,"role"?: string,"servings": number,"swaps"?: NonNullable<Json>,"updated_at"?: string,"week_start": string
                   }
                   Update: {
-                    "created_at"?: string,"day"?: string,"household_id"?: string,"id"?: string,"position"?: number,"recipe_id"?: string,"role"?: string,"servings"?: number,"swaps"?: NonNullable<Json>,"updated_at"?: string,"week_start"?: string
+                    "created_at"?: string,"day"?: string,"household_id"?: string,"id"?: string,"method_id"?: string | null,"position"?: number,"recipe_id"?: string,"role"?: string,"servings"?: number,"swaps"?: NonNullable<Json>,"updated_at"?: string,"week_start"?: string
                   }
                   Relationships: [
                     {
@@ -169,6 +169,12 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "households"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "meal_plan_dishes_method_id_recipe_id_fkey"
+      columns: ["method_id","recipe_id"]
+isOneToOne: false
+      referencedRelation: "recipe_methods"
+      referencedColumns: ["id","recipe_id"]
     },{
       foreignKeyName: "meal_plan_dishes_recipe_id_household_id_fkey"
       columns: ["recipe_id","household_id"]
@@ -223,19 +229,45 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"recipe_steps": {
+                },"recipe_methods": {
                   Row: {
-                    "id": string,"position": number,"recipe_id": string,"text": string,"timer_mins": number | null
+                    "active_mins": number | null,"created_at": string,"equipment": string | null,"id": string,"name": string,"recipe_id": string,"total_mins": number | null,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "id"?: string,"position": number,"recipe_id": string,"text": string,"timer_mins"?: number | null
+                    "active_mins"?: number | null,"created_at"?: string,"equipment"?: string | null,"id"?: string,"name": string,"recipe_id": string,"total_mins"?: number | null,"updated_at"?: string
                   }
                   Update: {
-                    "id"?: string,"position"?: number,"recipe_id"?: string,"text"?: string,"timer_mins"?: number | null
+                    "active_mins"?: number | null,"created_at"?: string,"equipment"?: string | null,"id"?: string,"name"?: string,"recipe_id"?: string,"total_mins"?: number | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "recipe_methods_recipe_id_fkey"
+      columns: ["recipe_id"]
+isOneToOne: false
+      referencedRelation: "recipes"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"recipe_steps": {
+                  Row: {
+                    "id": string,"method_id": string | null,"position": number,"recipe_id": string,"text": string,"timer_mins": number | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "id"?: string,"method_id"?: string | null,"position": number,"recipe_id": string,"text": string,"timer_mins"?: number | null
+                  }
+                  Update: {
+                    "id"?: string,"method_id"?: string | null,"position"?: number,"recipe_id"?: string,"text"?: string,"timer_mins"?: number | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "recipe_steps_method_id_recipe_id_fkey"
+      columns: ["method_id","recipe_id"]
+isOneToOne: false
+      referencedRelation: "recipe_methods"
+      referencedColumns: ["id","recipe_id"]
+    },{
       foreignKeyName: "recipe_steps_recipe_id_fkey"
       columns: ["recipe_id"]
 isOneToOne: false

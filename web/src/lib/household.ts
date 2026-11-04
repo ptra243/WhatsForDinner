@@ -4,18 +4,14 @@ import { supabase } from './supabase'
 import type { Json } from './database.types'
 
 /** Everything in the settings sheet: what the week uses plus what Claude plans with. */
-export type HouseholdSettings = Settings & { notes: string; equipment: string[] }
+export type HouseholdSettings = Settings & { notes: string }
 
-export const DEFAULT_HOUSEHOLD_SETTINGS: HouseholdSettings = { ...DEFAULT_SETTINGS, notes: '', equipment: [] }
+export const DEFAULT_HOUSEHOLD_SETTINGS: HouseholdSettings = { ...DEFAULT_SETTINGS, notes: '' }
 
 /** Household settings with the defaults filled in. */
 export function toHouseholdSettings(raw: unknown): HouseholdSettings {
-  const s = (raw && typeof raw === 'object' ? raw : {}) as { notes?: unknown; equipment?: unknown }
-  return {
-    ...toSettings(raw),
-    notes: typeof s.notes === 'string' ? s.notes : '',
-    equipment: Array.isArray(s.equipment) ? s.equipment.filter((e): e is string => typeof e === 'string') : [],
-  }
+  const s = (raw && typeof raw === 'object' ? raw : {}) as { notes?: unknown }
+  return { ...toSettings(raw), notes: typeof s.notes === 'string' ? s.notes : '' }
 }
 
 /** "pressure cooker, slow cooker" → ['pressure cooker', 'slow cooker'] */
@@ -82,7 +78,7 @@ async function allRows<T>(page: (from: number, to: number) => PromiseLike<{ data
 
 /**
  * All of the household's data as one object: the household, its members, settings, recipes
- * (with ingredients and steps), plans, list marks and hand-added items, votes and suggestions, plus the shared
+ * (with ingredients, steps and methods), plans, list marks and hand-added items, votes and suggestions, plus the shared
  * ingredient list the recipes refer to. Rows are as stored, so the file can be loaded back.
  */
 export async function exportHousehold(householdId: string) {
@@ -95,7 +91,7 @@ export async function exportHousehold(householdId: string) {
     allRows((a, b) =>
       supabase
         .from('recipes')
-        .select('*, recipe_ingredients(*), recipe_steps(*)')
+        .select('*, recipe_ingredients(*), recipe_steps(*), recipe_methods(*)')
         .eq('household_id', hid)
         .order('id')
         .range(a, b),

@@ -1,5 +1,6 @@
 // A week's plan: nights, their dishes and the checks the prototype shows (prototype/dinner-planner.html).
 import { allergenWarnings, toAllergens, type Allergen, type AllergenWarning, type TaggedSwap } from './allergens'
+import { methodOf } from './methods'
 import type { Course, Recipe } from './recipes'
 import { toSwaps } from './shop'
 import { supabase } from './supabase'
@@ -7,18 +8,39 @@ import { DAYS, type Day } from './week'
 
 export type MealRule = 'veg+carb' | 'veg' | 'off'
 
-/** The household settings the week uses; missing values fall back to the defaults. */
-export type Settings = { dinnerTime: string; minutes: Record<Day, number>; mealRule: MealRule; avoid: Allergen[] }
+/**
+ * The household settings the week uses; missing values fall back to the defaults. `equipment`
+ * decides which of a recipe's methods a night offers.
+ */
+export type Settings = {
+  dinnerTime: string
+  minutes: Record<Day, number>
+  mealRule: MealRule
+  avoid: Allergen[]
+  equipment: string[]
+}
 
 export const DEFAULT_SETTINGS: Settings = {
   dinnerTime: '18:30',
   minutes: { mon: 45, tue: 45, wed: 45, thu: 45, fri: 45, sat: 120, sun: 120 },
   mealRule: 'veg+carb',
   avoid: [],
+  equipment: [],
 }
 
-/** `swaps` (none when missing) carry the allergens of what each swaps to. */
-export type Dish = { id: string; recipeId: string; role: Course; servings: number; position: number; swaps?: TaggedSwap[] }
+/**
+ * `swaps` (none when missing) carry the allergens of what each swaps to. `methodId` is the
+ * recipe method it is cooked by; missing or null is the recipe's default.
+ */
+export type Dish = {
+  id: string
+  recipeId: string
+  role: Course
+  servings: number
+  position: number
+  swaps?: TaggedSwap[]
+  methodId?: string | null
+}
 export type Night = { dishes: Dish[]; cooked: boolean; skipCheck: boolean }
 export type Week = Record<Day, Night>
 
@@ -56,7 +78,7 @@ export type NightInfo = {
   dishes: PlannedDish[]
   main?: PlannedDish
   sides: PlannedDish[]
-  /** Hands-on minutes: the dishes' active minutes added up. */
+  /** Hands-on minutes: the dishes' active minutes (by their chosen methods) added up. */
   active: number
   /** Total minutes: the longest dish. */
   total: number
@@ -80,11 +102,12 @@ export function nightInfo(night: Night, day: Day, recipes: Map<string, Recipe>, 
   const provides = new Set<string>()
   let active = 0
   let total = 0
-  for (const { recipe: r } of dishes) {
+  for (const { recipe: r, methodId } of dishes) {
     if (!r) continue
     r.provides.forEach((p) => provides.add(p))
-    active += r.activeMins ?? 0
-    total = Math.max(total, r.totalMins ?? 0)
+    const m = methodOf(r, methodId)
+    active += m.activeMins ?? 0
+    total = Math.max(total, m.totalMins ?? 0)
   }
   const gaps: NightInfo['gaps'] = []
   if (dishes.length && !night.skipCheck && settings.mealRule !== 'off') {
@@ -173,6 +196,7 @@ export function toSettings(raw: unknown): Settings {
     minutes,
     mealRule: s.mealRule === 'veg' || s.mealRule === 'off' || s.mealRule === 'veg+carb' ? s.mealRule : DEFAULT_SETTINGS.mealRule,
     avoid: toAllergens(s.avoid),
+    equipment: Array.isArray(s.equipment) ? s.equipment.filter((e): e is string => typeof e === 'string') : [],
   }
 }
 
@@ -187,7 +211,7 @@ export async function loadWeek(householdId: string, weekStart: string): Promise<
   const [dishes, nights] = await Promise.all([
     supabase
       .from('meal_plan_dishes')
-      .select('id, day, position, recipe_id, role, servings, swaps')
+      .select('id, day, position, recipe_id, role, servings, swaps, method_id')
       .eq('household_id', householdId)
       .eq('week_start', weekStart)
       .order('position')
@@ -213,6 +237,7 @@ export async function loadWeek(householdId: string, weekStart: string): Promise<
       servings: Number(d.servings),
       position: d.position,
       swaps: swaps.get(d.id)!.map((s) => ({ ...s, allergens: tags.get(s.to.toLowerCase().trim()) ?? [] })),
+      methodId: d.method_id,
     })
   }
   for (const n of nights.data) Object.assign(week[n.day as Day], { cooked: n.cooked, skipCheck: n.skip_check })
@@ -244,6 +269,12 @@ export async function loadCookedNights(householdId: string, since: string): Prom
 
 export async function setServings(dishId: string, servings: number): Promise<void> {
   const { error } = await supabase.from('meal_plan_dishes').update({ servings }).eq('id', dishId)
+  if (error) throw error
+}
+
+/** Cooks a planned dish by one of its recipe's methods, or the default with null. */
+export async function setDishMethod(dishId: string, methodId: string | null): Promise<void> {
+  const { error } = await supabase.from('meal_plan_dishes').update({ method_id: methodId }).eq('id', dishId)
   if (error) throw error
 }
 

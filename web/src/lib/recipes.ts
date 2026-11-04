@@ -18,7 +18,23 @@ export type RecipeIngredient = {
 }
 export type RecipeStep = { id?: string; text: string; timerMins: number | null }
 
-/** A household recipe with its ingredients and steps in order. */
+/**
+ * Another way to cook a recipe (`recipe_methods`), with its own times and steps. `equipment`
+ * is what it needs, as named in the household's settings; null when nothing special.
+ */
+export type RecipeMethod = {
+  id: string
+  name: string
+  equipment: string | null
+  activeMins: number | null
+  totalMins: number | null
+  steps: RecipeStep[]
+}
+
+/**
+ * A household recipe with its ingredients and steps in order. Its times and `steps` are the
+ * default method's; `methods` (none when missing) are the others, quickest first.
+ */
 export type Recipe = {
   id: string
   name: string
@@ -37,13 +53,15 @@ export type Recipe = {
   createdAt: string
   ingredients: RecipeIngredient[]
   steps: RecipeStep[]
+  methods?: RecipeMethod[]
 }
 
 const byPosition = (a: { position: number }, b: { position: number }) => a.position - b.position
 
 const RECIPE_COLUMNS =
   'id, name, course, serves, active_mins, total_mins, provides, spice, tags, source, rating, notes, is_example, created_at,' +
-  ' recipe_ingredients(id, position, qty, unit, note, ingredients(name, allergens)), recipe_steps(id, position, text, timer_mins)'
+  ' recipe_ingredients(id, position, qty, unit, note, ingredients(name, allergens)), recipe_steps(id, position, text, timer_mins, method_id),' +
+  ' recipe_methods(id, name, equipment, active_mins, total_mins)'
 
 type RecipeRow = {
   id: string
@@ -68,8 +86,16 @@ type RecipeRow = {
     note: string
     ingredients: { name: string; allergens: string[] } | null
   }[]
-  recipe_steps: { id: string; position: number; text: string; timer_mins: number | null }[]
+  recipe_steps: { id: string; position: number; text: string; timer_mins: number | null; method_id: string | null }[]
+  recipe_methods: { id: string; name: string; equipment: string | null; active_mins: number | null; total_mins: number | null }[]
 }
+
+/** A method's steps in order: the default method's when `methodId` is null. */
+const stepsOf = (r: RecipeRow, methodId: string | null): RecipeStep[] =>
+  r.recipe_steps
+    .filter((s) => s.method_id === methodId)
+    .sort(byPosition)
+    .map((s) => ({ id: s.id, text: s.text, timerMins: s.timer_mins }))
 
 const toRecipe = (r: RecipeRow): Recipe => ({
   id: r.id,
@@ -94,7 +120,17 @@ const toRecipe = (r: RecipeRow): Recipe => ({
     note: i.note,
     allergens: i.ingredients?.allergens ?? [],
   })),
-  steps: [...r.recipe_steps].sort(byPosition).map((s) => ({ id: s.id, text: s.text, timerMins: s.timer_mins })),
+  steps: stepsOf(r, null),
+  methods: (r.recipe_methods ?? [])
+    .map((m) => ({
+      id: m.id,
+      name: m.name,
+      equipment: m.equipment,
+      activeMins: m.active_mins,
+      totalMins: m.total_mins,
+      steps: stepsOf(r, m.id),
+    }))
+    .sort((a, b) => (a.totalMins ?? 0) - (b.totalMins ?? 0) || a.name.localeCompare(b.name)),
 })
 
 /** Every recipe of the household, newest first, then by name. */

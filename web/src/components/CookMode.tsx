@@ -11,12 +11,15 @@ import {
   type Timer,
 } from '../lib/cook'
 import { scaledQty } from '../lib/format'
+import { methodOf } from '../lib/methods'
 import { markCooked, updateRecipe, type Recipe } from '../lib/recipes'
 
 type Props = {
   householdId: string
   recipe: Recipe
   servings: number
+  /** The recipe method to cook by; the recipe's own steps when missing or null. */
+  methodId?: string | null
   onChange: (recipe: Recipe) => void
   onExit: () => void
   onDone: (message: string) => void
@@ -26,8 +29,9 @@ type Props = {
  * Full-screen cooking, one step at a time, then a finish screen to rate, note and mark as cooked.
  * Step timers keep running when you move to another step; the screen stays awake while it is open.
  */
-export function CookMode({ householdId, recipe: r, servings, onChange, onExit, onDone }: Props) {
-  const steps = r.steps.length ? r.steps : [{ text: 'No steps saved for this recipe.', timerMins: null }]
+export function CookMode({ householdId, recipe: r, servings, methodId, onChange, onExit, onDone }: Props) {
+  const method = methodOf(r, methodId)
+  const steps = method.steps.length ? method.steps : [{ text: 'No steps saved for this recipe.', timerMins: null }]
   const [step, setStep] = useState(0)
   const [finished, setFinished] = useState(false)
   const [timers, setTimers] = useState<Record<number, Timer>>({})
@@ -181,6 +185,7 @@ export function CookMode({ householdId, recipe: r, servings, onChange, onExit, o
             ‹ Recipe
           </button>
           <span className="small muted">
+            {method.id && `${method.name} · `}
             Step {step + 1} of {steps.length}
           </span>
         </div>

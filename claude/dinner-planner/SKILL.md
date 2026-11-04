@@ -27,15 +27,16 @@ left join household_settings s on s.household_id = h.id
 where h.id <> private.template_household_id();
 ```
 
-`settings` holds `notes` (preferences such as spice level), `dinnerTime`, `minutes` (hands-on minutes per weekday, `mon`..`sun`), `equipment` (e.g. pressure cooker), `mealRule` (`veg+carb`, `veg` or `off`) and `avoid` (allergens to avoid, from the list below; missing means none).
+`settings` holds `notes` (preferences such as spice level), `dinnerTime`, `minutes` (hands-on minutes per weekday, `mon`..`sun`), `equipment` (e.g. pressure cooker; decides which recipe methods you can plan), `mealRule` (`veg+carb`, `veg` or `off`) and `avoid` (allergens to avoid, from the list below; missing means none).
 
 ## Schema
 
 - `recipes`: household_id, slug (lowercase-hyphenated, unique in the household), name, course (`main` / `side`), serves, active_mins, total_mins, provides text[] (`protein`, `veg`, `carb`), spice 0–3, tags text[], source, rating 1–5 (null until rated), notes, is_example, created_by.
 - `recipe_ingredients`: recipe_id, position (from 0), ingredient_slug → `ingredients`, qty (null for "to taste"), unit, note.
-- `recipe_steps`: recipe_id, position (from 0), text, timer_mins (null unless the step involves waiting).
+- `recipe_steps`: recipe_id, method_id (null for the recipe's own steps), position (from 0 within each method), text, timer_mins (null unless the step involves waiting).
+- `recipe_methods`: recipe_id, name (unique in the recipe, e.g. `Pressure cooker`), equipment (as named in settings `equipment`; null when it needs nothing special), active_mins, total_mins. Another way to cook the recipe, with its own times and steps (`recipe_steps.method_id`). The recipe's own times and steps are its usual way.
 - `ingredients`: slug (PK), name (unique), section, allergens text[] (below). Shared by all households.
-- `meal_plan_dishes`: household_id, week_start (always a Monday), day (`mon`..`sun`), position (order in the night, from 0), recipe_id, role (`main` / `side`), servings, swaps jsonb `[{"from", "to", "qty", "unit"}]`.
+- `meal_plan_dishes`: household_id, week_start (always a Monday), day (`mon`..`sun`), position (order in the night, from 0), recipe_id, role (`main` / `side`), servings, swaps jsonb `[{"from", "to", "qty", "unit"}]`, method_id (null for the recipe's usual way; the database refuses another recipe's method).
 - `recipe_votes`: household_id, week_start (a Monday), recipe_id, user_id, vote (`1` 👍, `-1` 👎). Each member's say on a recipe for a coming week, set in the app. Read only for you: never write votes.
 - `suggestions`: id, household_id, created_by, name, description (may hold a link), status (`open` / `added` / `declined`), reply (your one line), recipe_id → recipes. Dinners members suggest in the app. You set only `status`, `reply` and `recipe_id` (Suggestions below).
 - `household_settings`, `households`, `household_members`, `household_invites`: read only for you. A household can have members besides the owner (`role = 'member'`, a partner who joined by invite); they use the app, and you still plan for the household and set `created_by` to the owner.
@@ -72,7 +73,7 @@ The database rejects anything else.
 2. Check the week before for dinners that were planned but not marked cooked (plans change: a night out, a late finish). List them and ask whether to put any on the new week; don't assume, since the cook may have cooked and not ticked it. Leave the old week as it is.
 3. Favour recipes with a 👍 for the week, then well-rated ones. Leave out any recipe with a 👎 for the week unless asked to plan it. Say in the proposal which votes you followed ("Fish tacos: 👍 Sam. Left out beef ragù: 👎 you"); name members by the part of their email before the @. Votes are for that week only.
    Don't repeat anything cooked in the last two weeks; spread proteins across the week. A dinner planned but not cooked doesn't count as a repeat.
-4. Keep each night's hands-on minutes (`active_mins` of its dishes) within that weekday's `minutes`. Put long cooks on weekends, or use the household's equipment (pressure cooker) on weeknights.
+4. Keep each night's hands-on minutes (`active_mins` of its dishes, by the method each is cooked by) within that weekday's `minutes`. Put long cooks on weekends. On a weeknight, when a recipe's usual way takes too long and it has a method for equipment the household has (the methods query below), plan it with that method (`method_id`, query below) and say so ("Beef ragù in the pressure cooker, 1 h 20"). Never pick a method whose equipment isn't in `settings.equipment`.
 5. Follow `mealRule`: with `veg+carb` every night covers a vegetable and a carb (from the main's `provides` or added sides); with `veg` just a vegetable; `off` no rule.
    When a main needs sides, prefer the ones the household actually cooks with it (the pairing query below: nights marked cooked in the last 26 weeks), then other sides that fill the gap. Pairings are worked out from the plan; there is nothing to save.
 6. Respect `notes`. Plan leftovers across the week where it helps (cook a big ragù Sunday, eat it again Tuesday).
@@ -85,6 +86,7 @@ The database rejects anything else.
 - From pasted text or a photo: check the recipe list first and reuse an existing recipe rather than duplicating it. Otherwise convert it to the schema: course, provides, active and total minutes, serves, spice, steps with `timer_mins` where a step involves waiting, units from the list. Add any new ingredients, save, and summarise in two or three lines.
 - If only a link is given and you can't read it, ask for the text.
 - Set `source` (the link, book or "Photo") and `created_by` to the owner's id. Leave `rating` null; the cook rates it in the app. `is_example` is false.
+- When a recipe gives another way to cook it with a piece of equipment ("or 45 minutes in the pressure cooker"), save the usual way as the recipe and the other as a method (query below), named after the equipment, with its own active and total minutes and its full steps. Name the equipment as the household does in `settings.equipment` when it has it. The app doesn't edit methods; you add and change them.
 
 ## Suggestions
 
@@ -184,6 +186,20 @@ where r.household_id = '<household_id>' and r.slug = 'beef-ragu'
 order by ri.position;
 ```
 
+A recipe's other methods, and whether the household has the equipment for each:
+
+```sql
+select r.slug, r.name, r.total_mins as usual_total, m.name as method, m.equipment,
+       m.active_mins, m.total_mins,
+       m.equipment is null or exists (
+         select 1 from household_settings s, jsonb_array_elements_text(coalesce(s.settings->'equipment', '[]')) e
+         where s.household_id = r.household_id and lower(trim(e)) = lower(trim(m.equipment))) as household_has_it
+from recipe_methods m
+join recipes r on r.id = m.recipe_id
+where r.household_id = '<household_id>'
+order by r.name, m.total_mins;
+```
+
 Recipes containing an allergen the household avoids, with the ingredients that bring it (each needs a swap before the recipe is planned):
 
 ```sql
@@ -202,9 +218,11 @@ order by r.name, ri.position;
 Read a week:
 
 ```sql
-select d.day, d.position, d.role, r.slug, r.name, d.servings, d.swaps, r.active_mins
+select d.day, d.position, d.role, r.slug, r.name, d.servings, d.swaps, m.name as method,
+       coalesce(m.active_mins, r.active_mins) as active_mins, coalesce(m.total_mins, r.total_mins) as total_mins
 from meal_plan_dishes d
 join recipes r on r.id = d.recipe_id
+left join recipe_methods m on m.id = d.method_id
 where d.household_id = '<household_id>' and d.week_start = '<week_start>'
 order by array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day), d.position;
 ```
@@ -225,6 +243,19 @@ from (values
   (1, 'steamed-rice', 'side', 4),
   (2, 'garlicky-green-beans', 'side', 4)
 ) as v(position, slug, role, servings);
+```
+
+Cook a planned dish by one of its recipe's methods (by name; set `method_id = null` for the usual way). No row returned means the dish isn't planned that night or the recipe has no method of that name:
+
+```sql
+update meal_plan_dishes d
+set method_id = m.id
+from recipes r
+join recipe_methods m on m.recipe_id = r.id and m.name = 'Pressure cooker'
+where r.id = d.recipe_id
+  and d.household_id = '<household_id>' and d.week_start = '<week_start>'
+  and d.day = 'tue' and r.slug = 'beef-ragu'
+returning d.day, r.name, m.name as method, m.total_mins;
 ```
 
 Save a recipe with new ingredients. First add the ingredients it needs that aren't in `ingredients` yet (existing ones are left as they are):
@@ -263,6 +294,24 @@ from r, (values
   (0, 'Mix the chicken with the lemongrass, garlic and fish sauce.', null::integer),
   (1, 'Marinate.', 15),
   (2, 'Fry in a hot pan until golden and cooked through.', 10)
+) as v(position, text, timer_mins);
+```
+
+Add another method to a saved recipe, with its own times and steps, in one statement (the recipe's ingredients are shared):
+
+```sql
+with m as (
+  insert into recipe_methods (recipe_id, name, equipment, active_mins, total_mins)
+  select r.id, 'Pressure cooker', 'pressure cooker', 10, 25
+  from recipes r where r.household_id = '<household_id>' and r.slug = 'red-lentil-dal'
+  returning id, recipe_id
+)
+insert into recipe_steps (recipe_id, method_id, position, text, timer_mins)
+select m.recipe_id, m.id, v.position, v.text, v.timer_mins
+from m, (values
+  (0, 'Soften the onion, garlic, ginger and spices on the sauté setting.', 5::integer),
+  (1, 'Add the lentils, crushed tomato, coconut milk and 400 ml water. Cook on high pressure, then release quickly.', 8),
+  (2, 'Stir in the spinach until wilted and season.', null)
 ) as v(position, text, timer_mins);
 ```
 

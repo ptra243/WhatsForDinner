@@ -84,12 +84,42 @@
       "timerMins": null
     },
     {
-      "text": "Cover and simmer gently until the beef falls apart. In the pressure cooker: 45 minutes on high, then natural release.",
+      "text": "Cover and simmer gently until the beef falls apart.",
       "timerMins": 150
     },
     {
       "text": "Shred the beef into the sauce and season.",
       "timerMins": null
+    }
+  ],
+  "methods": [
+    {
+      "name": "Pressure cooker",
+      "equipment": "pressure cooker",
+      "activeMins": 25,
+      "totalMins": 80,
+      "steps": [
+        {
+          "text": "Brown the beef in batches on the pressure cooker's sauté setting.",
+          "timerMins": 10
+        },
+        {
+          "text": "Soften the chopped onion, carrot and celery, then add the garlic and tomato paste.",
+          "timerMins": 8
+        },
+        {
+          "text": "Add the wine and bubble for 2 minutes, then the tomato and stock. Return the beef.",
+          "timerMins": null
+        },
+        {
+          "text": "Lock the lid and cook on high pressure for 45 minutes, then let the pressure release naturally.",
+          "timerMins": 45
+        },
+        {
+          "text": "Shred the beef into the sauce and season.",
+          "timerMins": null
+        }
+      ]
     }
   ],
   "rating": 5,

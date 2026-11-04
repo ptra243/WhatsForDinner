@@ -61,6 +61,19 @@ describe('a night', () => {
     expect(i.over).toBe(true)
   })
 
+  it('takes a dish’s times from the method it is cooked by', () => {
+    const fast = { id: 'pc', name: 'Pressure cooker', equipment: 'pressure cooker', activeMins: 10, totalMins: 25, steps: [] }
+    const recipes = new Map([...RECIPES, ['curry', { ...CURRY, methods: [fast] }]])
+    const n = night([['curry', 'main'], ['rice', 'side']])
+    n.dishes[0].methodId = 'pc'
+    const i = nightInfo(n, 'tue', recipes, { ...DEFAULT_SETTINGS, minutes: { ...DEFAULT_SETTINGS.minutes, tue: 30 } })
+    expect(i.active).toBe(15)
+    expect(i.total).toBe(25)
+    expect(i.over).toBe(false)
+    n.dishes[0].methodId = null
+    expect(nightInfo(n, 'tue', recipes, DEFAULT_SETTINGS).total).toBe(60)
+  })
+
   it('flags veg and carb gaps per the meal rule', () => {
     const curry = night([['curry', 'main']])
     expect(nightInfo(curry, 'mon', RECIPES, DEFAULT_SETTINGS).gaps).toEqual(['carb'])
@@ -192,6 +205,8 @@ describe('settings', () => {
     expect(s.mealRule).toBe('veg')
     expect(toSettings({ dinnerTime: 'soon', mealRule: 'lots', avoid: 'egg' })).toEqual(DEFAULT_SETTINGS)
     expect(toSettings({ avoid: ['sesame', 'nuts', 'egg'] }).avoid).toEqual(['egg', 'sesame'])
+    expect(toSettings({ equipment: ['pressure cooker', 3] }).equipment).toEqual(['pressure cooker'])
+    expect(toSettings({ equipment: 'wok' }).equipment).toEqual([])
   })
 })
 

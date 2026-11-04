@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { allergenWarnings, containsText, type TaggedSwap } from '../lib/allergens'
 import { recipePrompt } from '../lib/claude'
 import { mins, scaledQty } from '../lib/format'
+import { allMethods, methodOf } from '../lib/methods'
 import { deleteRecipe, updateRecipe, type Recipe } from '../lib/recipes'
 import { AddToNight } from './AddToNight'
 import { AskClaudeButton } from './AskClaude'
@@ -18,23 +19,30 @@ type Props = {
   avoid?: readonly string[]
   /** The planned dish's swaps, when opened from a night. */
   swaps?: TaggedSwap[]
+  /** The method shown first (the planned dish's, when opened from a night); the recipe's own when left out. */
+  methodId?: string | null
   onChange: (recipe: Recipe) => void
   onDeleted: () => void
   onClose: () => void
 }
 
-/** Full-screen recipe: meta, votes for the coming week, ingredients scaled to the chosen servings, method, rating and notes. */
+/**
+ * Full-screen recipe: meta, votes for the coming week, ingredients scaled to the chosen servings,
+ * method (with a switcher when the recipe has other methods), rating and notes.
+ */
 export function RecipeView({
   householdId,
   recipe: r,
   servings: startServings,
   avoid = [],
   swaps,
+  methodId: startMethod,
   onChange,
   onDeleted,
   onClose,
 }: Props) {
   const [servings, setServings] = useState(startServings ?? r.serves)
+  const [methodId, setMethodId] = useState(startMethod ?? null)
   const [notes, setNotes] = useState(r.notes)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -84,11 +92,13 @@ export function RecipeView({
     })
 
   const warnings = allergenWarnings(r.ingredients, avoid, swaps)
+  const methods = allMethods(r)
+  const method = methodOf(r, methodId)
 
   const meta = [
     r.course === 'side' ? 'Side' : 'Main',
-    r.activeMins ? `${r.activeMins} min hands-on` : '',
-    r.totalMins ? `${mins(r.totalMins)} total` : '',
+    method.activeMins ? `${method.activeMins} min hands-on` : '',
+    method.totalMins ? `${mins(method.totalMins)} total` : '',
   ].filter(Boolean)
 
   return (
@@ -120,6 +130,22 @@ export function RecipeView({
           </div>
           {r.source && <span className="small muted">From {r.source}</span>}
         </div>
+        {methods.length > 1 && (
+          <div className="row wrap-row" role="group" aria-label="Ways to cook it">
+            {methods.map((m) => (
+              <button
+                key={m.id ?? 'default'}
+                type="button"
+                className="chip"
+                aria-pressed={m.id === method.id}
+                onClick={() => setMethodId(m.id)}
+              >
+                {m.name}
+                {m.totalMins ? ` · ${mins(m.totalMins)}` : ''}
+              </button>
+            ))}
+          </div>
+        )}
         {warnings.length > 0 && (
           <div className="card gapcard" role="note" aria-label="Allergens">
             {warnings.map((w) => (
@@ -182,9 +208,9 @@ export function RecipeView({
         </section>
 
         <section className="card stack" aria-label="Method">
-          <span className="label">Method</span>
+          <span className="label">{method.id ? `Method: ${method.name}` : 'Method'}</span>
           <ol className="steps">
-            {r.steps.map((s, ix) => (
+            {method.steps.map((s, ix) => (
               <li key={ix}>
                 {s.text}
                 {s.timerMins ? <span className="tm"> {s.timerMins} min timer</span> : null}
@@ -242,6 +268,7 @@ export function RecipeView({
           householdId={householdId}
           recipe={r}
           servings={servings}
+          methodId={method.id}
           onChange={(next) => {
             if (next.notes !== r.notes) setNotes(next.notes)
             onChange(next)

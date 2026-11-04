@@ -17,8 +17,9 @@ Table privileges are granted explicitly, because the live project gives `anon` a
 | `ingredients` | slug (PK), name, section, allergens text[] | Shared reference list. `section` and `allergens` are checked against fixed lists (below) |
 | `recipes` | household_id, slug, name, course (`main` / `side`), serves, active_mins, total_mins, provides text[] (`protein`/`veg`/`carb`), spice 0–3, tags text[], source, rating 1–5, notes, is_example, created_by | Unique (household_id, slug) |
 | `recipe_ingredients` | recipe_id, position, ingredient_slug → ingredients, qty numeric null, unit, note | `unit` check-constrained (below) |
-| `recipe_steps` | recipe_id, position, text, timer_mins | |
-| `meal_plan_dishes` | household_id, week_start date (a Monday, checked), day (`mon`..`sun`), position, recipe_id → recipes, role (`main` / `side`), servings, swaps jsonb | swaps: `[{from, to, qty, unit}]` |
+| `recipe_steps` | recipe_id, method_id → recipe_methods (null = the recipe's own steps), position, text, timer_mins | Unique (recipe_id, method_id, position), nulls not distinct: positions count within each method |
+| `recipe_methods` | recipe_id, name, equipment, active_mins, total_mins | Another way to cook the recipe ([below](#equipment-methods)). Unique (recipe_id, name); total ≥ hands-on |
+| `meal_plan_dishes` | household_id, week_start date (a Monday, checked), day (`mon`..`sun`), position, recipe_id → recipes, role (`main` / `side`), servings, swaps jsonb, method_id → recipe_methods | swaps: `[{from, to, qty, unit}]`. method_id null = the recipe's usual way; it must be a method of the same recipe |
 | `meal_plan_nights` | household_id, week_start, day, cooked, skip_check | PK (household_id, week_start, day) |
 | `list_marks` | household_id, week_start, item_key, ticked, bought_qty, bought_unit, status (`missing` / null), have_it, updated_by | PK (household_id, week_start, item_key) |
 | `list_extras` | household_id, week_start, name, qty, unit, section, added_by | Hand-added list items |
@@ -45,7 +46,15 @@ The night sheet's **Move** calls `move_night(hid, from_week, from_day, to_week, 
 
 **Add recipe** (the Recipes tab's header) and **Edit** (the recipe view) open the same form (`web/src/components/RecipeForm.tsx`, logic in `web/src/lib/recipeForm.ts` with Vitest tests) with every recipe field except the rating, which the recipe view keeps. Ingredient names autocomplete from `ingredients`; the unit is a dropdown of the fixed units; a name not on the list asks for its section (required) and allergens. Rows reorder with up and down buttons. Problems show next to their field before anything is sent: a missing name, a name another of the household's recipes has (case aside), serves not above 0, minutes that aren't whole, total less than hands-on, unreadable amounts (`2`, `1.5`, `1/2` and `1 1/2` are fine; blank is "to taste").
 
+The form edits the recipe's own steps only; a recipe's [methods](#equipment-methods) and their steps are kept as they are.
+
 Saving is one call, `save_recipe(hid, recipe jsonb)`, which succeeds or fails as a whole: a bad unit, a new ingredient without a section or a duplicate name rejects everything. It runs as the caller, so Row Level Security keeps it to the caller's household. Adding makes a unique slug from the name (`chicken-leek-pie`, then `chicken-leek-pie-2`) and sets `created_by` to the caller. Editing keeps the slug, sets `is_example = false` (so **Clear examples** keeps it) and `created_by` if it had none, and keeps the ids of ingredient and step rows that are still there (reordered by `position`), adding and removing the rest, so anything linked to a row survives. The recipe's id doesn't change, so planned dishes and their swaps (by ingredient name) carry on. New ingredients go into the shared `ingredients` list. The Claude connector keeps writing recipes with plain SQL. CI checks it in `supabase/tests/save_recipe.sql`.
+
+## Equipment methods
+
+A recipe can have other ways to cook it with a piece of equipment (beef ragù: 3 h on the stovetop, or 1 h 20 in the pressure cooker). The recipe's own times and its steps without a `method_id` are its usual way; each `recipe_methods` row is another, with its own hands-on and total minutes and its own steps (`recipe_steps.method_id`). The ingredients are the recipe's. `equipment` names what the method needs as the household's settings do (`equipment`, compared without case); null means nothing special. Claude adds methods; the form doesn't edit them.
+
+A planned dish picks one with `meal_plan_dishes.method_id` (null = the usual way). A foreign key on (method_id, recipe_id) keeps it to a method of the dish's own recipe, as it does for a step's method; deleting a method puts its dishes back on the usual way and takes its steps. The night sheet shows a dish's methods when the household has the equipment for one (the usual way, those methods, and one already chosen) and saves the choice; the night's hands-on and total minutes, the over-budget check and "start by" follow it. The recipe view has a switcher for every method, starting on the dish's when opened from a night; it shows that method's times and steps and cook mode follows it, without changing the plan. Moving a night keeps each dish's method. Logic in `web/src/lib/methods.ts` with Vitest tests; CI checks the rules in `supabase/tests/methods.sql`.
 
 ## Allergens to avoid
 
@@ -53,9 +62,9 @@ Saving is one call, `save_recipe(hid, recipe jsonb)`, which succeeds or fails as
 
 ## Seed data
 
-`seed/` is the source of the example ingredients, recipes and household settings. `supabase/seed/seed.sql` loads them into the **template household** (`private.template_household_id()`, `00000000-0000-4000-8000-000000000001`, created by a migration). It has no members, so Row Level Security hides it from every user; it is not a real household. The seed is generated by `node supabase/seed/build.mjs`, which checks units and sections first; regenerate it whenever `seed/` changes, and run it after the migrations (the reviewer does this on the live project after merge). Re-running never duplicates rows and keeps existing ingredient sections and allergens; the template's recipes and settings are made to match `seed/` (recipes no longer there are removed). The sample week in `seed/plans/` is not loaded.
+`seed/` is the source of the example ingredients, recipes and household settings. `supabase/seed/seed.sql` loads them into the **template household** (`private.template_household_id()`, `00000000-0000-4000-8000-000000000001`, created by a migration). It has no members, so Row Level Security hides it from every user; it is not a real household. The seed is generated by `node supabase/seed/build.mjs`, which checks units and sections first; regenerate it whenever `seed/` changes, and run it after the migrations (the reviewer does this on the live project after merge). Re-running never duplicates rows and keeps existing ingredient sections and allergens; the template's recipes and settings are made to match `seed/` (recipes no longer there are removed). A recipe file may list `methods` (name, equipment, activeMins, totalMins, steps); the beef ragù has its pressure cooker method. The sample week in `seed/plans/` is not loaded.
 
-On first sign-in the app calls `create_household(name)`. It creates the household, makes the caller its `owner`, and copies the template's settings and recipes (with ingredients and steps, `is_example = true`, `created_by` null) into it. Each household gets its own copy: re-seeding never touches existing households, and a household's edits never reach the template or anyone else. A user has one household, so a caller who already belongs to one gets its id back and nothing is created. CI checks the copy in `supabase/tests/households.sql`.
+On first sign-in the app calls `create_household(name)`. It creates the household, makes the caller its `owner`, and copies the template's settings and recipes (with ingredients, steps and methods, `is_example = true`, `created_by` null) into it. Each household gets its own copy: re-seeding never touches existing households, and a household's edits never reach the template or anyone else. A user has one household, so a caller who already belongs to one gets its id back and nothing is created. CI checks the copy in `supabase/tests/households.sql`.
 
 ## Members and invites
 
@@ -71,7 +80,7 @@ These functions are security definer and check the caller. CI checks them in `su
 
 ## Export and clearing examples
 
-The settings sheet (`web/src/lib/household.ts`) saves `household_settings.settings` keeping any keys it does not show. **Export** downloads one JSON file (`format: 1`) with the household, its members and settings, recipes with their ingredients and steps, plan nights and dishes, list marks and extras, votes, suggestions, and the shared `ingredients` list; rows are as stored and read a page at a time past the API row limit. **Clear examples** deletes the household's `is_example` recipes; their ingredients, steps and planned dishes go with them by `on delete cascade`.
+The settings sheet (`web/src/lib/household.ts`) saves `household_settings.settings` keeping any keys it does not show. **Export** downloads one JSON file (`format: 1`) with the household, its members and settings, recipes with their ingredients, steps and methods, plan nights and dishes, list marks and extras, votes, suggestions, and the shared `ingredients` list; rows are as stored and read a page at a time past the API row limit. **Clear examples** deletes the household's `is_example` recipes; their ingredients, steps and planned dishes go with them by `on delete cascade`.
 
 ## Votes
 
@@ -87,4 +96,4 @@ Pairings are derived, not stored: a main's usual sides are the sides planned wit
 
 ## Later (additive)
 
-pantry (with location and best-before), ingredient shelf life and pack size columns, ingredient_substitutes, recipe_methods (equipment variants), per-night time overrides and locks.
+pantry (with location and best-before), ingredient shelf life and pack size columns, ingredient_substitutes, per-night time overrides and locks.
