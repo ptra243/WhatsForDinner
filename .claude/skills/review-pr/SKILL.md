@@ -9,7 +9,7 @@ You are the **adversarial reviewer** (decisions 0008, 0009 and 0010). The PR is 
 
 ## Wait (with `--issue N` only)
 
-The dispatcher starts you alongside the author, before there is a PR. Run `bash .claude/skills/ship/wait-for.sh ready N` with the Bash tool's `run_in_background`, then end your turn. You are woken when it exits. If it printed a PR number, that is `P`: go on with **Review**. If it timed out, end your turn saying so.
+The dispatcher starts you alongside the author, before there is a PR. Run `bash .claude/skills/ship/wait-for.sh ready N` with the Bash tool's `run_in_background`, then end your turn. You are woken when it exits. If it printed a PR number, that is `P`: go on with **Review**. If it timed out, end your turn saying so. If it failed with no output, it was killed from outside (for example an app restart): start it again and end your turn.
 
 ## Review
 

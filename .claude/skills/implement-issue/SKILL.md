@@ -9,7 +9,7 @@ You are the **author** (decisions 0008, 0009 and 0010). You write the change and
 
 ## Wait (on deck only)
 
-With `--after A B …`, wait before building: run `bash .claude/skills/ship/wait-for.sh merged A B …` with the Bash tool's `run_in_background`, then end your turn. You are woken when it exits. If it printed `merged`, go on with **Build** from the latest `master`. If it timed out, end your turn saying what you were waiting for.
+With `--after A B …`, wait before building: run `bash .claude/skills/ship/wait-for.sh merged A B …` with the Bash tool's `run_in_background`, then end your turn. You are woken when it exits. If it printed `merged`, go on with **Build** from the latest `master`. If it timed out, end your turn saying what you were waiting for. If it failed with no output, it was killed from outside (for example an app restart): start it again and end your turn.
 
 ## Build
 

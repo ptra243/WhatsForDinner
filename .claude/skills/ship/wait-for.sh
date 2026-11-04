@@ -7,13 +7,13 @@
 #   wait-for.sh merged N [M ...] until every listed issue is closed or has a merged PR on
 #                                branch issue-N-*; prints "merged"
 #
-# Exits 2 after 12 hours with nothing to show, so a stuck hand-off reaches the owner.
+# Exits 2 after 48 hours with nothing to show, so a stuck hand-off reaches the owner.
 set -u
 repo=ptra243/WhatsForDinner
 mode=${1:?usage: wait-for.sh ready N | merged N [M ...]}
 shift
 [ $# -gt 0 ] || { echo "no issue numbers given" >&2; exit 64; }
-deadline=$(( $(date +%s) + 12 * 3600 ))
+deadline=$(( $(date +%s) + 48 * 3600 ))
 
 # PRs on branch issue-N-*, as "<number> <open|closed> <merged_at or null>" (REST: GraphQL is not available).
 prs_for() {
@@ -48,5 +48,5 @@ while [ "$(date +%s)" -lt "$deadline" ]; do
   esac
   sleep 60
 done
-echo "timed out after 12 hours waiting for $mode $*"
+echo "timed out after 48 hours waiting for $mode $*"
 exit 2
