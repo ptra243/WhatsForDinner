@@ -1,6 +1,6 @@
 ---
 name: dinner-planner
-description: Plan the household's dinners for a week, add recipes from pasted text or photos, and swap ingredients at the shops, reading and writing the What's for Dinner Supabase database through the Supabase connector. Use when asked to plan meals or a week, add or save a recipe, or what to swap for an ingredient the shop didn't have.
+description: Plan the household's dinners for a week, add recipes from pasted text or photos, price the shopping list at Coles, Woolworths and Aldi, and swap ingredients at the shops, reading and writing the What's for Dinner Supabase database through the Supabase connector. Use when asked to plan meals or a week, add or save a recipe, compare shop prices, or what to swap for an ingredient the shop didn't have.
 ---
 
 # Dinner Planner
@@ -41,6 +41,7 @@ where h.id <> private.template_household_id();
 - `meal_plan_nights`: household_id, week_start, day, cooked, skip_check (no meal rule check that night), minutes (that night's own hands-on minutes, set in the app for a busy night; null means the weekday's `minutes` setting), locked (leave the night's dishes alone). Set in the app; read only for you.
 - `recipe_votes`: household_id, week_start (a Monday), recipe_id, user_id, vote (`1` 👍, `-1` 👎). Each member's say on a recipe for a coming week, set in the app. Read only for you: never write votes.
 - `suggestions`: id, household_id, created_by, name, description (may hold a link), status (`open` / `added` / `declined`), reply (your one line), recipe_id → recipes. Dinners members suggest in the app. You set only `status`, `reply` and `recipe_id` (Suggestions below).
+- `ingredient_prices`: household_id, ingredient_slug → `ingredients`, store (`coles` / `woolworths` / `aldi`), source (`whichgrocer` / `grocerly` / `paid`), seen_on (date, defaults to today), product, pack_qty and pack_unit (a unit from the list), price (the pack's shelf price), unit_price and unit_basis (`kg` / `l` / `each`), on_special, source_updated_on (when the source last refreshed, where it says). One row per ingredient, store, source and day: saving again that day overwrites it. A not found row (no acceptable match at that store) has product, pack, price and unit price null. You write these (Prices below); the app only reads them, through the view `ingredient_prices_latest` (each ingredient's latest row per store), and shows them on the shopping list. They are the price history: never delete them.
 - `household_settings`, `households`, `household_members`, `household_invites`: read only for you. A household can have members besides the owner (`role = 'member'`, a partner who joined by invite); they use the app, and you still plan for the household and set `created_by` to the owner.
 
 ## Units and sections
@@ -87,7 +88,7 @@ The database rejects anything else.
 7. If `avoid` lists allergens, find the recipes containing them (query below). Plan one only if every ingredient bringing an avoided allergen gets a swap to an ingredient without it, and say so in the proposal ("Wonton noodle soup, egg noodles → rice noodles; check the label"). Otherwise leave it out. Save those swaps on the dish once the night is written (swap SQL below), then check the week (query below) returns nothing.
 8. Servings are usually the recipe's `serves`; scale to the household.
 9. Never change a locked night's dishes (the nights query) unless asked to by name: plan the other nights around it, and in the proposal say it is kept ("Wed: locked, kept"). Writing a night replaces its dishes, so skip locked nights.
-10. Propose the plan as a short day-by-day list and wait for approval before writing, unless asked to just do it. Then write each night and say it's saved.
+10. Propose the plan as a short day-by-day list and wait for approval before writing, unless asked to just do it. Then write each night and say it's saved, and price the week's list (Prices below).
 
 ## Recipes
 
@@ -115,9 +116,21 @@ Then list what you did, one line each. Never plan a dinner from a suggestion, de
 - A swap never brings in an allergen the household avoids: check the `to` ingredient's `allergens` (or what it usually contains, if it's new).
 - When the user agrees, apply it to the planned dish only: add `{from, to, qty, unit}` to that dish's `swaps` (the recipe is unchanged). `from` and `to` are ingredient names; `qty` and `unit` replace the recipe's amount for the recipe's `serves` and are scaled by servings like it (null keeps the recipe's). Add `to` to `ingredients` (with its section and allergens) if it's new, so the list puts it in the right section and the app knows what it contains.
 
+## Prices
+
+Every time you save a week's plan (and when asked to compare shops), price that week's shopping list with a grocery price connector, save the prices, and reply with a store comparison. The app shows each store's latest price on the list, with a total per store.
+
+1. **Items** (query below): the week's list items, as the app works them out (recipe ingredients scaled by servings with swaps applied, plus hand-added items whose name is a known ingredient), less pantry staples: the `herbs and spices` section and names ending in oil, sauce or stock. The query also gives what is already cached and each store's latest price.
+2. **Source:** WhichGrocer (`https://mcp.whichgrocer.com/mcp`; Coles, Woolworths and Aldi, prices daily) unless short of credits. It costs 1 credit per item searched. When the server asks for it at the start of a grocery chat, call `list_price_alerts`. Check `get_account` (free) first: if fewer than 40 credits remain, or not enough for the items to look up plus a few retries, use Grocerly (`https://mcp.grocerly.au/mcp`; Coles and Woolworths only, free, refreshed weekly) and say Aldi isn't priced this week: the list keeps showing its last Aldi prices (from WhichGrocer), dated once they are over a week old, and an item Aldi was never priced for shows "–". If neither connector is available, or one starts asking for payment, say so and skip pricing; never pay for one.
+3. **Cache:** look up only items with no row from that source today (Grocerly: none since its last weekly refresh; the `cached` column of the items query allows for both). Not found rows count as cached, so re-saving a plan costs a few credits, not the whole list.
+4. **Check every match** before saving it; WhichGrocer matches by relevance only. Like for like: no organic, premium or free-range pick unless the recipe or household asks; no paste, dried, frozen or jarred version of a fresh item (garlic cloves, not garlic paste; fresh parsley, not dried); the right kind of product (lemons, not lemon biscuits; fresh ginger, not a 1 kg jar; rosemary, not a roast veg mix); a pack that suits the amount needed. Prefer the plain store brand when it fits. Retry once with a better search when a match is wrong (retries cost credits too), else save that store as not found.
+5. **Save** (upsert below): one row per item and store searched, found or not, so the cache works. A found row has the product name, the pack in a unit from the list (`500 g`, `1 kg`, `6 each`), the shelf price, the unit price per kg, litre or item (from the source, or worked out from the pack), `on_special`, and `source_updated_on` for Grocerly.
+6. **Reply** with one compact comparison table (the only table this skill uses): a row per item with each store's price and $/kg (or $/L, each), `–` for not found; then each store's total and how many items it covers ("Aldi $121 · 20 of 24 items"), counting an item as packs to buy × the pack price, as the list does; then any match you rejected or weren't sure of, one line each.
+7. When the owner says a match is wrong ("Coles mince should be the 500 g pack"), search again and save the right one (the same day overwrites). The app can't correct a price itself.
+
 ## Style
 
-Short, plain, phone-sized replies. Simple lists, no tables. No SQL in replies unless asked.
+Short, plain, phone-sized replies. Simple lists, no tables (except the price comparison above). No SQL in replies unless asked.
 
 ## Example SQL
 
@@ -505,4 +518,68 @@ from (values
 ) as v(name, pack_qty, pack_unit, shelf_days)
 where i.name = v.name and (i.pack_qty is null or i.shelf_days is null)
 returning i.name, i.pack_qty, i.pack_unit, i.shelf_days;
+```
+
+The week's items to price (staples left out), with what each needs (in g, ml or its own unit), what is already cached (`store source`, usable today; a Grocerly row until a week after its refresh) and each store's latest price (`store $price (pack) $unit price`, or `store –` for not found):
+
+```sql
+with uses as (
+  select case when sw.x is null then i.slug else t.slug end as slug,
+         coalesce((sw.x->>'qty')::numeric, ri.qty) * d.servings / r.serves as qty,
+         coalesce(nullif(sw.x->>'unit', ''), ri.unit) as unit
+  from meal_plan_dishes d
+  join recipes r on r.id = d.recipe_id
+  join recipe_ingredients ri on ri.recipe_id = r.id
+  join ingredients i on i.slug = ri.ingredient_slug
+  left join lateral (select x from jsonb_array_elements(d.swaps) x
+                     where lower(trim(x->>'from')) = i.name limit 1) sw on true
+  left join ingredients t on t.name = lower(trim(sw.x->>'to'))
+  where d.household_id = '<household_id>' and d.week_start = '<week_start>'
+  union all
+  select i.slug, x.qty, x.unit
+  from list_extras x
+  join ingredients i on i.name = lower(trim(x.name))
+  where x.household_id = '<household_id>' and x.week_start = '<week_start>'
+)
+select i.name,
+       sum(case when u.unit in ('kg', 'l') then u.qty * 1000 else u.qty end) as qty,
+       case u.unit when 'kg' then 'g' when 'l' then 'ml' else u.unit end as unit,
+       array(select p.store || ' ' || p.source from ingredient_prices p
+             where p.household_id = '<household_id>' and p.ingredient_slug = i.slug
+               and (p.seen_on = current_date or (p.source = 'grocerly' and p.source_updated_on > current_date - 7))
+             order by p.store, p.source) as cached,
+       array(select l.store || ' ' || case when l.price is null then '–'
+                                           else '$' || l.price || ' (' || l.pack_qty || ' ' || l.pack_unit || ')'
+                                                || coalesce(' $' || l.unit_price || '/' || l.unit_basis, '')
+                                                || case when l.on_special then ' special' else '' end end
+             from ingredient_prices_latest l
+             where l.household_id = '<household_id>' and l.ingredient_slug = i.slug
+             order by l.store) as latest
+from uses u
+join ingredients i on i.slug = u.slug
+where i.section <> 'herbs and spices' and i.name !~ '(^|\s)(oil|sauce|stock)$'
+group by i.slug, i.name, 3
+order by i.name;
+```
+
+Save the prices, by ingredient name (an unknown name fails the whole statement, so nothing is half-saved). Every store searched gets a row; one with no acceptable match is a not found row (product, pack and prices null). Saving again the same day overwrites:
+
+```sql
+insert into ingredient_prices (household_id, ingredient_slug, store, source, product, pack_qty, pack_unit,
+                               price, unit_price, unit_basis, on_special, source_updated_on)
+select '<household_id>', (select i.slug from ingredients i where i.name = v.name), v.store, v.source, v.product,
+       v.pack_qty, v.pack_unit, v.price, v.unit_price, v.unit_basis, v.on_special, v.source_updated_on
+from (values
+  ('chicken thigh', 'coles', 'whichgrocer', 'Coles RSPCA Chicken Thigh Fillets 1kg', 1::numeric, 'kg', 13.00::numeric, 13.00::numeric, 'kg', false, null::date),
+  ('chicken thigh', 'woolworths', 'whichgrocer', 'Woolworths Chicken Thigh Fillets 500g', 500, 'g', 7.50, 15.00, 'kg', true, null),
+  ('chicken thigh', 'aldi', 'whichgrocer', null, null, null, null, null, null, false, null),
+  ('lemon', 'coles', 'whichgrocer', 'Coles Lemons each', 1, 'each', 0.90, 0.90, 'each', false, null),
+  ('lemon', 'woolworths', 'whichgrocer', 'Woolworths Lemons each', 1, 'each', 1.00, 1.00, 'each', false, null),
+  ('lemon', 'aldi', 'whichgrocer', 'Lemons 500g bag', 500, 'g', 3.49, 6.98, 'kg', false, null)
+) as v(name, store, source, product, pack_qty, pack_unit, price, unit_price, unit_basis, on_special, source_updated_on)
+on conflict (household_id, ingredient_slug, store, source, seen_on) do update
+set product = excluded.product, pack_qty = excluded.pack_qty, pack_unit = excluded.pack_unit, price = excluded.price,
+    unit_price = excluded.unit_price, unit_basis = excluded.unit_basis, on_special = excluded.on_special,
+    source_updated_on = excluded.source_updated_on
+returning store, product, price;
 ```

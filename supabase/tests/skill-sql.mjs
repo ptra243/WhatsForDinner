@@ -70,6 +70,11 @@ const unusedQueries = blocks.filter((b) => b.includes('l.recipe_ingredient_id = 
 if (unusedQueries.length !== 1) throw new Error(`Expected 1 unused ingredients query in SKILL.md, found ${unusedQueries.length}`);
 const unused = fill(unusedQueries[0]).replace(/;\s*$/, '');
 
+// The items to price (#84), checked before and after the example that saves prices.
+const priceQueries = blocks.filter((b) => b.includes('as cached'));
+if (priceQueries.length !== 1) throw new Error(`Expected 1 items to price query in SKILL.md, found ${priceQueries.length}`);
+const priceItems = fill(priceQueries[0]).replace(/;\s*$/, '');
+
 // The query that finds the owner's household, so it can be checked with a member in the household (#16).
 const ownerQueries = blocks.filter((b) => b.includes("m.role = 'owner'"));
 if (ownerQueries.length !== 1) throw new Error(`Expected 1 owner household query in SKILL.md, found ${ownerQueries.length}`);
@@ -138,6 +143,19 @@ select pg_temp.expect('methods with no step links',
   (select string_agg(slug || ' ' || method || ' ' || steps, ', ') from (${unlinked}) q), 'roast-potatoes Usual way 2');
 select pg_temp.expect('ingredients no step uses',
   (select string_agg(ingredient, ', ') from (${unused}) q), 'potato, olive oil, rosemary');
+-- Lemons and dish soap added by hand: lemon is an ingredient and is priced, dish soap isn't (#84).
+insert into list_extras (household_id, week_start, name, qty, unit, section) values
+  (:'hid', :'week', 'lemon', 3, 'each', 'fruit and veg'), (:'hid', :'week', 'dish soap', 1, 'each', 'other');
+-- A Grocerly price from its refresh four days ago is cached; one from a refresh eight days ago isn't.
+insert into ingredient_prices (household_id, ingredient_slug, store, source, seen_on, product, pack_qty, pack_unit, price, source_updated_on)
+select :'hid', i.slug, 'coles', 'grocerly', current_date - 3, 'Coles ' || i.name, 500, 'g', 5, current_date - 4
+from ingredients i where i.name = 'beef chuck';
+insert into ingredient_prices (household_id, ingredient_slug, store, source, seen_on, product, pack_qty, pack_unit, price, source_updated_on)
+select :'hid', i.slug, 'coles', 'grocerly', current_date - 6, 'Coles ' || i.name, 1, 'each', 2, current_date - 8
+from ingredients i where i.name = 'onion';
+select pg_temp.expect('Tuesday''s items to price, staples left out, with what is cached',
+  (select string_agg(name || ' ' || qty::numeric(10, 2) || ' ' || unit || ' [' || array_to_string(cached, ',') || ']', ', ') from (${priceItems}) q),
+  'beef chuck 1000.00 g [coles grocerly], carrot 2.00 each [], celery 2.00 each [], crushed tomato 800.00 g [], garlic clove 4.00 each [], lemon 3.00 each [], onion 1.00 each [], red wine 250.00 ml [], tomato paste 2.00 tbsp []');
 select pg_temp.expect('both suggestions open, oldest first, with who made them',
   (select string_agg(name || ' by ' || suggested_by, ', ') from (${openSuggestions}) q), 'Lemongrass chicken by skill-member, Pho by skill-member');
 `);
@@ -147,6 +165,17 @@ blocks.forEach((sql, i) => {
 });
 
 console.log(`select pg_temp.expect('Monday dishes', (select count(*) from meal_plan_dishes where household_id = :'hid' and week_start = :'week' and day = 'mon'), 3::bigint);
+select pg_temp.expect('the week''s chicken and lemons priced and cached, with each store''s latest',
+  (select string_agg(name || ' ' || qty::numeric(10, 2) || ' ' || unit || ' [' || array_to_string(cached, ',') || '] ' || array_to_string(latest, ', '), '; ')
+   from (${priceItems}) q where name in ('chicken thigh', 'lemon', 'evaporated milk', 'beef chuck')),
+  'beef chuck 1000.00 g [coles grocerly] coles $5.00 (500 g); '
+  || 'chicken thigh 600.00 g [aldi whichgrocer,coles whichgrocer,woolworths whichgrocer] aldi –, coles $13.00 (1 kg) $13.00/kg, woolworths $7.50 (500 g) $15.00/kg special; '
+  || 'evaporated milk 200.00 ml [] ; '
+  || 'lemon 5.00 each [aldi whichgrocer,coles whichgrocer,woolworths whichgrocer] aldi $3.49 (500 g) $6.98/kg, coles $0.90 (1 each) $0.90/each, woolworths $1.00 (1 each) $1.00/each');
+select pg_temp.expect('prices saved for the household, a not found row with no price',
+  (select string_agg(store || ' ' || coalesce(price::text, '-'), ', ' order by store) from ingredient_prices p
+   join ingredients i on i.slug = p.ingredient_slug where p.household_id = :'hid' and i.name = 'chicken thigh'),
+  'aldi -, coles 13.00, woolworths 7.50');
 select pg_temp.expect('swap on the main',
   (select d.swaps from meal_plan_dishes d join recipes r on r.id = d.recipe_id
    where d.household_id = :'hid' and d.day = 'mon' and r.slug = 'lemon-garlic-chicken'),

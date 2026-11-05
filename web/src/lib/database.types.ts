@@ -97,6 +97,32 @@ isOneToOne: true
                   Relationships: [
                     
                   ]
+                },"ingredient_prices": {
+                  Row: {
+                    "created_at": string,"household_id": string,"id": string,"ingredient_slug": string,"on_special": boolean,"pack_qty": number | null,"pack_unit": string | null,"price": number | null,"product": string | null,"seen_on": string,"source": string,"source_updated_on": string | null,"store": string,"unit_basis": string | null,"unit_price": number | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"household_id": string,"id"?: string,"ingredient_slug": string,"on_special"?: boolean,"pack_qty"?: number | null,"pack_unit"?: string | null,"price"?: number | null,"product"?: string | null,"seen_on"?: string,"source": string,"source_updated_on"?: string | null,"store": string,"unit_basis"?: string | null,"unit_price"?: number | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"household_id"?: string,"id"?: string,"ingredient_slug"?: string,"on_special"?: boolean,"pack_qty"?: number | null,"pack_unit"?: string | null,"price"?: number | null,"product"?: string | null,"seen_on"?: string,"source"?: string,"source_updated_on"?: string | null,"store"?: string,"unit_basis"?: string | null,"unit_price"?: number | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ingredient_prices_household_id_fkey"
+      columns: ["household_id"]
+isOneToOne: false
+      referencedRelation: "households"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ingredient_prices_ingredient_slug_fkey"
+      columns: ["ingredient_slug"]
+isOneToOne: false
+      referencedRelation: "ingredients"
+      referencedColumns: ["slug"]
+    }
+                  ]
                 },"ingredients": {
                   Row: {
                     "allergens": (string)[],"created_at": string,"name": string,"pack_qty": number | null,"pack_unit": string | null,"section": string,"shelf_days": number | null,"slug": string,"updated_at": string
@@ -376,7 +402,27 @@ isOneToOne: false
                 }
           }
           Views: {
-            [_ in never]: never
+            "ingredient_prices_latest": {
+                  Row: {
+                    "created_at": string,"household_id": string,"id": string,"ingredient_slug": string,"on_special": boolean,"pack_qty": number | null,"pack_unit": string | null,"price": number | null,"product": string | null,"seen_on": string,"source": string,"source_updated_on": string | null,"store": string,"unit_basis": string | null,"unit_price": number | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Relationships: [
+                    {
+      foreignKeyName: "ingredient_prices_household_id_fkey"
+      columns: ["household_id"]
+isOneToOne: false
+      referencedRelation: "households"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ingredient_prices_ingredient_slug_fkey"
+      columns: ["ingredient_slug"]
+isOneToOne: false
+      referencedRelation: "ingredients"
+      referencedColumns: ["slug"]
+    }
+                  ]
+                }
           }
           Functions: {
             "accept_invite":

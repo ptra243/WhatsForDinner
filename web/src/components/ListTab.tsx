@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { num } from '../lib/format'
-import { deriveList, itemDetail, itemQty, readPackForm, rowPacks, rowQty, SECTIONS, shopList, swapPrompt, UNITS, type Mark, type Pack, type ShopRow } from '../lib/list'
+import { deriveList, itemDetail, itemQty, NO_MARK, readPackForm, rowPacks, rowQty, SECTIONS, shopList, swapPrompt, UNITS, type Mark, type Pack, type ShopRow } from '../lib/list'
 import { enqueue, flush, onDropped, pending, withPending, type Change } from '../lib/offlineQueue'
 import { useOnline } from '../lib/online'
+import { itemPrices, money, STORE_NAMES, storeTotals, totalText, type ItemStorePrice, type Prices } from '../lib/prices'
 import { applyMark, loadList, setPackAndShelf, setSection, subscribeList, type ListData } from '../lib/shop'
-import { weekStartOf } from '../lib/week'
+import { dayLabel, weekStartOf, ymd } from '../lib/week'
 import { AskClaudeButton } from './AskClaude'
 import { Sheet } from './Sheet'
 import { WeekNav } from './WeekNav'
@@ -70,6 +71,12 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
   const data = list?.week === week ? list.data : undefined
   const items = data ? deriveList(data.dishes, data.sections, data.extras, data.packs) : []
   const view = data ? shopList(items, data.marks, hideTicked) : undefined
+  const today = ymd(new Date())
+  const prices: Prices = data?.prices ?? {}
+  // Every item counts towards the totals, ticked or hidden, except those marked already have.
+  const totals = data ? storeTotals(items.map((i) => ({ ...i, mark: data.marks[i.key] ?? NO_MARK })), prices, data.sections, today) : []
+  // Prices are keyed by ingredient, so a hand-added item has them only when it is a known ingredient.
+  const pricesOf = (r: ShopRow) => (data && (!r.extra || r.name in data.sections) ? itemPrices(r, prices, today) : null)
 
   /** Shows a change on screen at once and queues it, sending it now if there is signal. */
   const change = (c: Change, show: (data: ListData) => ListData) => {
@@ -107,7 +114,7 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
   const openRow = all && [...all.sections.flatMap((s) => s.rows), ...all.have].find((r) => r.key === openKey)
 
   const row = (r: ShopRow) => (
-    <ItemRow key={r.key} row={r} onTick={(ticked) => mark(r.key, { ticked, ...(ticked ? { missing: false } : {}) })} onOpen={() => setOpenKey(r.key)} swapPrompt={() => swapPrompt(r, data?.dishes ?? [], week)} />
+    <ItemRow key={r.key} row={r} prices={pricesOf(r)} onTick={(ticked) => mark(r.key, { ticked, ...(ticked ? { missing: false } : {}) })} onOpen={() => setOpenKey(r.key)} swapPrompt={() => swapPrompt(r, data?.dishes ?? [], week)} />
   )
 
   return (
@@ -150,6 +157,16 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
           >
             <span style={{ width: `${view.total ? Math.round((view.ticked / view.total) * 100) : 0}%` }} />
           </div>
+          {totals.length > 0 && (
+            <section className="totals" aria-label="Store totals">
+              {totals.map((t) => (
+                <p key={t.store} className="small flat">
+                  {totalText(t)}
+                  {t.older && <span className="muted"> · includes older prices</span>}
+                </p>
+              ))}
+            </section>
+          )}
           {view.sections.map((s) => (
             <section key={s.section} aria-label={s.section}>
               <h3 className="label aisle">{s.section}</h3>
@@ -169,6 +186,7 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
         <ItemSheet
           key={openKey}
           row={openRow}
+          prices={openRow ? pricesOf(openRow) : null}
           offline={!online}
           // A hand-added item has a pack size only when it is a known ingredient; a planned one always can.
           ingredient={
@@ -208,7 +226,19 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
   )
 }
 
-function ItemRow({ row, onTick, onOpen, swapPrompt }: { row: ShopRow; onTick: (ticked: boolean) => void; onOpen: () => void; swapPrompt: () => string }) {
+function ItemRow({
+  row,
+  prices,
+  onTick,
+  onOpen,
+  swapPrompt,
+}: {
+  row: ShopRow
+  prices: ItemStorePrice[] | null
+  onTick: (ticked: boolean) => void
+  onOpen: () => void
+  swapPrompt: () => string
+}) {
   const { ticked, missing } = row.mark
   const detail = itemDetail(row)
   const packs = rowPacks(row)
@@ -222,6 +252,7 @@ function ItemRow({ row, onTick, onOpen, swapPrompt }: { row: ShopRow; onTick: (t
             <b>{row.name}</b>
             {missing && <span className="tag">Couldn’t get it</span>}
             {detail && <small>{detail}</small>}
+            <PriceLine prices={prices} />
           </span>
         </label>
         <button type="button" className="qty" aria-label={`Change amount for ${row.name}`} onClick={onOpen}>
@@ -240,6 +271,69 @@ function ItemRow({ row, onTick, onOpen, swapPrompt }: { row: ShopRow; onTick: (t
   )
 }
 
+/**
+ * Each store's price for a row: "Coles $16 $16.00/kg · Woolies $14 · Aldi –", a special marked
+ * and an old price dated. Nothing when no store has a price (or for a staple).
+ */
+function PriceLine({ prices }: { prices: ItemStorePrice[] | null }) {
+  if (!prices?.some((p) => p.found)) return null
+  return (
+    <small className="prices" aria-label="Prices">
+      {prices.map((p, i) => (
+        <Fragment key={p.store}>
+          {i > 0 && ' · '}
+          <span className="pr">
+            {STORE_NAMES[p.store]}{' '}
+            {p.found ? <PriceText p={p} /> : '–'}
+          </span>
+        </Fragment>
+      ))}
+    </small>
+  )
+}
+
+function PriceText({ p }: { p: Extract<ItemStorePrice, { found: true }> }) {
+  return (
+    <>
+      <b className="amt">{money(p.cost)}</b>
+      {p.onePack && ` (${p.onePack})`}
+      {p.special && <span className="spec"> special</span>}
+      {p.unit && <span className="unit"> {p.unit}</span>}
+      {p.stale && <span className="unit"> · {p.stale}</span>}
+    </>
+  )
+}
+
+/** The item sheet's prices: each store's matched product, so a wrong match can be spotted. */
+function PriceDetails({ prices }: { prices: ItemStorePrice[] }) {
+  return (
+    <div className="stack tight">
+      <span className="lab">Prices</span>
+      <ul className="pricelist">
+        {prices.map((p) => (
+          <li key={p.store} className="small">
+            <b>{STORE_NAMES[p.store]}</b>{' '}
+            {p.found ? (
+              <>
+                <PriceText p={p} />
+                {p.packs > 1 && ` for ${p.packs} × ${money(p.row.price!)}`}
+                <br />
+                <span className="muted">
+                  {p.row.product}
+                  {` · ${dayLabel(p.row.seenOn)}`}
+                </span>
+              </>
+            ) : (
+              <span className="muted">– no match found</span>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="small muted flat">Wrong product? Tell Claude in chat and it will price it again.</p>
+    </div>
+  )
+}
+
 type IngredientInfo = { pack: Pack | null; shelfDays: number | null }
 
 /**
@@ -248,6 +342,7 @@ type IngredientInfo = { pack: Pack | null; shelfDays: number | null }
  */
 function ItemSheet({
   row,
+  prices,
   offline,
   ingredient,
   onMark,
@@ -257,6 +352,7 @@ function ItemSheet({
   onClose,
 }: {
   row?: ShopRow
+  prices: ItemStorePrice[] | null
   offline: boolean
   /** The shared ingredient's pack size and shelf life; undefined when the item is not an ingredient. */
   ingredient?: IngredientInfo
@@ -341,6 +437,7 @@ function ItemSheet({
           {row.mark.haveIt ? 'Need to buy it' : 'Already have it'}
         </button>
       </div>
+      {prices?.some((p) => p.found) && <PriceDetails prices={prices} />}
       {ingredient && <PackFields key={row.key} unit={row.unit} ingredient={ingredient} offline={offline} onSave={onPack} />}
       {row.extra && (
         <button className="btn danger wide" type="button" onClick={onRemove}>

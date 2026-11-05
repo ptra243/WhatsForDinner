@@ -78,12 +78,12 @@ async function allRows<T>(page: (from: number, to: number) => PromiseLike<{ data
 
 /**
  * All of the household's data as one object: the household, its members, settings, recipes
- * (with ingredients, steps and the ingredients each uses, and methods), plans, list marks and hand-added items, votes and suggestions, plus the shared
+ * (with ingredients, steps and the ingredients each uses, and methods), plans, list marks and hand-added items, votes, suggestions and ingredient prices, plus the shared
  * ingredient list the recipes refer to. Rows are as stored, so the file can be loaded back.
  */
 export async function exportHousehold(householdId: string) {
   const hid = householdId
-  const [household, members, settings, ingredients, recipes, nights, dishes, marks, extras, votes, suggestions] = await Promise.all([
+  const [household, members, settings, ingredients, recipes, nights, dishes, marks, extras, votes, suggestions, prices] = await Promise.all([
     supabase.from('households').select('*').eq('id', hid).maybeSingle(),
     supabase.from('household_members').select('*').eq('household_id', hid),
     supabase.from('household_settings').select('*').eq('household_id', hid).maybeSingle(),
@@ -115,6 +115,7 @@ export async function exportHousehold(householdId: string) {
         .range(a, b),
     ),
     allRows((a, b) => supabase.from('suggestions').select('*').eq('household_id', hid).order('id').range(a, b)),
+    allRows((a, b) => supabase.from('ingredient_prices').select('*').eq('household_id', hid).order('id').range(a, b)),
   ])
   for (const r of [household, members, settings]) if (r.error) throw r.error
   return {
@@ -132,6 +133,7 @@ export async function exportHousehold(householdId: string) {
     list_extras: extras,
     recipe_votes: votes,
     suggestions,
+    ingredient_prices: prices,
   }
 }
 

@@ -161,7 +161,7 @@ describe('flush', () => {
 })
 
 describe('withPending', () => {
-  const data = (): ListData => ({ dishes: [], sections: {}, packs: {}, shelfDays: {}, extras: [{ ...milk, id: 'x1' }], marks: { 'onion|each': { ...NO_MARK, haveIt: true } } })
+  const data = (): ListData => ({ dishes: [], sections: {}, packs: {}, shelfDays: {}, prices: {}, extras: [{ ...milk, id: 'x1' }], marks: { 'onion|each': { ...NO_MARK, haveIt: true } } })
 
   it('lays the week’s waiting changes over what was loaded', () => {
     enqueue('h1', { kind: 'mark', week: W, key: 'onion|each', change: { ticked: true } })

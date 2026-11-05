@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { NO_MARK } from '../lib/list'
 import { flush, pending } from '../lib/offlineQueue'
 import type { RecipeIngredient } from '../lib/recipes'
 import type { ListData } from '../lib/shop'
@@ -35,6 +36,7 @@ const data = (change: Partial<ListData> = {}): ListData => ({
   sections: { 'beef mince': 'meat and seafood', onion: 'fruit and veg', salt: 'herbs and spices', lettuce: 'fruit and veg' },
   packs: {},
   shelfDays: {},
+  prices: {},
   extras: [{ id: 'x1', name: 'milk', qty: 2, unit: 'l', section: 'dairy and fridge' }],
   marks: {},
   ...change,
@@ -48,7 +50,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
   api.loadList.mockImplementation(async (_h: string, week: string) =>
-    week === '2026-10-26' ? data() : { dishes: [], sections: {}, packs: {}, shelfDays: {}, extras: [], marks: {} },
+    week === '2026-10-26' ? data() : { dishes: [], sections: {}, packs: {}, shelfDays: {}, extras: [], marks: {}, prices: {} },
   )
   api.subscribeList.mockImplementation((_h: string, cb: () => void) => {
     realtime = cb
@@ -328,5 +330,89 @@ describe('Offline', () => {
     await waitFor(() => expect(api.loadList).toHaveBeenCalledTimes(2))
     expect(tick('lettuce')).not.toBeChecked()
     expect(pending('h1')).toEqual([])
+  })
+})
+
+describe('Shopping list prices', () => {
+  const price = (store: 'coles' | 'woolworths' | 'aldi', change: Record<string, unknown> = {}) => ({
+    store,
+    source: 'whichgrocer',
+    seenOn: '2026-10-28',
+    product: 'Beef Mince 500g',
+    packQty: 500,
+    packUnit: 'g',
+    price: 8,
+    unitPrice: 16,
+    unitBasis: 'kg' as const,
+    onSpecial: false,
+    ...change,
+  })
+  const notFound = (store: 'coles' | 'woolworths' | 'aldi') =>
+    price(store, { product: null, packQty: null, packUnit: null, price: null, unitPrice: null, unitBasis: null })
+  const priced = (change: Partial<ListData> = {}) =>
+    data({
+      prices: {
+        'beef mince': {
+          coles: price('coles'),
+          woolworths: price('woolworths', { product: 'Woolworths Mince 1kg', packQty: 1, packUnit: 'kg', price: 14, unitPrice: 14, onSpecial: true }),
+          aldi: notFound('aldi'),
+        },
+        lettuce: { coles: price('coles', { product: 'Iceberg Lettuce', packQty: 1, packUnit: 'each', price: 3, unitPrice: 3, unitBasis: 'each', seenOn: '2026-10-12' }) },
+        salt: { coles: price('coles', { product: 'Table Salt', price: 1 }) },
+        milk: { aldi: price('aldi', { product: 'Full Cream Milk 2L', packQty: 2, packUnit: 'l', price: 3.29, unitPrice: 1.65, unitBasis: 'l' }) },
+      },
+      ...change,
+    })
+  const priceLine = (name: string) => {
+    const label = tick(name).closest('label') as HTMLElement
+    return (within(label).queryByLabelText('Prices')?.textContent ?? '').replaceAll(' ', ' ')
+  }
+
+  it('shows each store’s price on a row, with $/kg, specials, old dates and – for no match', async () => {
+    api.loadList.mockResolvedValue(priced())
+    renderTab()
+    await screen.findByText('lettuce')
+    expect(priceLine('beef mince')).toBe('Coles $8 $16.00/kg · Woolies $14 special $14.00/kg · Aldi –')
+    expect(priceLine('lettuce')).toBe('Coles $3 $3.00 each · 12 Oct · Woolies – · Aldi –')
+    expect(priceLine('salt')).toBe('')
+    expect(priceLine('onion')).toBe('')
+  })
+
+  it('totals each store at the top, leaving out already have and unknown hand-added items', async () => {
+    api.loadList.mockResolvedValue(priced({ marks: { 'onion|each': { ...NO_MARK, haveIt: true } } }))
+    renderTab()
+    await screen.findByText('lettuce')
+    const totals = screen.getByRole('region', { name: 'Store totals' })
+    expect(within(totals).getAllByText(/items?/).map((p) => p.textContent)).toEqual([
+      'Coles $11 · 2 of 2 items · includes older prices',
+      'Woolies $14 · 1 of 2 items',
+      'Aldi – · 0 of 2 items',
+    ])
+  })
+
+  it('prices a hand-added item that is a known ingredient', async () => {
+    api.loadList.mockResolvedValue(priced({ sections: { ...data().sections, milk: 'dairy and fridge' } }))
+    renderTab()
+    await screen.findByText('lettuce')
+    expect(priceLine('milk')).toBe('Coles – · Woolies – · Aldi $3.29 $1.65/L')
+  })
+
+  it('names the matched product on the item sheet', async () => {
+    api.loadList.mockResolvedValue(priced())
+    renderTab()
+    const sheet = await openItem('beef mince')
+    expect(within(sheet).getByText('Beef Mince 500g · 28 Oct')).toBeInTheDocument()
+    expect(within(sheet).getByText('Woolworths Mince 1kg · 28 Oct')).toBeInTheDocument()
+    expect(within(sheet).getByText('– no match found')).toBeInTheDocument()
+    expect(within(sheet).getByText(/Tell Claude in chat/)).toBeInTheDocument()
+  })
+
+  it('reloads when Claude saves prices', async () => {
+    renderTab()
+    await screen.findByText('lettuce')
+    expect(api.subscribeList).toHaveBeenCalled()
+    api.loadList.mockResolvedValue(priced())
+    act(() => realtime())
+    await waitFor(() => expect(priceLine('beef mince')).toContain('Coles $8'))
   })
 })

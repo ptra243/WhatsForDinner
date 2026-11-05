@@ -22,7 +22,7 @@ Build order:
 
 ## M2 · Household
 
-Partner's login and household invite, votes, suggestions (and the "check suggestions" skill flow), pantry with best-before and replanning around bargains, full offline ticking, hand-entry recipe form, Google sign-in, side-dish pairings, equipment method variants and per-night time overrides.
+Partner's login and household invite, votes, suggestions (and the "check suggestions" skill flow), pantry with best-before and replanning around bargains, full offline ticking, hand-entry recipe form, Google sign-in, side-dish pairings, equipment method variants, per-night time overrides, and shopping list prices from Coles, Woolworths and Aldi (priced by Claude through grocery price connectors, with price history).
 
 ## M3 · Other households
 
