@@ -59,29 +59,29 @@ describe('money and unit prices', () => {
 
 describe('itemStorePrice', () => {
   it('is packs to buy × the pack price, rounded up', () => {
-    const p = itemStorePrice({ qty: 600, unit: 'g' }, row('coles'), TODAY)
+    const p = itemStorePrice({ qty: 600, unit: 'g' }, 'coles', row('coles'), TODAY)
     expect(p).toMatchObject({ found: true, packs: 2, cost: 16, onePack: null, unit: '$16.00/kg', stale: null })
   })
   it('compares kg and l as g and ml', () => {
-    expect(itemStorePrice({ qty: 1500, unit: 'g' }, row('woolworths', { packQty: 1, packUnit: 'kg', price: 14 }), TODAY)).toMatchObject({ packs: 2, cost: 28 })
-    expect(itemStorePrice({ qty: 900, unit: 'ml' }, row('aldi', { packQty: 0.3, packUnit: 'l', price: 2.5 }), TODAY)).toMatchObject({ packs: 3, cost: 7.5 })
+    expect(itemStorePrice({ qty: 1500, unit: 'g' }, 'woolworths', row('woolworths', { packQty: 1, packUnit: 'kg', price: 14 }), TODAY)).toMatchObject({ packs: 2, cost: 28 })
+    expect(itemStorePrice({ qty: 900, unit: 'ml' }, 'aldi', row('aldi', { packQty: 0.3, packUnit: 'l', price: 2.5 }), TODAY)).toMatchObject({ packs: 3, cost: 7.5 })
   })
   it('counts one pack when the units differ or there is no amount', () => {
-    expect(itemStorePrice({ qty: 2, unit: 'each' }, row('coles', { packQty: 1, packUnit: 'kg', price: 5.5 }), TODAY)).toMatchObject({
+    expect(itemStorePrice({ qty: 2, unit: 'each' }, 'coles', row('coles', { packQty: 1, packUnit: 'kg', price: 5.5 }), TODAY)).toMatchObject({
       packs: 1,
       cost: 5.5,
       onePack: '1 kg pack',
     })
-    expect(itemStorePrice({ qty: null, unit: 'g' }, row('coles'), TODAY)).toMatchObject({ packs: 1, cost: 8, onePack: '500 g pack' })
+    expect(itemStorePrice({ qty: null, unit: 'g' }, 'coles', row('coles'), TODAY)).toMatchObject({ packs: 1, cost: 8, onePack: '500 g pack' })
   })
   it('is not found with no row or a not found row', () => {
-    expect(itemStorePrice({ qty: 500, unit: 'g' }, undefined, TODAY)).toMatchObject({ found: false })
-    expect(itemStorePrice({ qty: 500, unit: 'g' }, notFound('aldi'), TODAY)).toEqual({ store: 'aldi', found: false })
+    expect(itemStorePrice({ qty: 500, unit: 'g' }, 'woolworths', undefined, TODAY)).toEqual({ store: 'woolworths', found: false })
+    expect(itemStorePrice({ qty: 500, unit: 'g' }, 'aldi', notFound('aldi'), TODAY)).toEqual({ store: 'aldi', found: false })
   })
   it('dates a price older than a week, and marks specials', () => {
-    expect(itemStorePrice({ qty: 500, unit: 'g' }, row('aldi', { seenOn: '2026-10-29' }), TODAY)).toMatchObject({ stale: null })
-    expect(itemStorePrice({ qty: 500, unit: 'g' }, row('aldi', { seenOn: '2026-10-12' }), TODAY)).toMatchObject({ stale: '12 Oct' })
-    expect(itemStorePrice({ qty: 500, unit: 'g' }, row('aldi', { onSpecial: true }), TODAY)).toMatchObject({ special: true })
+    expect(itemStorePrice({ qty: 500, unit: 'g' }, 'aldi', row('aldi', { seenOn: '2026-10-29' }), TODAY)).toMatchObject({ stale: null })
+    expect(itemStorePrice({ qty: 500, unit: 'g' }, 'aldi', row('aldi', { seenOn: '2026-10-12' }), TODAY)).toMatchObject({ stale: '12 Oct' })
+    expect(itemStorePrice({ qty: 500, unit: 'g' }, 'aldi', row('aldi', { onSpecial: true }), TODAY)).toMatchObject({ special: true })
   })
 })
 
@@ -123,6 +123,15 @@ describe('storeTotals', () => {
     const totals = storeTotals(rows, prices, known, TODAY)
     expect(totals.map(totalText)).toEqual(['Coles $17.50 · 2 of 2 items', 'Woolies $14 · 1 of 2 items', 'Aldi $1.20 · 1 of 2 items'])
     expect(totals.map((t) => t.older)).toEqual([false, false, true])
+  })
+  it('adds a planned ingredient and the same one added by hand before rounding up to packs', () => {
+    const chicken: Prices = { 'chicken thigh': { coles: row('coles', { packQty: 1, packUnit: 'kg', price: 13 }), woolworths: row('woolworths', { price: 7.5 }) } }
+    const rows = [shopRow('chicken thigh', 600, 'g'), { ...shopRow('chicken thigh', 300, 'g'), key: 'extra:x1', extra: 'x1' }]
+    expect(storeTotals(rows, chicken, { 'chicken thigh': 1 }, TODAY).map(totalText)).toEqual([
+      'Coles $13 · 1 of 1 item',
+      'Woolies $15 · 1 of 1 item',
+      'Aldi – · 0 of 1 item',
+    ])
   })
   it('is empty when nothing has a price', () => {
     expect(storeTotals([shopRow('beef mince', 500, 'g')], {}, known, TODAY)).toEqual([])

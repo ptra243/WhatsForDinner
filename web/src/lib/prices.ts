@@ -69,15 +69,14 @@ export type ItemStorePrice =
  * as g and ml and rounded up as the list's packs are. When the pack is in another unit or the
  * item has no amount, one pack. No row, or a not found row, is not found.
  */
-export function itemStorePrice(item: { qty: number | null; unit: string }, row: StorePrice | undefined, today: string): ItemStorePrice {
-  const store = row?.store ?? 'coles'
+export function itemStorePrice(item: { qty: number | null; unit: string }, store: Store, row: StorePrice | undefined, today: string): ItemStorePrice {
   if (!row || row.price == null || row.packQty == null || !row.packUnit) return { store, found: false }
   const pack = toBase(row.packQty, row.packUnit)
   const comparable = item.qty != null && item.qty > 0 && pack.qty != null && pack.qty > 0 && pack.unit === item.unit
   // A hair over a whole number of packs is float error, not another pack.
   const packs = comparable ? Math.max(1, Math.ceil(item.qty! / pack.qty! - 1e-9)) : 1
   return {
-    store: row.store,
+    store,
     found: true,
     cost: Math.round(packs * row.price * 100) / 100,
     packs,
@@ -93,10 +92,7 @@ export function itemStorePrice(item: { qty: number | null; unit: string }, row: 
 export function itemPrices(item: { name: string; section: string; qty: number | null; unit: string }, prices: Prices, today: string): ItemStorePrice[] | null {
   if (isStaple(item.name, item.section)) return null
   const byStore = prices[item.name] ?? {}
-  return STORES.map((store) => {
-    const p = itemStorePrice(item, byStore[store], today)
-    return p.found ? p : { store, found: false }
-  })
+  return STORES.map((store) => itemStorePrice(item, store, byStore[store], today))
 }
 
 /** The price line on a row: "Coles $16 · Woolies $14 · Aldi –"; empty when no store has a price. */
@@ -108,9 +104,9 @@ export function priceLine(p: ItemStorePrice[] | null): string {
 export type StoreTotal = {
   store: Store
   total: number
-  /** Items with a price at this store. */
+  /** Ingredients with a price at this store. */
   items: number
-  /** Items that could be priced: the list less staples, already have, and names that aren't ingredients. */
+  /** Ingredients that could be priced: the list less staples, already have, and names that aren't ingredients. */
   of: number
   /** Some of the prices counted are older than a week. */
   older: boolean
@@ -118,27 +114,34 @@ export type StoreTotal = {
 
 /**
  * A total per store over every item except those marked already have (ticked and couldn't get
- * still count). Staples and items that aren't known ingredients aren't priced. Empty when no
- * item has a price anywhere.
+ * still count). Staples and items that aren't known ingredients aren't priced. An ingredient
+ * that is both planned and added by hand is one need: its amounts in the same base unit are
+ * added before rounding up to packs, and it counts as one item, as Claude's items query does.
+ * Empty when no item has a price anywhere.
  */
 export function storeTotals(rows: ShopRow[], prices: Prices, known: Record<string, unknown>, today: string): StoreTotal[] {
-  const totals = STORES.map((store) => ({ store, total: 0, items: 0, of: 0, older: false }))
-  let any = false
+  const needs = new Map<string, { name: string; section: string; qty: number | null; unit: string }>()
   for (const row of rows) {
-    if (row.mark.haveIt || !(row.name in known)) continue
-    const p = itemPrices(row, prices, today)
-    if (!p) continue
-    for (const [i, x] of p.entries()) {
+    if (row.mark.haveIt || !(row.name in known) || isStaple(row.name, row.section)) continue
+    const key = `${row.name}|${row.unit}`
+    const need = needs.get(key)
+    if (!need) needs.set(key, { name: row.name, section: row.section, qty: row.qty, unit: row.unit })
+    else if (row.qty != null) need.qty = (need.qty ?? 0) + row.qty
+  }
+  const totals = STORES.map((store) => ({ store, total: 0, items: new Set<string>(), of: new Set<string>(), older: false }))
+  let any = false
+  for (const need of needs.values()) {
+    for (const [i, x] of (itemPrices(need, prices, today) ?? []).entries()) {
       const t = totals[i]
-      t.of++
+      t.of.add(need.name)
       if (!x.found) continue
       any = true
       t.total = Math.round((t.total + x.cost) * 100) / 100
-      t.items++
+      t.items.add(need.name)
       if (x.stale) t.older = true
     }
   }
-  return any ? totals : []
+  return any ? totals.map((t) => ({ ...t, items: t.items.size, of: t.of.size })) : []
 }
 
 /** "Aldi $121 · 20 of 24 items" */
