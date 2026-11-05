@@ -693,23 +693,34 @@ function NightSheet({
         </>
       )}
 
-      <div className="row wrap-row" role="group" aria-label="Time tonight">
-        <b className="small grow">Time tonight</b>
-        <div className="stepper">
-          <button type="button" aria-label="Less time tonight" disabled={busy || i.budget <= 5} onClick={() => stepMinutes(-5)}>
-            −
-          </button>
-          <span>{i.budget} min</span>
-          <button type="button" aria-label="More time tonight" disabled={busy} onClick={() => stepMinutes(5)}>
-            +
-          </button>
-        </div>
-        {i.override && (
-          <button className="btn quiet" type="button" disabled={busy} onClick={resetMinutes}>
+      {!night.cooked && (
+        <div role="group" aria-label="Time tonight">
+          <div className="row">
+            <b className="small grow">Time tonight</b>
+            <div className="stepper">
+              <button type="button" aria-label="Less time tonight" disabled={busy || i.budget <= 5} onClick={() => stepMinutes(-5)}>
+                −
+              </button>
+              <span>{i.budget} min</span>
+              <button type="button" aria-label="More time tonight" disabled={busy} onClick={() => stepMinutes(5)}>
+                +
+              </button>
+            </div>
+          </div>
+          {/* Reset keeps its line while hidden, so the stepper never moves under a finger. */}
+          <button
+            className="btn quiet"
+            type="button"
+            style={i.override ? undefined : { visibility: 'hidden' }}
+            aria-hidden={!i.override}
+            tabIndex={i.override ? undefined : -1}
+            disabled={busy || !i.override}
+            onClick={resetMinutes}
+          >
             Reset to {usualMinutes} min
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div>
         <label className="toggle">

@@ -367,6 +367,12 @@ describe('Night sheet', () => {
     expect(night(/^Wed 28/)).toHaveTextContent('Locked')
   })
 
+  it('leaves out the time tonight on a cooked night', async () => {
+    render(<WeekTab householdId="h1" />)
+    const sheet = await openNight(/^Mon 26/)
+    expect(within(sheet).queryByRole('group', { name: 'Time tonight' })).not.toBeInTheDocument()
+  })
+
   /** A write that waits until the test lets it finish (or fail). */
   const held = () => {
     let finish: (error?: unknown) => void = () => {}
