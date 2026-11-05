@@ -15,7 +15,7 @@ The human-readable copy of these rules is `docs/claude-instructions.md` in the r
 - Find the household once per chat (query below). If it returns more than one row, ask which email is the owner's.
 - Never plan in or edit the template household (`private.template_household_id()`, named "Example recipes (template)", no members). It holds the examples copied into new households and follows the repo's `seed/`.
 - Use only the tables below. Never change the schema (no `create`, `alter`, `drop`); schema changes are migrations in the repo.
-- Don't change `list_marks`, `list_extras`, `meal_plan_nights` or `recipe_votes` (ticks, hand-added items, cooked flags, votes): they are the shoppers', cook's and members'. Reading cooked flags is fine. The shopping list is worked out from the plan, so saving the plan updates it.
+- Don't change `list_marks`, `list_extras`, `meal_plan_nights` or `recipe_votes` (ticks, hand-added items, cooked flags, a night's own time and lock, votes): they are the shoppers', cook's and members'. Reading them is fine. The shopping list is worked out from the plan, so saving the plan updates it.
 
 ```sql
 -- The owner's household and settings
@@ -38,6 +38,7 @@ where h.id <> private.template_household_id();
 - `recipe_step_ingredients`: step_id → `recipe_steps`, recipe_ingredient_id → `recipe_ingredients`. The ingredients each step uses, for every method's steps. The database refuses a link to another recipe's ingredient; deleting the step or the ingredient row deletes the link. Cook mode shows each step's ingredients, lists them to get ready before step 1, and flags any no step used.
 - `ingredients`: slug (PK), name (unique), section, allergens text[] (below), pack_qty and pack_unit (how it is usually sold, both or neither), shelf_days (days it keeps once bought). Shared by all households.
 - `meal_plan_dishes`: household_id, week_start (always a Monday), day (`mon`..`sun`), position (order in the night, from 0), recipe_id, role (`main` / `side`), servings, swaps jsonb `[{"from", "to", "qty", "unit"}]`, method_id (null for the recipe's usual way; the database refuses another recipe's method).
+- `meal_plan_nights`: household_id, week_start, day, cooked, skip_check (no meal rule check that night), minutes (that night's own hands-on minutes, set in the app for a busy night; null means the weekday's `minutes` setting), locked (leave the night's dishes alone). Set in the app; read only for you.
 - `recipe_votes`: household_id, week_start (a Monday), recipe_id, user_id, vote (`1` 👍, `-1` 👎). Each member's say on a recipe for a coming week, set in the app. Read only for you: never write votes.
 - `suggestions`: id, household_id, created_by, name, description (may hold a link), status (`open` / `added` / `declined`), reply (your one line), recipe_id → recipes. Dinners members suggest in the app. You set only `status`, `reply` and `recipe_id` (Suggestions below).
 - `household_settings`, `households`, `household_members`, `household_invites`: read only for you. A household can have members besides the owner (`role = 'member'`, a partner who joined by invite); they use the app, and you still plan for the household and set `created_by` to the owner.
@@ -75,17 +76,18 @@ The database rejects anything else.
 
 ## Planning
 
-1. Read the settings, the recipes (with when each was last cooked), the week's votes (query below) and the week if anything is already planned.
+1. Read the settings, the recipes (with when each was last cooked), the week's votes and nights (queries below) and the week if anything is already planned.
 2. Check the week before for dinners that were planned but not marked cooked (plans change: a night out, a late finish). List them and ask whether to put any on the new week; don't assume, since the cook may have cooked and not ticked it. Leave the old week as it is.
 3. Favour recipes with a 👍 for the week, then well-rated ones. Leave out any recipe with a 👎 for the week unless asked to plan it. Say in the proposal which votes you followed ("Fish tacos: 👍 Sam. Left out beef ragù: 👎 you"); name members by the part of their email before the @. Votes are for that week only.
    Don't repeat anything cooked in the last two weeks; spread proteins across the week. A dinner planned but not cooked doesn't count as a repeat.
-4. Keep each night's hands-on minutes (`active_mins` of its dishes, by the method each is cooked by) within that weekday's `minutes`. Put long cooks on weekends. On a weeknight, when a recipe's usual way takes too long and it has a method for equipment the household has (the methods query below), plan it with that method (`method_id`, query below) and say so ("Beef ragù in the pressure cooker, 1 h 20"). Never pick a method whose equipment isn't in `settings.equipment`.
+4. Keep each night's hands-on minutes (`active_mins` of its dishes, by the method each is cooked by) within that night's minutes: its own when the app set one ("only 20 minutes tonight"), else the weekday's `minutes` (the nights query gives the right one). Put long cooks on weekends. On a weeknight, when a recipe's usual way takes too long and it has a method for equipment the household has (the methods query below), plan it with that method (`method_id`, query below) and say so ("Beef ragù in the pressure cooker, 1 h 20"). Never pick a method whose equipment isn't in `settings.equipment`.
 5. Follow `mealRule`: with `veg+carb` every night covers a vegetable and a carb (from the main's `provides` or added sides); with `veg` just a vegetable; `off` no rule.
    When a main needs sides, prefer the ones the household actually cooks with it (the pairing query below: nights marked cooked in the last 26 weeks), then other sides that fill the gap. Pairings are worked out from the plan; there is nothing to save.
 6. Respect `notes`. Plan leftovers across the week where it helps (cook a big ragù Sunday, eat it again Tuesday).
 7. If `avoid` lists allergens, find the recipes containing them (query below). Plan one only if every ingredient bringing an avoided allergen gets a swap to an ingredient without it, and say so in the proposal ("Wonton noodle soup, egg noodles → rice noodles; check the label"). Otherwise leave it out. Save those swaps on the dish once the night is written (swap SQL below), then check the week (query below) returns nothing.
 8. Servings are usually the recipe's `serves`; scale to the household.
-9. Propose the plan as a short day-by-day list and wait for approval before writing, unless asked to just do it. Then write each night and say it's saved.
+9. Never change a locked night's dishes (the nights query) unless asked to by name: plan the other nights around it, and in the proposal say it is kept ("Wed: locked, kept"). Writing a night replaces its dishes, so skip locked nights.
+10. Propose the plan as a short day-by-day list and wait for approval before writing, unless asked to just do it. Then write each night and say it's saved.
 
 ## Recipes
 
@@ -221,6 +223,18 @@ join ingredients i on i.slug = ri.ingredient_slug
 where r.household_id = '<household_id>'
   and i.allergens && array(select jsonb_array_elements_text(coalesce(s.settings->'avoid', '[]')))
 order by r.name, ri.position;
+```
+
+The week's nights: each one's hands-on minutes (its own, else the weekday's), whether that is its own, and whether it is locked:
+
+```sql
+select d.day, coalesce(n.minutes, (s.settings->'minutes'->>d.day)::int) as minutes,
+       n.minutes is not null as own_time, coalesce(n.locked, false) as locked
+from unnest(array['mon','tue','wed','thu','fri','sat','sun']) with ordinality as d(day, i)
+left join household_settings s on s.household_id = '<household_id>'
+left join meal_plan_nights n on n.household_id = '<household_id>'
+ and n.week_start = '<week_start>' and n.day = d.day
+order by d.i;
 ```
 
 Read a week:

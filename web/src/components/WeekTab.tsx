@@ -396,6 +396,8 @@ function NightRow({
         )}
         {i.total > 0 && !night.cooked && <span>{mins(i.total)}</span>}
         {i.over && !night.cooked && <span className="over">{i.active} min hands-on</span>}
+        {i.override && !night.cooked && <span>{i.budget} min tonight</span>}
+        {night.locked && <span>Locked</span>}
         {tonight && i.main?.recipe && !night.cooked && (
           <button
             type="button"
@@ -415,7 +417,8 @@ function NightRow({
 
 /**
  * One night: its dishes with servings and the method each is cooked by (from the household's
- * equipment), the main's usual sides, gap suggestions, a picker, and the cooked and skip-check toggles.
+ * equipment), the main's usual sides, gap suggestions, a picker, the night's own time, and the
+ * cooked, skip-check and lock toggles.
  */
 function NightSheet({
   householdId,
@@ -460,6 +463,7 @@ function NightSheet({
     ? suggestSides(recipes, i.gaps, night.dishes, paired, usual.map((u) => u.recipeId))
     : []
   const checkName = settings.mealRule === 'veg' ? 'veg' : 'veg and carb'
+  const usualMinutes = settings.minutes[day]
 
   /**
    * Shows a change straight away and writes it; a failed write puts the night back and says why.
@@ -492,6 +496,16 @@ function NightSheet({
       (n) => withDish(n, { id, recipeId: r.id, role: r.course, servings }),
     )
   }
+
+  /** Sets the night's own time in steps of 5 minutes; back at the weekday's time it clears. */
+  const stepMinutes = (n: number) => {
+    const next = i.budget + n
+    if (next < 5) return
+    const minutes = next === usualMinutes ? null : next
+    save(() => setNightFlags(householdId, weekStart, day, { minutes }), (x) => ({ ...x, minutes }))
+  }
+  const resetMinutes = () =>
+    save(() => setNightFlags(householdId, weekStart, day, { minutes: null }), (x) => ({ ...x, minutes: null }))
 
   const choices = picking
     ? recipes.filter((r) => matches(r, query, picking)).sort((a, b) => a.name.localeCompare(b.name))
@@ -679,6 +693,35 @@ function NightSheet({
         </>
       )}
 
+      {!night.cooked && (
+        <div role="group" aria-label="Time tonight">
+          <div className="row">
+            <b className="small grow">Time tonight</b>
+            <div className="stepper">
+              <button type="button" aria-label="Less time tonight" disabled={busy || i.budget <= 5} onClick={() => stepMinutes(-5)}>
+                −
+              </button>
+              <span>{i.budget} min</span>
+              <button type="button" aria-label="More time tonight" disabled={busy} onClick={() => stepMinutes(5)}>
+                +
+              </button>
+            </div>
+          </div>
+          {/* Reset keeps its line while hidden, so the stepper never moves under a finger. */}
+          <button
+            className="btn quiet"
+            type="button"
+            style={i.override ? undefined : { visibility: 'hidden' }}
+            aria-hidden={!i.override}
+            tabIndex={i.override ? undefined : -1}
+            disabled={busy || !i.override}
+            onClick={resetMinutes}
+          >
+            Reset to {usualMinutes} min
+          </button>
+        </div>
+      )}
+
       <div>
         <label className="toggle">
           <input
@@ -707,6 +750,18 @@ function NightSheet({
             Skip the {checkName} check this night
           </label>
         )}
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={night.locked}
+            onChange={(e) => {
+              const locked = e.target.checked
+              save(() => setNightFlags(householdId, weekStart, day, { locked }), (x) => ({ ...x, locked }))
+            }}
+          />
+          Lock this dinner
+        </label>
+        {night.locked && <p className="small muted flat">Claude leaves this night’s dishes alone when replanning.</p>}
       </div>
       <AskClaudeButton className="btn quiet" prompt={nightPrompt(weekStart, day)}>
         Ask Claude about {DAY_FULL[day]}
