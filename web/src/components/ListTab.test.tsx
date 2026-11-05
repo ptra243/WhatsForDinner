@@ -365,7 +365,7 @@ describe('Shopping list prices', () => {
     })
   const priceLine = (name: string) => {
     const label = tick(name).closest('label') as HTMLElement
-    return within(label).queryByLabelText('Prices')?.textContent ?? ''
+    return (within(label).queryByLabelText('Prices')?.textContent ?? '').replaceAll(' ', ' ')
   }
 
   it('shows each store’s price on a row, with $/kg, specials, old dates and – for no match', async () => {

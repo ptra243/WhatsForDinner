@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { num } from '../lib/format'
 import { deriveList, itemDetail, itemQty, NO_MARK, readPackForm, rowPacks, rowQty, SECTIONS, shopList, swapPrompt, UNITS, type Mark, type Pack, type ShopRow } from '../lib/list'
 import { enqueue, flush, onDropped, pending, withPending, type Change } from '../lib/offlineQueue'
@@ -280,10 +280,13 @@ function PriceLine({ prices }: { prices: ItemStorePrice[] | null }) {
   return (
     <small className="prices" aria-label="Prices">
       {prices.map((p, i) => (
-        <span key={p.store} className="pr">
+        <Fragment key={p.store}>
           {i > 0 && ' · '}
-          {STORE_NAMES[p.store]} {p.found ? <PriceText p={p} /> : '–'}
-        </span>
+          <span className="pr">
+            {STORE_NAMES[p.store]}{' '}
+            {p.found ? <PriceText p={p} /> : '–'}
+          </span>
+        </Fragment>
       ))}
     </small>
   )
