@@ -1,5 +1,7 @@
 // Loading and saving the shopping list: the plan it is derived from, marks, extras and sections.
+import { slugOf } from './format'
 import { NO_MARK, type ListDish, type ListExtra, type Mark, type Pack, type Swap } from './list'
+import { PANTRY_COLUMNS, toPantry, type PantryItem } from './pantry'
 import { STORES, type Prices, type Store, type StorePrice } from './prices'
 import { supabase } from './supabase'
 import type { Day } from './week'
@@ -16,6 +18,8 @@ export type ListData = {
   marks: Record<string, Mark>
   /** Ingredient name → each store's latest price (`ingredient_prices_latest`). */
   prices: Prices
+  /** What the household has at home, so the list can say so. */
+  pantry: PantryItem[]
 }
 
 /** Swaps as stored in `meal_plan_dishes.swaps`; anything malformed is dropped. */
@@ -34,7 +38,7 @@ export function toSwaps(raw: unknown): Swap[] {
 /** Everything the week's list is made from. */
 export async function loadList(householdId: string, weekStart: string): Promise<ListData> {
   const week = { household_id: householdId, week_start: weekStart }
-  const [dishes, ingredients, extras, marks, prices] = await Promise.all([
+  const [dishes, ingredients, extras, marks, prices, pantry] = await Promise.all([
     supabase
       .from('meal_plan_dishes')
       .select('day, servings, swaps, recipes(name, serves, recipe_ingredients(position, qty, unit, note, ingredients(name)))')
@@ -59,8 +63,9 @@ export async function loadList(householdId: string, weekStart: string): Promise<
       .from('ingredient_prices_latest')
       .select('ingredient_slug, store, source, seen_on, product, pack_qty, pack_unit, price, unit_price, unit_basis, on_special')
       .eq('household_id', householdId),
+    supabase.from('pantry_items').select(PANTRY_COLUMNS).eq('household_id', householdId),
   ])
-  for (const r of [dishes, ingredients, extras, marks, prices]) if (r.error) throw r.error
+  for (const r of [dishes, ingredients, extras, marks, prices, pantry]) if (r.error) throw r.error
   const names = Object.fromEntries((ingredients.data ?? []).map((i) => [i.slug, i.name]))
   return {
     dishes: (dishes.data ?? []).map((d) => ({
@@ -96,6 +101,7 @@ export async function loadList(householdId: string, weekStart: string): Promise<
       ]),
     ),
     prices: toPrices(prices.data ?? [], names),
+    pantry: toPantry(pantry.data ?? [], names),
   }
 }
 
@@ -178,12 +184,7 @@ export async function removeExtra(id: string): Promise<void> {
   if (error) throw error
 }
 
-/** An ingredient slug from its name: "crushed tomato" → "crushed-tomato". */
-export const slugOf = (name: string) =>
-  name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+export { slugOf }
 
 /**
  * Moves an item to another section. A hand-added item changes on its own; a planned item
@@ -225,11 +226,11 @@ export async function setPackAndShelf(
 
 /**
  * Calls `onChange` whenever anything the list is made from changes: marks and extras (from
- * the other shopper), the plan and recipes (from the Week tab or Claude), and prices (from Claude). Returns the unsubscribe.
+ * the other shopper), the plan and recipes (from the Week tab or Claude), prices (from Claude) and the pantry. Returns the unsubscribe.
  */
 export function subscribeList(householdId: string, onChange: () => void): () => void {
   const channel = supabase.channel(`list-${householdId}`)
-  for (const table of ['list_marks', 'list_extras', 'meal_plan_dishes', 'recipes', 'ingredient_prices']) {
+  for (const table of ['list_marks', 'list_extras', 'meal_plan_dishes', 'recipes', 'ingredient_prices', 'pantry_items']) {
     channel.on('postgres_changes', { event: '*', schema: 'public', table }, onChange)
   }
   channel.subscribe()

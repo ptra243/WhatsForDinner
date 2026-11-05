@@ -36,3 +36,10 @@ export function scaledQty(qty: number | null, unit: string, servings: number, se
   const b = toBase(qty == null ? null : (qty * servings) / (serves || 4), unit)
   return fmtQty(b.qty, b.unit)
 }
+
+/** An ingredient slug from its name: "crushed tomato" → "crushed-tomato". */
+export const slugOf = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')

@@ -1,11 +1,13 @@
 import { Fragment, useEffect, useState } from 'react'
-import { num } from '../lib/format'
+import { fmtQty, num } from '../lib/format'
 import { deriveList, itemDetail, itemQty, NO_MARK, readPackForm, rowPacks, rowQty, SECTIONS, shopList, swapPrompt, UNITS, type Mark, type Pack, type ShopRow } from '../lib/list'
 import { enqueue, flush, onDropped, pending, withPending, type Change } from '../lib/offlineQueue'
 import { useOnline } from '../lib/online'
+import { addLeftover, bestBeforeText, defaultBestBefore, defaultLocation, inPantryText, leftover, LOCATION_NAMES } from '../lib/pantry'
 import { itemPrices, money, STORE_NAMES, storeTotals, totalText, type ItemStorePrice, type Prices } from '../lib/prices'
 import { applyMark, loadList, setPackAndShelf, setSection, subscribeList, type ListData } from '../lib/shop'
 import { dayLabel, weekStartOf, ymd } from '../lib/week'
+import { showToast } from '../lib/toast'
 import { AskClaudeButton } from './AskClaude'
 import { Sheet } from './Sheet'
 import { WeekNav } from './WeekNav'
@@ -32,6 +34,8 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
   const [version, setVersion] = useState(0)
   const [hideTicked, setHideTicked] = useState(loadHide)
   const [openKey, setOpenKey] = useState<string>()
+  // The bought item whose left-over amount the list offers to add to the pantry.
+  const [offerKey, setOfferKey] = useState<string>()
   // Offline the list shows from the service worker and changes wait in the queue; moving a
   // section needs signal. The list reloads when the signal returns.
   const online = useOnline()
@@ -88,6 +92,38 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
   const mark = (key: string, m: Partial<Mark>) =>
     change({ kind: 'mark', week, key, change: m }, (d) => ({ ...d, marks: { ...d.marks, [key]: applyMark(d.marks[key], m) } }))
 
+  /** What is left of a ticked item for the pantry; only for a known ingredient. */
+  const restOf = (r: ShopRow) => (data && r.mark.ticked && r.name in data.sections ? leftover(r) : null)
+
+  /** Ticks an item (or unticks it); a tick with something left over offers it to the pantry. */
+  const tickItem = (r: ShopRow, m: Partial<Mark>) => {
+    mark(r.key, m)
+    const after = { ...r, mark: applyMark(r.mark, m) }
+    setOfferKey(restOf(after) ? r.key : undefined)
+  }
+
+  /** Adds a bought item's left-over amount to the pantry, where it usually goes, with its shelf life. */
+  const addRest = async (r: ShopRow) => {
+    const rest = restOf(r)
+    setOfferKey(undefined)
+    if (!rest || !data) return
+    const location = defaultLocation(r.section)
+    const bestBefore = defaultBestBefore(today, data.shelfDays[r.name])
+    try {
+      const added = await addLeftover(householdId, r.name, { ...rest, location, bestBefore })
+      if (!added) return
+      setError(undefined)
+      showToast(
+        `Added ${fmtQty(rest.qty, rest.unit)} ${r.name} to the ${LOCATION_NAMES[location].toLowerCase()}` +
+          (bestBefore ? `, best before ${bestBeforeText(bestBefore, today)}.` : '.'),
+      )
+    } catch (e) {
+      setError(errorText(e))
+    } finally {
+      reload()
+    }
+  }
+
   /** Runs a save, shows any error, and reloads after it. */
   const save = async (write: () => Promise<void>) => {
     try {
@@ -113,9 +149,24 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
   const all = openKey && data ? shopList(items, data.marks) : undefined
   const openRow = all && [...all.sections.flatMap((s) => s.rows), ...all.have].find((r) => r.key === openKey)
 
-  const row = (r: ShopRow) => (
-    <ItemRow key={r.key} row={r} prices={pricesOf(r)} onTick={(ticked) => mark(r.key, { ticked, ...(ticked ? { missing: false } : {}) })} onOpen={() => setOpenKey(r.key)} swapPrompt={() => swapPrompt(r, data?.dishes ?? [], week)} />
-  )
+  const row = (r: ShopRow) => {
+    const rest = offerKey === r.key ? restOf(r) : null
+    return (
+      <ItemRow
+        key={r.key}
+        row={r}
+        prices={pricesOf(r)}
+        pantry={data ? inPantryText(r.name, data.pantry, today) : null}
+        rest={rest ? fmtQty(rest.qty, rest.unit) : null}
+        onTick={(ticked) => tickItem(r, { ticked, ...(ticked ? { missing: false } : {}) })}
+        onHaveIt={() => mark(r.key, { haveIt: true })}
+        onAddRest={() => void addRest(r)}
+        onNoRest={() => setOfferKey(undefined)}
+        onOpen={() => setOpenKey(r.key)}
+        swapPrompt={() => swapPrompt(r, data?.dishes ?? [], week)}
+      />
+    )
+  }
 
   return (
     <>
@@ -195,7 +246,8 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
               : undefined
           }
           onMark={(change) => {
-            mark(openKey, change)
+            if (openRow && change.ticked) tickItem(openRow, change)
+            else mark(openKey, change)
             setOpenKey(undefined)
           }}
           onSection={(section) => openRow && save(() => setSection(openRow, section))}
@@ -229,13 +281,25 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
 function ItemRow({
   row,
   prices,
+  pantry,
+  rest,
   onTick,
+  onHaveIt,
+  onAddRest,
+  onNoRest,
   onOpen,
   swapPrompt,
 }: {
   row: ShopRow
   prices: ItemStorePrice[] | null
+  /** "In pantry: 300 g, best before Fri", when the pantry has some. */
+  pantry: string | null
+  /** The amount left over once ticked ("200 g"), while the list offers it to the pantry. */
+  rest: string | null
   onTick: (ticked: boolean) => void
+  onHaveIt: () => void
+  onAddRest: () => void
+  onNoRest: () => void
   onOpen: () => void
   swapPrompt: () => string
 }) {
@@ -253,6 +317,7 @@ function ItemRow({
             {missing && <span className="tag">Couldn’t get it</span>}
             {detail && <small>{detail}</small>}
             <PriceLine prices={prices} />
+            {pantry && <small className="inpantry">{pantry}</small>}
           </span>
         </label>
         <button type="button" className="qty" aria-label={`Change amount for ${row.name}`} onClick={onOpen}>
@@ -260,6 +325,23 @@ function ItemRow({
           {packs && <small>{packs}</small>}
         </button>
       </div>
+      {pantry && !row.mark.haveIt && !row.mark.ticked && (
+        <div className="subrow">
+          <button className="btn ghost wide" type="button" onClick={onHaveIt} aria-label={`Already have ${row.name}`}>
+            Already have it
+          </button>
+        </div>
+      )}
+      {rest && (
+        <div className="subrow row" role="group" aria-label={`Left over ${row.name}`}>
+          <button className="btn ghost grow" type="button" onClick={onAddRest}>
+            Add the rest to the pantry ({rest})
+          </button>
+          <button className="btn ghost" type="button" onClick={onNoRest}>
+            No thanks
+          </button>
+        </div>
+      )}
       {missing && (
         <div className="swaprow">
           <AskClaudeButton className="btn ghost wide" prompt={swapPrompt}>

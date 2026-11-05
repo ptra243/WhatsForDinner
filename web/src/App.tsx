@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Toast } from './components/AskClaude'
 import { Header } from './components/Header'
 import { ListTab } from './components/ListTab'
+import { PantryTab } from './components/PantryTab'
 import { RecipesTab } from './components/RecipesTab'
 import { SignIn } from './components/SignIn'
 import { SettingsSheet } from './components/SettingsSheet'
@@ -15,7 +16,7 @@ import { supabase } from './lib/supabase'
 import { CurrentUser } from './lib/votes'
 import { TABS, type Tab } from './tabs'
 
-const TITLES: Record<Tab, string> = { week: 'This week', list: 'Shopping list', recipes: 'Recipes' }
+const TITLES: Record<Tab, string> = { week: 'This week', list: 'Shopping list', recipes: 'Recipes', pantry: 'Pantry' }
 
 function tabFromHash(): Tab {
   const h = window.location.hash.slice(1)
@@ -130,7 +131,10 @@ function Shell({ user, household }: { user: { id: string; email: string }; house
 
   return (
     <>
-      <Header title={TITLES[tab]} action={tab === 'week' ? settingsButton : tab === 'list' ? addButton : addRecipeButton} />
+      <Header
+        title={TITLES[tab]}
+        action={tab === 'week' ? settingsButton : tab === 'list' || tab === 'pantry' ? addButton : addRecipeButton}
+      />
       <main>
         <div className="wrap">
           {!online ? (
@@ -162,6 +166,8 @@ function Shell({ user, household }: { user: { id: string; email: string }; house
                 setLikedWeek(week)
               }}
             />
+          ) : tab === 'pantry' ? (
+            <PantryTab householdId={householdId} adding={adding} onAddClose={() => setAdding(false)} />
           ) : (
             <ListTab householdId={householdId} adding={adding} onAddClose={() => setAdding(false)} />
           )}

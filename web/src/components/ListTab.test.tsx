@@ -16,8 +16,10 @@ const api = vi.hoisted(() => ({
   setPackAndShelf: vi.fn(async () => {}),
   subscribeList: vi.fn(),
   askClaude: vi.fn(async () => 'opened'),
+  addLeftover: vi.fn(async () => true),
 }))
 vi.mock('../lib/shop', async (actual) => ({ ...(await actual<typeof import('../lib/shop')>()), ...api }))
+vi.mock('../lib/pantry', async (actual) => ({ ...(await actual<typeof import('../lib/pantry')>()), addLeftover: api.addLeftover }))
 vi.mock('../lib/claude', () => ({ askClaude: api.askClaude }))
 
 const ing = (name: string, qty: number | null, unit: string): RecipeIngredient => ({ name, qty, unit, note: '' })
@@ -37,6 +39,7 @@ const data = (change: Partial<ListData> = {}): ListData => ({
   packs: {},
   shelfDays: {},
   prices: {},
+  pantry: [],
   extras: [{ id: 'x1', name: 'milk', qty: 2, unit: 'l', section: 'dairy and fridge' }],
   marks: {},
   ...change,
@@ -50,7 +53,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
   api.loadList.mockImplementation(async (_h: string, week: string) =>
-    week === '2026-10-26' ? data() : { dishes: [], sections: {}, packs: {}, shelfDays: {}, extras: [], marks: {}, prices: {} },
+    week === '2026-10-26' ? data() : { dishes: [], sections: {}, packs: {}, shelfDays: {}, extras: [], marks: {}, prices: {}, pantry: [] },
   )
   api.subscribeList.mockImplementation((_h: string, cb: () => void) => {
     realtime = cb
@@ -414,5 +417,51 @@ describe('Shopping list prices', () => {
     api.loadList.mockResolvedValue(priced())
     act(() => realtime())
     await waitFor(() => expect(priceLine('beef mince')).toContain('Coles $8'))
+  })
+})
+
+describe('Pantry on the list', () => {
+  const mince = { id: 'p1', slug: 'beef-mince', name: 'beef mince', qty: 300, unit: 'g', location: 'freezer' as const, bestBefore: '2026-10-30', note: '' }
+
+  it('says what is already in the pantry, with one tap to already have it', async () => {
+    api.loadList.mockResolvedValue(data({ pantry: [mince] }))
+    renderTab()
+    expect(await screen.findByText('In pantry: 300 g, best before Fri')).toBeInTheDocument()
+    expect(screen.getAllByText(/^In pantry/)).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Already have beef mince' }))
+    expect(api.setMark).toHaveBeenCalledWith('h1', '2026-10-26', 'beef mince|g', { haveIt: true })
+    expect(within(section('Already have')).getByText('beef mince')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Already have beef mince' })).not.toBeInTheDocument()
+  })
+
+  it('offers to add what is left of a bought pack to the pantry, with its shelf life', async () => {
+    api.loadList.mockResolvedValue(data({ packs: { 'beef mince': { qty: 300, unit: 'g' } }, shelfDays: { 'beef mince': 3 } }))
+    renderTab()
+    fireEvent.click(await screen.findByRole('checkbox', { name: /^beef mince/ }))
+    const offer = screen.getByRole('group', { name: 'Left over beef mince' })
+    fireEvent.click(within(offer).getByRole('button', { name: 'Add the rest to the pantry (100 g)' }))
+    expect(api.addLeftover).toHaveBeenCalledWith('h1', 'beef mince', { qty: 100, unit: 'g', location: 'fridge', bestBefore: '2026-10-31' })
+    expect(await screen.findByText('Added 100 g beef mince to the fridge, best before Sat.')).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Left over beef mince' })).not.toBeInTheDocument()
+  })
+
+  it('works out the rest from the amount bought, and can be turned down', async () => {
+    renderTab()
+    const sheet = await openItem('beef mince')
+    fireEvent.change(within(sheet).getByLabelText('Bought'), { target: { value: '1' } })
+    fireEvent.change(within(sheet).getByRole('combobox', { name: 'Bought unit' }), { target: { value: 'kg' } })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save and tick' }))
+    const offer = screen.getByRole('group', { name: 'Left over beef mince' })
+    expect(within(offer).getByRole('button', { name: 'Add the rest to the pantry (500 g)' })).toBeInTheDocument()
+    fireEvent.click(within(offer).getByRole('button', { name: 'No thanks' }))
+    expect(screen.queryByRole('group')).not.toBeInTheDocument()
+    expect(api.addLeftover).not.toHaveBeenCalled()
+  })
+
+  it('offers nothing when nothing is left over, or the item is not an ingredient', async () => {
+    renderTab()
+    fireEvent.click(await screen.findByRole('checkbox', { name: /^lettuce/ }))
+    fireEvent.click(tick('milk'))
+    expect(screen.queryByRole('group')).not.toBeInTheDocument()
   })
 })

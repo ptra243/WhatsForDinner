@@ -20,6 +20,13 @@ const ICONS: Record<Tab, ReactNode> = {
       <path d="M5 17a3 3 0 0 1 3-3h11" />
     </svg>
   ),
+  pantry: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M8 3h8v3H8z" />
+      <path d="M7 6h10a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" />
+      <path d="M5 12h14" />
+    </svg>
+  ),
 }
 
 /** Fixed bottom tab bar. */
