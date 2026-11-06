@@ -46,6 +46,8 @@ jobs:
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/step_ingredients.sql
       - name: Members read prices and never write them
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/prices.sql
+      - name: Members keep the pantry, for their household only
+        run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/pantry.sql
       - name: Dinner Planner skill SQL examples run
         run: node supabase/tests/skill-sql.mjs | psql "$DB_URL" -v ON_ERROR_STOP=1
 

@@ -75,6 +75,11 @@ const priceQueries = blocks.filter((b) => b.includes('as cached'));
 if (priceQueries.length !== 1) throw new Error(`Expected 1 items to price query in SKILL.md, found ${priceQueries.length}`);
 const priceItems = fill(priceQueries[0]).replace(/;\s*$/, '');
 
+// The pantry query (#19), checked with items near, far from and without a best-before.
+const pantryQueries = blocks.filter((b) => b.includes('from pantry_items'));
+if (pantryQueries.length !== 1) throw new Error(`Expected 1 pantry query in SKILL.md, found ${pantryQueries.length}`);
+const pantry = fill(pantryQueries[0]).replace(/;\s*$/, '');
+
 // The query that finds the owner's household, so it can be checked with a member in the household (#16).
 const ownerQueries = blocks.filter((b) => b.includes("m.role = 'owner'"));
 if (ownerQueries.length !== 1) throw new Error(`Expected 1 owner household query in SKILL.md, found ${ownerQueries.length}`);
@@ -131,6 +136,15 @@ insert into meal_plan_nights (household_id, week_start, day, minutes, locked) va
 select pg_temp.expect('the week''s nights, each with its minutes and lock',
   (select string_agg(day || ' ' || minutes || ' ' || own_time || ' ' || locked, ', ') from (${weekNights}) q),
   'mon 45 false false, tue 45 false false, wed 20 true true, thu 45 false false, fri 45 false false, sat 120 false false, sun 120 false false');
+-- The pantry: beef chuck needs using tomorrow, crushed tomato keeps, lemon has no date and isn't in the ragù (#19).
+insert into pantry_items (household_id, ingredient_slug, qty, unit, location, best_before)
+select :'hid', i.slug, v.qty, v.unit, v.location, current_date + v.days
+from (values ('crushed tomato', 800::numeric, 'g', 'pantry', 400), ('beef chuck', 500, 'g', 'fridge', 1), ('lemon', null, 'each', 'fridge', null))
+  as v(name, qty, unit, location, days)
+join ingredients i on i.name = v.name;
+select pg_temp.expect('the pantry, soonest best-before first, with whether the ragù uses each',
+  (select string_agg(name || ' ' || coalesce(days_left::text, '-') || ' ' || ('beef-ragu' = any(recipes)), ', ') from (${pantry}) q),
+  'beef chuck 1 true, crushed tomato 400 true, lemon - false');
 -- Honey has a pack size the household set but no shelf life, for the fill example (#25).
 update ingredients set pack_qty = 250, pack_unit = 'g', shelf_days = null where name = 'honey';
 select pg_temp.expect('ingredients missing a pack size or shelf life',
@@ -238,6 +252,7 @@ select pg_temp.expect('pairings from the cooked Monday, not the one 27 weeks bac
 select pg_temp.expect('the week''s votes, the 👎 first and only that week',
   (select string_agg(slug || ' ' || likes || '/' || dislikes || ' ' || votes, '; ' order by dislikes desc, likes desc, slug) from (${weekVotes}) q),
   'beef-ragu 1/1 👎 skill-member, 👍 skill-owner; fish-tacos 2/0 👍 skill-member, 👍 skill-owner; shakshuka 1/0 👍 skill-member');
+select pg_temp.expect('pantry untouched by the skill', (select count(*) from pantry_items where household_id = :'hid'), 3::bigint);
 select pg_temp.expect('votes untouched by the skill', (select count(*) from recipe_votes where household_id = :'hid'), 6::bigint);
 select pg_temp.expect('suggestion added with its recipe, the other declined',
   (select string_agg(s.name || ' ' || s.status || ' ' || coalesce(r.slug, '-') || ' ' || s.reply, '; ' order by s.name)

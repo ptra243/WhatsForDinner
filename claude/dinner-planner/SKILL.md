@@ -1,6 +1,6 @@
 ---
 name: dinner-planner
-description: Plan the household's dinners for a week, add recipes from pasted text or photos, price the shopping list at Coles, Woolworths and Aldi, and swap ingredients at the shops, reading and writing the What's for Dinner Supabase database through the Supabase connector. Use when asked to plan meals or a week, add or save a recipe, compare shop prices, or what to swap for an ingredient the shop didn't have.
+description: Plan the household's dinners for a week (or around what's in the pantry), add recipes from pasted text or photos, price the shopping list at Coles, Woolworths and Aldi, and swap ingredients at the shops, reading and writing the What's for Dinner Supabase database through the Supabase connector. Use when asked to plan meals or a week, plan around the pantry, add or save a recipe, compare shop prices, or what to swap for an ingredient the shop didn't have.
 ---
 
 # Dinner Planner
@@ -15,7 +15,7 @@ The human-readable copy of these rules is `docs/claude-instructions.md` in the r
 - Find the household once per chat (query below). If it returns more than one row, ask which email is the owner's.
 - Never plan in or edit the template household (`private.template_household_id()`, named "Example recipes (template)", no members). It holds the examples copied into new households and follows the repo's `seed/`.
 - Use only the tables below. Never change the schema (no `create`, `alter`, `drop`); schema changes are migrations in the repo.
-- Don't change `list_marks`, `list_extras`, `meal_plan_nights` or `recipe_votes` (ticks, hand-added items, cooked flags, a night's own time and lock, votes): they are the shoppers', cook's and members'. Reading them is fine. The shopping list is worked out from the plan, so saving the plan updates it.
+- Don't change `list_marks`, `list_extras`, `meal_plan_nights`, `recipe_votes` or `pantry_items` (ticks, hand-added items, cooked flags, a night's own time and lock, votes, what's at home): they are the shoppers', cook's and members'. Reading them is fine. The shopping list is worked out from the plan, so saving the plan updates it.
 
 ```sql
 -- The owner's household and settings
@@ -42,6 +42,7 @@ where h.id <> private.template_household_id();
 - `recipe_votes`: household_id, week_start (a Monday), recipe_id, user_id, vote (`1` 👍, `-1` 👎). Each member's say on a recipe for a coming week, set in the app. Read only for you: never write votes.
 - `suggestions`: id, household_id, created_by, name, description (may hold a link), status (`open` / `added` / `declined`), reply (your one line), recipe_id → recipes. Dinners members suggest in the app. You set only `status`, `reply` and `recipe_id` (Suggestions below).
 - `ingredient_prices`: household_id, ingredient_slug → `ingredients`, store (`coles` / `woolworths` / `aldi`), source (`whichgrocer` / `grocerly` / `paid`), seen_on (date, defaults to today), product, pack_qty and pack_unit (a unit from the list), price (the pack's shelf price), unit_price and unit_basis (`kg` / `l` / `each`), on_special, source_updated_on (when the source last refreshed, where it says). One row per ingredient, store, source and day: saving again that day overwrites it. A not found row (no acceptable match at that store) has product, pack, price and unit price null. You write these (Prices below); the app only reads them, through the view `ingredient_prices_latest` (each ingredient's latest row per store), and shows them on the shopping list. They are the price history: never delete them.
+- `pantry_items`: household_id, ingredient_slug → `ingredients`, qty (null when nobody measured it), unit, location (`fridge` / `freezer` / `pantry`), best_before (date; null when nobody knows), note. What the household has at home, kept in the app's Pantry tab (the app fills best_before from the ingredient's `shelf_days`; **Used up** deletes a row). Read only for you: never write the pantry.
 - `household_settings`, `households`, `household_members`, `household_invites`: read only for you. A household can have members besides the owner (`role = 'member'`, a partner who joined by invite); they use the app, and you still plan for the household and set `created_by` to the owner.
 
 ## Units and sections
@@ -77,7 +78,7 @@ The database rejects anything else.
 
 ## Planning
 
-1. Read the settings, the recipes (with when each was last cooked), the week's votes and nights (queries below) and the week if anything is already planned.
+1. Read the settings, the recipes (with when each was last cooked), the week's votes and nights (queries below) and the week if anything is already planned. Glance at the pantry (query below) and favour recipes that use what is near its best-before; when asked to plan around it, follow Plan around the pantry below.
 2. Check the week before for dinners that were planned but not marked cooked (plans change: a night out, a late finish). List them and ask whether to put any on the new week; don't assume, since the cook may have cooked and not ticked it. Leave the old week as it is.
 3. Favour recipes with a 👍 for the week, then well-rated ones. Leave out any recipe with a 👎 for the week unless asked to plan it. Say in the proposal which votes you followed ("Fish tacos: 👍 Sam. Left out beef ragù: 👎 you"); name members by the part of their email before the @. Votes are for that week only.
    Don't repeat anything cooked in the last two weeks; spread proteins across the week. A dinner planned but not cooked doesn't count as a repeat.
@@ -89,6 +90,17 @@ The database rejects anything else.
 8. Servings are usually the recipe's `serves`; scale to the household.
 9. Never change a locked night's dishes (the nights query) unless asked to by name: plan the other nights around it, and in the proposal say it is kept ("Wed: locked, kept"). Writing a night replaces its dishes, so skip locked nights.
 10. Propose the plan as a short day-by-day list and wait for approval before writing, unless asked to just do it. Then write each night and say it's saved, and price the week's list (Prices below).
+
+## Plan around the pantry
+
+When the owner asks to plan around the pantry ("Plan around my What's for Dinner pantry for the week of …"), rework that week's nights to use up what is at home, soonest best-before first (a bargain bought on special, say).
+
+1. Read the pantry (query below: soonest best-before first, with the household's recipes that use each item), the week (read-a-week query) and its nights (nights query: cooked and locked).
+2. Rework only nights not marked cooked, from today on: a night before today may have been cooked and not ticked. Leave cooked and locked nights as they are, and say they are kept.
+3. Go through the pantry soonest best-before first: plan a recipe that uses the item on a night before its best-before (past it: say so and let the owner decide), with enough servings or a second night to use it up. Frozen items keep; plan them last unless asked. An item no recipe uses: say so, and offer to add a recipe for it.
+4. Every other planning rule still holds (time, meal rule, votes, allergens, notes, no repeats).
+5. Propose the reworked nights day by day, naming the pantry items each one uses and their best-before ("Tue: Lemongrass chicken, uses the chicken thigh (best before Wed)"), and what is left unused. Wait for approval, then write each changed night and price the week's list (Prices below).
+6. Never write `pantry_items`: the household marks things used up in the app. The shopping list shows what is in the pantry, so there is nothing to subtract.
 
 ## Recipes
 
@@ -238,16 +250,31 @@ where r.household_id = '<household_id>'
 order by r.name, ri.position;
 ```
 
-The week's nights: each one's hands-on minutes (its own, else the weekday's), whether that is its own, and whether it is locked:
+The week's nights: each one's hands-on minutes (its own, else the weekday's), whether that is its own, whether it is locked, and whether it was cooked:
 
 ```sql
 select d.day, coalesce(n.minutes, (s.settings->'minutes'->>d.day)::int) as minutes,
-       n.minutes is not null as own_time, coalesce(n.locked, false) as locked
+       n.minutes is not null as own_time, coalesce(n.locked, false) as locked,
+       coalesce(n.cooked, false) as cooked
 from unnest(array['mon','tue','wed','thu','fri','sat','sun']) with ordinality as d(day, i)
 left join household_settings s on s.household_id = '<household_id>'
 left join meal_plan_nights n on n.household_id = '<household_id>'
  and n.week_start = '<week_start>' and n.day = d.day
 order by d.i;
+```
+
+The pantry, soonest best-before first (`days_left` below 0 is past it), with the household's recipes that use each item:
+
+```sql
+select p.location, i.name, p.qty, p.unit, p.best_before, p.best_before - current_date as days_left, p.note,
+       array(select r.slug from recipe_ingredients ri
+             join recipes r on r.id = ri.recipe_id
+             where r.household_id = p.household_id and ri.ingredient_slug = p.ingredient_slug
+             order by r.slug) as recipes
+from pantry_items p
+join ingredients i on i.slug = p.ingredient_slug
+where p.household_id = '<household_id>'
+order by p.best_before nulls last, i.name;
 ```
 
 Read a week:

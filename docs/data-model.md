@@ -26,6 +26,7 @@ Table privileges are granted explicitly, because the live project gives `anon` a
 | `list_extras` | household_id, week_start, name, qty, unit, section, added_by | Hand-added list items |
 | `recipe_votes` | household_id, week_start (a Monday, checked), recipe_id → recipes, user_id → auth.users, vote (`1` 👍 / `-1` 👎) | PK (household_id, week_start, recipe_id, user_id); no `id`. Members read all the household's votes and write only their own (`user_id = auth.uid()`), for the household's own recipes. Goes with the recipe or the user |
 | `ingredient_prices` | household_id, ingredient_slug → ingredients, store (`coles` / `woolworths` / `aldi`), source (`whichgrocer` / `grocerly` / `paid`), seen_on date, product, pack_qty, pack_unit, price, unit_price, unit_basis (`kg` / `l` / `each`), on_special, source_updated_on | Price history and Claude's cache ([below](#prices)). Unique (household_id, ingredient_slug, store, source, seen_on). Members read; only Claude writes |
+| `pantry_items` | household_id, ingredient_slug → ingredients, qty (null = some), unit, location (`fridge` / `freezer` / `pantry`, checked), best_before date null, note, added_by → auth.users | What is at home ([below](#pantry)). Members read and change all of the household's; Claude only reads it |
 | `suggestions` | id, household_id, created_by → auth.users, name, description, status (`open` / `added` / `declined`, checked), reply, recipe_id → recipes, handled_at | Members read the household's; the author edits name and description (column grant) or deletes, only while open. A new one is open with no reply or recipe. Status, reply and recipe are Claude's. `added` needs a recipe of the same household; deleting the recipe or the author clears the link |
 
 ## Rules enforced by the database
@@ -35,6 +36,7 @@ Table privileges are granted explicitly, because the live project gives `anon` a
 - **Allergens** (Australia's mandatory allergens, `private.allergens()`): `egg, milk, peanut, tree nut, sesame, soy, wheat, gluten, fish, crustacean, mollusc, lupin`. An ingredient lists those it usually contains, erring towards tagging (`egg noodle` and `wonton wrapper` are `egg`). Tags are generic, not per brand, so the app and Claude say "check the label" rather than promising a dish is safe.
 - **Ingredient names** are singular, lowercase and plain (`onion`, `crushed tomato`); variety and prep go in `note`. Every `recipe_ingredients` row references `ingredients`, so a new ingredient needs a section first.
 - **Week start** is always a Monday.
+- **Pantry locations:** `fridge, freezer, pantry`.
 
 ## Derived shopping list
 
@@ -96,7 +98,7 @@ These functions are security definer and check the caller. CI checks them in `su
 
 ## Export and clearing examples
 
-The settings sheet (`web/src/lib/household.ts`) saves `household_settings.settings` keeping any keys it does not show. **Export** downloads one JSON file (`format: 1`) with the household, its members and settings, recipes with their ingredients, steps (with the ingredients each uses) and methods, plan nights and dishes, list marks and extras, votes, suggestions, ingredient prices, and the shared `ingredients` list; rows are as stored and read a page at a time past the API row limit. **Clear examples** deletes the household's `is_example` recipes; their ingredients, steps and planned dishes go with them by `on delete cascade`.
+The settings sheet (`web/src/lib/household.ts`) saves `household_settings.settings` keeping any keys it does not show. **Export** downloads one JSON file (`format: 1`) with the household, its members and settings, recipes with their ingredients, steps (with the ingredients each uses) and methods, plan nights and dishes, list marks and extras, votes, suggestions, ingredient prices, the pantry, and the shared `ingredients` list; rows are as stored and read a page at a time past the API row limit. **Clear examples** deletes the household's `is_example` recipes; their ingredients, steps and planned dishes go with them by `on delete cascade`.
 
 ## Votes
 
@@ -114,10 +116,18 @@ The view `ingredient_prices_latest` (security invoker, so the table's policies a
 
 The shopping list (`web/src/lib/prices.ts`, Vitest tests) shows each priced item's stores, Coles first: `Coles $16 · Woolies $14 · Aldi –`, with the unit price small beside each, specials marked and a price older than 7 days dated (`Aldi $4.50 · 12 Oct`, still counted). An item's price is packs to buy × the store's pack price, comparing kg and l as g and ml and rounding up as the list's packs do; when the pack can't be compared with the amount, or there is no amount, one pack (`$5.50 (1 kg pack)`). No row or a not found row shows `–` and is left out of that store's total. Pantry staples (the `herbs and spices` section, and names ending in oil, sauce or stock) get no price line, and Claude doesn't price them. A hand-added item is priced when its name is a known ingredient. The top of the list totals each store over every item except those marked already have (an ingredient both planned and added by hand is one need: its amounts are added before rounding up to packs, and it counts once, as in Claude's items query), with how many items each covers (`Aldi $121 · 20 of 24 items`) and a note when older prices are included. The item sheet names each store's matched product; a wrong match is fixed by telling Claude in chat. CI checks the policies and the view in `supabase/tests/prices.sql`.
 
+## Pantry
+
+`pantry_items` holds what the household has at home and where: the **Pantry** tab (`web/src/components/PantryTab.tsx`, logic in `web/src/lib/pantry.ts` with Vitest tests) lists it by location (fridge, freezer, pantry), soonest best-before first, and flags items past their best-before or within 2 days of it. **Add item** picks an ingredient from `ingredients` (a new name needs its section and is added to the shared list); the best-before starts at today plus the ingredient's `shelf_days` and follows the ingredient until it is changed by hand; a blank amount is "some". Tapping an item edits it; **Used up** deletes it. Nothing is ever subtracted from the pantry by itself.
+
+The shopping list loads the pantry with the list and shows, under an item whose ingredient is in it, "In pantry: 300 g, best before Fri" (every row's amount, the soonest best-before) with **Already have it**, which marks the item already have. Ticking a bought item with something left over (the amount bought, or with none entered the packs to buy, less what the week needs, in the same unit) offers **Add the rest to the pantry**: it adds that amount, in the fridge for fresh sections, the freezer for frozen and the pantry otherwise, best-before from shelf life. Pantry writes need signal; they don't go through the list's offline queue.
+
+The owner's Ask Claude **Plan around my pantry** (on the Pantry tab) asks the Dinner Planner skill to rework the current week's uncooked nights from today to use items soonest best-before first, proposing before it writes. Claude reads the pantry and never writes it. Pantry changes are realtime for both members and are in **Export**. CI checks the policies and the location list in `supabase/tests/pantry.sql`.
+
 ## Side-dish pairings
 
 Pairings are derived, not stored: a main's usual sides are the sides planned with it on nights marked cooked (`meal_plan_dishes` joined to `meal_plan_nights` where `cooked`) in the last 26 weeks, counted once a night. The app works them out in `web/src/lib/plan.ts` (`pairedSides`); the Dinner Planner skill has the same query.
 
 ## Later (additive)
 
-pantry (with location and best-before, defaulting from `ingredients.shelf_days`), ingredient_substitutes, per-night time overrides and locks.
+ingredient_substitutes.

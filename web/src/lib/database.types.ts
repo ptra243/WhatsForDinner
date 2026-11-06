@@ -229,6 +229,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"pantry_items": {
+                  Row: {
+                    "added_by": string | null,"best_before": string | null,"created_at": string,"household_id": string,"id": string,"ingredient_slug": string,"location": string,"note": string,"qty": number | null,"unit": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "added_by"?: string | null,"best_before"?: string | null,"created_at"?: string,"household_id": string,"id"?: string,"ingredient_slug": string,"location"?: string,"note"?: string,"qty"?: number | null,"unit"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "added_by"?: string | null,"best_before"?: string | null,"created_at"?: string,"household_id"?: string,"id"?: string,"ingredient_slug"?: string,"location"?: string,"note"?: string,"qty"?: number | null,"unit"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "pantry_items_household_id_fkey"
+      columns: ["household_id"]
+isOneToOne: false
+      referencedRelation: "households"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "pantry_items_ingredient_slug_fkey"
+      columns: ["ingredient_slug"]
+isOneToOne: false
+      referencedRelation: "ingredients"
+      referencedColumns: ["slug"]
+    }
+                  ]
                 },"recipe_ingredients": {
                   Row: {
                     "id": string,"ingredient_slug": string,"note": string,"position": number,"qty": number | null,"recipe_id": string,"unit": string

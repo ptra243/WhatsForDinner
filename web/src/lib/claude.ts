@@ -52,4 +52,7 @@ export const addRecipePrompt = () => `Add this recipe to my What's for Dinner re
 export const refineSuggestionPrompt = (name: string, description: string, id: string) =>
   `Refine this What's for Dinner suggestion into a recipe: "${name}"${description ? ` (${description})` : ''} (suggestion id ${id}).`
 
+export const pantryPlanPrompt = (weekStart: string) =>
+  `Plan around my What's for Dinner pantry for ${week(weekStart)}: rework the nights not cooked yet to use what's soonest best-before first.`
+
 export const refineAllPrompt = () => `Refine all open What's for Dinner suggestions into recipes.`
