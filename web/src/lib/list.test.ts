@@ -144,6 +144,14 @@ describe('shopList', () => {
     expect(v).toMatchObject({ ticked: 1, total: 6 })
   })
 
+  it('keeps one ticked row on show while hiding the rest', () => {
+    const marks = { 'beef mince|g': m({ ticked: true }), 'lettuce|each': m({ ticked: true }) }
+    const v = shopList(items, marks, true, 'beef mince|g')
+    const shown = v.sections.flatMap((s) => s.rows.map((r) => r.name))
+    expect(shown).toContain('beef mince')
+    expect(shown).not.toContain('lettuce')
+  })
+
   it('sets already-have items apart, out of the progress', () => {
     const v = shopList(items, { 'salt|tsp': m({ haveIt: true, ticked: true }) })
     expect(v.have.map((r) => r.name)).toEqual(['salt'])

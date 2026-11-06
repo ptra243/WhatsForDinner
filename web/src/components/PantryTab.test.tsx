@@ -105,6 +105,24 @@ describe('Pantry tab', () => {
     await waitFor(() => expect(api.loadPantry).toHaveBeenCalledTimes(2))
   })
 
+  it('keeps the sheet open with the error when a save fails, through the reload', async () => {
+    api.addPantryItem.mockRejectedValueOnce({ message: 'duplicate key value' })
+    const onAddClose = vi.fn()
+    renderTab({ adding: true, onAddClose })
+    const sheet = await screen.findByRole('dialog', { name: 'Add to the pantry' })
+    fireEvent.change(within(sheet).getByLabelText('Item'), { target: { value: 'rice' } })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Add to the pantry' }))
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent('Could not save that: duplicate key value')
+    await waitFor(() => expect(api.loadPantry).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole('dialog', { name: 'Add to the pantry' })).toBeInTheDocument()
+    expect(within(sheet).getByLabelText('Item')).toHaveValue('rice')
+    expect(within(sheet).getByRole('alert')).toBeInTheDocument()
+    expect(onAddClose).not.toHaveBeenCalled()
+    // Trying again works and closes it.
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Add to the pantry' }))
+    await waitFor(() => expect(onAddClose).toHaveBeenCalled())
+  })
+
   it('asks for the section of a new ingredient before adding it', async () => {
     renderTab({ adding: true })
     const sheet = await screen.findByRole('dialog', { name: 'Add to the pantry' })

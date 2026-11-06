@@ -5,6 +5,7 @@ import {
   addPantryItem,
   bestBeforeText,
   defaultBestBefore,
+  findIngredient,
   freshness,
   loadPantry,
   LOCATION_NAMES,
@@ -36,6 +37,8 @@ export function PantryTab({ householdId, adding, onAddClose }: { householdId: st
   const [error, setError] = useState<string>()
   const [version, setVersion] = useState(0)
   const [editing, setEditing] = useState<PantryItem>()
+  // A save that failed: shown in the sheet, which stays open so nothing typed is lost.
+  const [saveError, setSaveError] = useState<string>()
   const today = ymd(new Date())
 
   useEffect(() => {
@@ -65,13 +68,19 @@ export function PantryTab({ householdId, adding, onAddClose }: { householdId: st
     }
   }, [householdId])
 
-  /** Runs a save, shows any error, and reloads after it. */
+  const closeSheet = () => {
+    setEditing(undefined)
+    setSaveError(undefined)
+    onAddClose()
+  }
+
+  /** Runs a save and closes the sheet; when it fails, the sheet stays open with the error. Reloads either way. */
   const save = async (write: () => Promise<void>) => {
     try {
       await write()
-      setError(undefined)
+      closeSheet()
     } catch (e) {
-      setError(errorText(e))
+      setSaveError(errorText(e))
     } finally {
       setVersion((v) => v + 1)
     }
@@ -130,22 +139,17 @@ export function PantryTab({ householdId, adding, onAddClose }: { householdId: st
           item={editing}
           ingredients={pantry.ingredients}
           today={today}
+          error={saveError}
           onSave={(read) => {
             const { values, newIngredient } = read
             const id = editing?.id
-            void save(() => (id ? updatePantryItem(id, values, newIngredient) : addPantryItem(householdId, values, newIngredient)))
-            setEditing(undefined)
-            onAddClose()
+            return save(() => (id ? updatePantryItem(id, values, newIngredient) : addPantryItem(householdId, values, newIngredient)))
           }}
           onUsedUp={() => {
             const id = editing?.id
-            if (id) void save(() => removePantryItem(id))
-            setEditing(undefined)
+            return id ? save(() => removePantryItem(id)) : Promise.resolve()
           }}
-          onClose={() => {
-            setEditing(undefined)
-            onAddClose()
-          }}
+          onClose={closeSheet}
         />
       )}
     </>
@@ -182,6 +186,7 @@ function ItemSheet({
   item,
   ingredients,
   today,
+  error,
   onSave,
   onUsedUp,
   onClose,
@@ -189,8 +194,10 @@ function ItemSheet({
   item?: PantryItem
   ingredients: Record<string, PantryIngredient>
   today: string
-  onSave: (read: Read) => void
-  onUsedUp: () => void
+  /** Why the last save failed. */
+  error?: string
+  onSave: (read: Read) => Promise<void>
+  onUsedUp: () => Promise<void>
   onClose: () => void
 }) {
   const listId = useId()
@@ -204,9 +211,10 @@ function ItemSheet({
   })
   // Null until the date is changed by hand; until then it follows the ingredient's shelf life.
   const [picked, setPicked] = useState<string | null>(item ? (item.bestBefore ?? '') : null)
+  const [busy, setBusy] = useState(false)
   const set = (patch: Partial<PantryForm>) => setForm((f) => ({ ...f, ...patch }))
-  const name = form.name.toLowerCase().trim()
-  const known = ingredients[name]
+  const name = form.name.trim()
+  const known = findIngredient(form.name, ingredients)
   const bestBefore = picked ?? defaultBestBefore(today, known?.shelfDays) ?? ''
   const read = readPantryForm({ ...form, bestBefore }, ingredients)
   const names = Object.keys(ingredients).sort()
@@ -217,7 +225,9 @@ function ItemSheet({
         className="stack"
         onSubmit={(e) => {
           e.preventDefault()
-          if (!('error' in read)) onSave(read)
+          if ('error' in read || busy) return
+          setBusy(true)
+          void onSave(read).finally(() => setBusy(false))
         }}
       >
         <label className="lab" htmlFor="pantry-name">
@@ -313,11 +323,24 @@ function ItemSheet({
           onChange={(e) => set({ note: e.target.value })}
         />
         {'error' in read && name && <p className="small warn flat">{read.error}</p>}
-        <button className="btn wide" type="submit" disabled={'error' in read}>
+        {error && (
+          <p className="small warn flat" role="alert">
+            Could not save that: {error}
+          </p>
+        )}
+        <button className="btn wide" type="submit" disabled={'error' in read || busy}>
           {item ? 'Save' : 'Add to the pantry'}
         </button>
         {item && (
-          <button className="btn danger wide" type="button" onClick={onUsedUp}>
+          <button
+            className="btn danger wide"
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true)
+              void onUsedUp().finally(() => setBusy(false))
+            }}
+          >
             Used up
           </button>
         )}

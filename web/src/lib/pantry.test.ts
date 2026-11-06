@@ -5,6 +5,7 @@ import {
   daysFrom,
   defaultBestBefore,
   defaultLocation,
+  findIngredient,
   freshness,
   inPantryText,
   leftover,
@@ -149,6 +150,19 @@ describe('the item sheet', () => {
       name: 'chicken thigh',
       values: { slug: 'chicken-thigh', qty: 300, unit: 'g', location: 'fridge', bestBefore: '2026-11-07', note: 'on special' },
     })
+  })
+
+  it('finds a known ingredient through stray spaces, case or its slug', () => {
+    const tomato = { slug: 'crushed-tomato', name: 'crushed tomato', section: 'canned veg', shelfDays: 730 }
+    const withTomato = { ...known, 'crushed tomato': tomato }
+    expect(findIngredient(' Crushed  tomato ', withTomato)).toBe(tomato)
+    expect(findIngredient('crushed-tomato', withTomato)).toBe(tomato)
+    expect(findIngredient('tomato', withTomato)).toBeUndefined()
+    expect(readPantryForm(form({ name: 'Crushed  tomato', section: '' }), withTomato)).toMatchObject({
+      name: 'crushed tomato',
+      values: { slug: 'crushed-tomato' },
+    })
+    expect(readPantryForm(form({ name: 'Crushed  tomato', section: '' }), withTomato)).not.toHaveProperty('newIngredient')
   })
 
   it('takes a blank amount as some and a blank date as none', () => {

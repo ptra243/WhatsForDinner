@@ -188,14 +188,15 @@ export type ShopList = {
 /**
  * The list as the shopper sees it: marks laid over the items, grouped by section in walking
  * order, already-have items set apart. Marks for items no longer on the list are ignored.
+ * With `hideTicked`, ticked items are left out except `keep` (one still waiting on an answer).
  */
-export function shopList(items: ListItem[], marks: Record<string, Mark>, hideTicked = false): ShopList {
+export function shopList(items: ListItem[], marks: Record<string, Mark>, hideTicked = false, keep?: string): ShopList {
   const rows = items.map((i) => ({ ...i, mark: marks[i.key] ?? NO_MARK }))
   const need = rows.filter((r) => !r.mark.haveIt)
   const sections: ShopList['sections'] = []
   for (const section of SECTIONS) {
     const inSection = need
-      .filter((r) => r.section === section && !(hideTicked && r.mark.ticked))
+      .filter((r) => r.section === section && !(hideTicked && r.mark.ticked && r.key !== keep))
       .sort((a, b) => Number(a.mark.ticked) - Number(b.mark.ticked) || a.name.localeCompare(b.name))
     if (inSection.length) sections.push({ section, rows: inSection })
   }

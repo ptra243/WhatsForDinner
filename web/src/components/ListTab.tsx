@@ -34,8 +34,13 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
   const [version, setVersion] = useState(0)
   const [hideTicked, setHideTicked] = useState(loadHide)
   const [openKey, setOpenKey] = useState<string>()
-  // The bought item whose left-over amount the list offers to add to the pantry.
+  // The bought item whose left-over amount the list offers to add to the pantry. It stays on
+  // the list until answered, even with Hide ticked on.
   const [offerKey, setOfferKey] = useState<string>()
+  // Items (week|key) whose rest went to the pantry this visit, so a re-tick doesn't add it twice.
+  const [restAdded, setRestAdded] = useState<ReadonlySet<string>>(() => new Set())
+  // A pantry save that failed; kept until the next one or dismissed, since reloading the list clears `error`.
+  const [pantryError, setPantryError] = useState<string>()
   // Offline the list shows from the service worker and changes wait in the queue; moving a
   // section needs signal. The list reloads when the signal returns.
   const online = useOnline()
@@ -74,7 +79,7 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
   const reload = () => setVersion((v) => v + 1)
   const data = list?.week === week ? list.data : undefined
   const items = data ? deriveList(data.dishes, data.sections, data.extras, data.packs) : []
-  const view = data ? shopList(items, data.marks, hideTicked) : undefined
+  const view = data ? shopList(items, data.marks, hideTicked, offerKey) : undefined
   const today = ymd(new Date())
   const prices: Prices = data?.prices ?? {}
   // Every item counts towards the totals, ticked or hidden, except those marked already have.
@@ -92,8 +97,9 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
   const mark = (key: string, m: Partial<Mark>) =>
     change({ kind: 'mark', week, key, change: m }, (d) => ({ ...d, marks: { ...d.marks, [key]: applyMark(d.marks[key], m) } }))
 
-  /** What is left of a ticked item for the pantry; only for a known ingredient. */
-  const restOf = (r: ShopRow) => (data && r.mark.ticked && r.name in data.sections ? leftover(r) : null)
+  /** What is left of a ticked item for the pantry; only for a known ingredient, and once. */
+  const restOf = (r: ShopRow) =>
+    data && r.mark.ticked && r.name in data.sections && !restAdded.has(`${week}|${r.key}`) ? leftover(r) : null
 
   /** Ticks an item (or unticks it); a tick with something left over offers it to the pantry. */
   const tickItem = (r: ShopRow, m: Partial<Mark>) => {
@@ -112,13 +118,14 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
     try {
       const added = await addLeftover(householdId, r.name, { ...rest, location, bestBefore })
       if (!added) return
-      setError(undefined)
+      setPantryError(undefined)
+      setRestAdded((s) => new Set(s).add(`${week}|${r.key}`))
       showToast(
         `Added ${fmtQty(rest.qty, rest.unit)} ${r.name} to the ${LOCATION_NAMES[location].toLowerCase()}` +
           (bestBefore ? `, best before ${bestBeforeText(bestBefore, today)}.` : '.'),
       )
     } catch (e) {
-      setError(errorText(e))
+      setPantryError(errorText(e))
     } finally {
       reload()
     }
@@ -171,6 +178,14 @@ export function ListTab({ householdId, adding, onAddClose }: { householdId: stri
   return (
     <>
       <WeekNav week={week} onChange={setWeek} />
+      {pantryError && (
+        <p className="small warn row" role="alert">
+          <span className="grow">Could not add it to the pantry: {pantryError}</span>
+          <button className="btn quiet" type="button" onClick={() => setPantryError(undefined)}>
+            Dismiss
+          </button>
+        </p>
+      )}
       {error && (
         <p className="small warn" role="alert">
           Could not {data ? 'save that change' : 'load the list'}: {error}

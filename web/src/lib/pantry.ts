@@ -120,6 +120,20 @@ export function defaultLocation(section: string): Location {
   return 'pantry'
 }
 
+/** A typed name as stored: lowercase, trimmed, single spaces ("Crushed  tomato" → "crushed tomato"). */
+export const cleanName = (name: string) => name.toLowerCase().trim().replace(/\s+/g, ' ')
+
+/**
+ * The known ingredient a typed name means: by name, or else by slug, so "crushed-tomato" or a
+ * stray space still finds "crushed tomato" instead of clashing with it as a new one.
+ */
+export function findIngredient(name: string, known: Record<string, PantryIngredient>): PantryIngredient | undefined {
+  const clean = cleanName(name)
+  if (!clean) return undefined
+  const slug = slugOf(clean)
+  return known[clean] ?? Object.values(known).find((i) => i.slug === slug)
+}
+
 export type PantryForm = { name: string; qty: string; unit: string; location: string; bestBefore: string; note: string; section: string }
 
 /**
@@ -131,9 +145,9 @@ export function readPantryForm(
   form: PantryForm,
   known: Record<string, PantryIngredient>,
 ): { values: PantryValues; name: string; newIngredient?: { name: string; section: string } } | { error: string } {
-  const name = form.name.toLowerCase().trim()
+  const ingredient = findIngredient(form.name, known)
+  const name = ingredient?.name ?? cleanName(form.name)
   if (!name) return { error: 'Name the item.' }
-  const ingredient = known[name]
   if (!ingredient && !(SECTIONS as readonly string[]).includes(form.section)) return { error: 'Pick a section for a new ingredient.' }
   const slug = ingredient?.slug ?? slugOf(name)
   if (!slug) return { error: 'Name the item with letters or numbers.' }

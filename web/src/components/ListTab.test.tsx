@@ -458,6 +458,40 @@ describe('Pantry on the list', () => {
     expect(api.addLeftover).not.toHaveBeenCalled()
   })
 
+  it('keeps the offered item on the list with Hide ticked on until it is answered', async () => {
+    localStorage.setItem('wfd.hideTicked', '1')
+    api.loadList.mockResolvedValue(data({ packs: { 'beef mince': { qty: 300, unit: 'g' } } }))
+    renderTab()
+    fireEvent.click(await screen.findByRole('checkbox', { name: /^beef mince/ }))
+    expect(screen.getByText('beef mince')).toBeInTheDocument()
+    fireEvent.click(within(screen.getByRole('group', { name: 'Left over beef mince' })).getByRole('button', { name: 'No thanks' }))
+    expect(screen.queryByText('beef mince')).not.toBeInTheDocument()
+  })
+
+  it('offers the rest once: re-ticking after adding it offers nothing', async () => {
+    api.loadList.mockResolvedValue(data({ packs: { 'beef mince': { qty: 300, unit: 'g' } } }))
+    renderTab()
+    fireEvent.click(await screen.findByRole('checkbox', { name: /^beef mince/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add the rest to the pantry (100 g)' }))
+    await waitFor(() => expect(api.addLeftover).toHaveBeenCalledTimes(1))
+    fireEvent.click(tick('beef mince'))
+    fireEvent.click(tick('beef mince'))
+    expect(screen.queryByRole('group', { name: 'Left over beef mince' })).not.toBeInTheDocument()
+  })
+
+  it('keeps a failed pantry add on screen through the reload, until dismissed', async () => {
+    api.addLeftover.mockRejectedValueOnce({ message: 'Failed to fetch' })
+    api.loadList.mockResolvedValue(data({ packs: { 'beef mince': { qty: 300, unit: 'g' } } }))
+    renderTab()
+    fireEvent.click(await screen.findByRole('checkbox', { name: /^beef mince/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add the rest to the pantry (100 g)' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not add it to the pantry: Failed to fetch')
+    await waitFor(() => expect(api.loadList).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('offers nothing when nothing is left over, or the item is not an ingredient', async () => {
     renderTab()
     fireEvent.click(await screen.findByRole('checkbox', { name: /^lettuce/ }))
