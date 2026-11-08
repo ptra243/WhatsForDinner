@@ -92,6 +92,32 @@ describe('a night', () => {
     expect(nightInfo(n, 'tue', recipes, DEFAULT_SETTINGS).total).toBe(60)
   })
 
+  it('adds the chosen extras to the dish’s hands-on and total minutes', () => {
+    const STIR_FRY = recipe({
+      id: 'stir-fry',
+      name: 'Beef stir-fry',
+      activeMins: 20,
+      totalMins: 25,
+      steps: [
+        { id: 'velvet', text: 'Velvet the beef.', timerMins: null, optional: true, extraMins: 15, why: 'silkier, more tender' },
+        { id: 'fry', text: 'Stir-fry.', timerMins: null },
+        { id: 'chips', text: 'Fry garlic chips.', timerMins: null, optional: true, extraMins: 10, why: 'crunch' },
+      ],
+    })
+    const recipes = new Map([...RECIPES, [STIR_FRY.id, STIR_FRY]])
+    const plain = nightInfo(night([['stir-fry', 'main'], ['rice', 'side']]), 'mon', recipes, DEFAULT_SETTINGS)
+    expect([plain.active, plain.total, plain.over]).toEqual([25, 25, false])
+    const n = night([['stir-fry', 'main'], ['rice', 'side']])
+    n.dishes[0].extras = ['velvet', 'chips']
+    const i = nightInfo(n, 'mon', recipes, DEFAULT_SETTINGS)
+    expect(i.active).toBe(50)
+    expect(i.total).toBe(50)
+    expect(i.over).toBe(true)
+    // An id that is not one of the method's optional steps adds nothing.
+    n.dishes[0].extras = ['fry', 'gone']
+    expect(nightInfo(n, 'mon', recipes, DEFAULT_SETTINGS).active).toBe(25)
+  })
+
   it('flags veg and carb gaps per the meal rule', () => {
     const curry = night([['curry', 'main']])
     expect(nightInfo(curry, 'mon', RECIPES, DEFAULT_SETTINGS).gaps).toEqual(['carb'])

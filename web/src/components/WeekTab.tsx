@@ -3,7 +3,8 @@ import { containsText, type TaggedSwap } from '../lib/allergens'
 import { useCanAskClaude } from '../lib/askAccess'
 import { nightPrompt, planWeekPrompt, weekPrompt } from '../lib/claude'
 import { mins } from '../lib/format'
-import { methodChoices } from '../lib/methods'
+import { extraDetail, optionalSteps } from '../lib/extras'
+import { methodChoices, methodOf } from '../lib/methods'
 import {
   DEFAULT_SETTINGS,
   loadCookedNights,
@@ -13,6 +14,7 @@ import {
   nightInfo,
   pairedSides,
   removeDish,
+  setDishExtras,
   setDishMethod,
   setNightFlags,
   setServings,
@@ -44,9 +46,9 @@ const PAIRING_WEEKS = 26
 
 /**
  * A dish to open from the card: its recipe at the night's servings (the recipe's own when left
- * out), with the night's swaps and method.
+ * out), with the night's swaps, method and extras.
  */
-type Opened = { recipeId: string; servings?: number; swaps?: TaggedSwap[]; methodId?: string | null }
+type Opened = { recipeId: string; servings?: number; swaps?: TaggedSwap[]; methodId?: string | null; extras?: string[] }
 
 /** Where a night's dinner can move: another night this week or next, with what is planned there. */
 type Target = { week: string; day: Day; night: Night }
@@ -279,6 +281,7 @@ export function WeekTab({
           avoid={settings.avoid}
           swaps={viewing.swaps}
           methodId={viewing.methodId}
+          extras={viewing.extras}
           onChange={changeRecipe}
           onDeleted={() => {
             setViewing(undefined)
@@ -296,6 +299,7 @@ export function WeekTab({
           recipe={cooked}
           servings={cooking.servings ?? cooked.serves}
           methodId={cooking.methodId}
+          extras={cooking.extras}
           onChange={changeRecipe}
           onExit={() => setCooking(undefined)}
           onDone={(message) => {
@@ -339,7 +343,9 @@ function NightRow({
         key={d.id}
         type="button"
         className={className}
-        onClick={() => onView({ recipeId: d.recipeId, servings: d.servings, swaps: d.swaps, methodId: d.methodId })}
+        onClick={() =>
+          onView({ recipeId: d.recipeId, servings: d.servings, swaps: d.swaps, methodId: d.methodId, extras: d.extras })
+        }
       >
         {d.recipe.name}
       </button>
@@ -404,7 +410,8 @@ function NightRow({
             className="cook"
             aria-label={`Cook ${i.main.recipe.name}`}
             onClick={() =>
-              i.main && onCook({ recipeId: i.main.recipeId, servings: i.main.servings, methodId: i.main.methodId })
+              i.main &&
+              onCook({ recipeId: i.main.recipeId, servings: i.main.servings, methodId: i.main.methodId, extras: i.main.extras })
             }
           >
             Cook
@@ -540,9 +547,21 @@ function NightSheet({
             const choices = d.recipe ? methodChoices(d.recipe, settings.equipment, d.methodId) : []
             const pickMethod = (methodId: string | null) => {
               if (methodId === (d.methodId ?? null)) return
+              // The database drops the old method's extras, so the sheet does too.
               save(
                 () => setDishMethod(d.id, methodId),
-                (x) => ({ ...x, dishes: x.dishes.map((y) => (y.id === d.id ? { ...y, methodId } : y)) }),
+                (x) => ({ ...x, dishes: x.dishes.map((y) => (y.id === d.id ? { ...y, methodId, extras: [] } : y)) }),
+              )
+            }
+            const extras = d.recipe ? optionalSteps(methodOf(d.recipe, d.methodId).steps) : []
+            const chosen = d.extras ?? []
+            const toggleExtra = (id: string) => {
+              const picked = chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id]
+              // In step order, as the database keeps them.
+              const next = extras.flatMap((s) => (s.id && picked.includes(s.id) ? [s.id] : []))
+              save(
+                () => setDishExtras(d.id, next),
+                (x) => ({ ...x, dishes: x.dishes.map((y) => (y.id === d.id ? { ...y, extras: next } : y)) }),
               )
             }
             return (
@@ -595,6 +614,25 @@ function NightSheet({
                       </button>
                     ))}
                   </div>
+                )}
+                {extras.length > 0 && (
+                  <fieldset className="plain extras" aria-label={`Extras for ${name}`}>
+                    <legend className="small strong">Extras</legend>
+                    {extras.map((s) => (
+                      <label key={s.id} className="extra">
+                        <input
+                          type="checkbox"
+                          checked={chosen.includes(s.id!)}
+                          disabled={busy || night.cooked}
+                          onChange={() => toggleExtra(s.id!)}
+                        />
+                        <span>
+                          {s.text}
+                          {extraDetail(s) && <small className="muted"> {extraDetail(s)}</small>}
+                        </span>
+                      </label>
+                    ))}
+                  </fieldset>
                 )}
               </Fragment>
             )

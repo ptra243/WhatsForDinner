@@ -577,6 +577,40 @@ function StepEditor({
         <span className="muted">minutes, if it needs one</span>
       </label>
       {p('timer') && <span className="small warn">{p('timer')}</span>}
+      <label className="row small">
+        <input
+          type="checkbox"
+          checked={step.optional}
+          aria-label={`Step ${index + 1} is optional`}
+          onChange={(e) => onChange({ optional: e.target.checked })}
+        />
+        Optional extra: better, but takes longer
+      </label>
+      {step.optional && (
+        <>
+          <label className="row small">
+            Adds
+            <input
+              className="field qtyfield"
+              inputMode="numeric"
+              aria-label={`Step ${index + 1} extra minutes`}
+              placeholder="min"
+              value={step.extra}
+              aria-invalid={!!p('extra')}
+              onChange={(e) => onChange({ extra: e.target.value })}
+            />
+            <span className="muted">minutes</span>
+          </label>
+          {p('extra') && <span className="small warn">{p('extra')}</span>}
+          <input
+            className="field"
+            aria-label={`Step ${index + 1} why`}
+            placeholder="Why it’s worth it: silkier, more tender"
+            value={step.why}
+            onChange={(e) => onChange({ why: e.target.value })}
+          />
+        </>
+      )}
     </fieldset>
   )
 }

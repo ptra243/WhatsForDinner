@@ -10,6 +10,7 @@ const api = vi.hoisted(() => ({
   loadCookedNights: vi.fn(),
   setServings: vi.fn(async () => {}),
   setDishMethod: vi.fn(async () => {}),
+  setDishExtras: vi.fn(async () => {}),
   removeDish: vi.fn(async () => {}),
   setNightFlags: vi.fn(async () => {}),
   moveNight: vi.fn(async () => {}),
@@ -743,5 +744,37 @@ describe('Methods', () => {
     expect(cook).toHaveTextContent('Pressure cooker · Step 1 of 1')
     expect(cook).toHaveTextContent('Cook the stew on high pressure.')
     expect(within(cook).getByRole('timer')).toHaveTextContent('30:00')
+  })
+})
+
+describe('Extras', () => {
+  const CURRY = {
+    ...RECIPES[0],
+    steps: [
+      { id: 'toast', text: 'Toast the spices whole.', timerMins: null, optional: true, extraMins: 10, why: 'deeper flavour' },
+      { id: 'simmer', text: 'Simmer the curry.', timerMins: 30 },
+    ],
+  }
+  beforeEach(() => api.loadRecipes.mockResolvedValue([CURRY, ...RECIPES.slice(1)]))
+
+  it('lists a dish’s extras to tick, and ticking one adds its minutes to the night', async () => {
+    render(<WeekTab householdId="h1" />)
+    const sheet = await openNight(/^Wed 28/)
+    expect(sheet).toHaveTextContent('30 min hands-on · 1 h total · budget 45 min')
+    const extras = within(sheet).getByRole('group', { name: 'Extras for Chicken curry' })
+    const toast = within(extras).getByRole('checkbox', { name: /Toast the spices whole\./ })
+    expect(toast.closest('label')).toHaveTextContent('Toast the spices whole. deeper flavour · +10 min')
+    expect(toast).not.toBeChecked()
+
+    fireEvent.click(toast)
+    expect(api.setDishExtras).toHaveBeenCalledWith('w1', ['toast'])
+    expect(toast).toBeChecked()
+    expect(sheet).toHaveTextContent('40 min hands-on · 1 h 10 total · budget 45 min')
+  })
+
+  it('shows no extras for a dish without optional steps', async () => {
+    render(<WeekTab householdId="h1" />)
+    const sheet = await openNight(/^Thu 29/)
+    expect(within(sheet).queryByRole('group', { name: /Extras for/ })).not.toBeInTheDocument()
   })
 })

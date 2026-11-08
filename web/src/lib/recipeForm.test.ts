@@ -178,9 +178,9 @@ describe('toSaveRecipe', () => {
         { name: 'leek', qty: 0.5, unit: 'bunch', note: '', section: 'fruit and veg', allergens: [] },
       ],
       steps: [
-        { id: 's1', text: 'Fry the onion.', timer_mins: null, uses: [0] },
-        { id: 's2', text: 'Simmer.', timer_mins: 25, uses: [0, 1] },
-        { text: 'Serve.', timer_mins: null, uses: [2] },
+        { id: 's1', text: 'Fry the onion.', timer_mins: null, uses: [0], optional: false, extra_mins: null, why: '' },
+        { id: 's2', text: 'Simmer.', timer_mins: 25, uses: [0, 1], optional: false, extra_mins: null, why: '' },
+        { text: 'Serve.', timer_mins: null, uses: [2], optional: false, extra_mins: null, why: '' },
       ],
     })
   })
@@ -191,8 +191,31 @@ describe('toSaveRecipe', () => {
     const blank = emptyIngredient()
     const steps = [{ ...f.steps[1], uses: [lentil.key, blank.key, onion.key] }]
     expect(toSaveRecipe({ ...f, ingredients: [blank, onion], steps }, known).steps).toEqual([
-      { id: 's2', text: 'Simmer.', timer_mins: 25, uses: [0] },
+      { id: 's2', text: 'Simmer.', timer_mins: 25, uses: [0], optional: false, extra_mins: null, why: '' },
     ])
+  })
+
+  it('sends an optional step with its minutes and why, and only once it has minutes', () => {
+    const f = filled()
+    const step = { ...f.steps[1], optional: true, extra: '', why: ' silkier ' }
+    expect(problems({ ...f, steps: [step] }, known)[`step:${step.key}:extra`]).toBe('How many minutes it adds, more than 0.')
+    const ready = { ...step, extra: '15' }
+    expect(problems({ ...f, steps: [ready] }, known)).toEqual({})
+    expect(toSaveRecipe({ ...f, steps: [ready] }, known).steps[0]).toMatchObject({ optional: true, extra_mins: 15, why: 'silkier' })
+    // Unticking it keeps nothing of the extra.
+    expect(toSaveRecipe({ ...f, steps: [{ ...ready, optional: false }] }, known).steps[0]).toMatchObject({
+      optional: false,
+      extra_mins: null,
+      why: '',
+    })
+  })
+
+  it('loads an optional step into the form', () => {
+    const f = formFromRecipe({
+      ...dal,
+      steps: [{ id: 's1', text: 'Velvet the beef.', timerMins: null, optional: true, extraMins: 15, why: 'silkier' }],
+    })
+    expect(f.steps[0]).toMatchObject({ optional: true, extra: '15', why: 'silkier' })
   })
 
   it('sends a new recipe without an id and blank minutes as null', () => {

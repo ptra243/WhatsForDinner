@@ -179,14 +179,14 @@ isOneToOne: false
                   ]
                 },"meal_plan_dishes": {
                   Row: {
-                    "created_at": string,"day": string,"household_id": string,"id": string,"method_id": string | null,"position": number,"recipe_id": string,"role": string,"servings": number,"swaps": NonNullable<Json>,"updated_at": string,"week_start": string
+                    "created_at": string,"day": string,"extras": (string)[],"household_id": string,"id": string,"method_id": string | null,"position": number,"recipe_id": string,"role": string,"servings": number,"swaps": NonNullable<Json>,"updated_at": string,"week_start": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"day": string,"household_id": string,"id"?: string,"method_id"?: string | null,"position"?: number,"recipe_id": string,"role"?: string,"servings": number,"swaps"?: NonNullable<Json>,"updated_at"?: string,"week_start": string
+                    "created_at"?: string,"day": string,"extras"?: (string)[],"household_id": string,"id"?: string,"method_id"?: string | null,"position"?: number,"recipe_id": string,"role"?: string,"servings": number,"swaps"?: NonNullable<Json>,"updated_at"?: string,"week_start": string
                   }
                   Update: {
-                    "created_at"?: string,"day"?: string,"household_id"?: string,"id"?: string,"method_id"?: string | null,"position"?: number,"recipe_id"?: string,"role"?: string,"servings"?: number,"swaps"?: NonNullable<Json>,"updated_at"?: string,"week_start"?: string
+                    "created_at"?: string,"day"?: string,"extras"?: (string)[],"household_id"?: string,"id"?: string,"method_id"?: string | null,"position"?: number,"recipe_id"?: string,"role"?: string,"servings"?: number,"swaps"?: NonNullable<Json>,"updated_at"?: string,"week_start"?: string
                   }
                   Relationships: [
                     {
@@ -329,14 +329,14 @@ isOneToOne: false
                   ]
                 },"recipe_steps": {
                   Row: {
-                    "id": string,"method_id": string | null,"position": number,"recipe_id": string,"text": string,"timer_mins": number | null
+                    "extra_mins": number | null,"id": string,"method_id": string | null,"optional": boolean,"position": number,"recipe_id": string,"text": string,"timer_mins": number | null,"why": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "id"?: string,"method_id"?: string | null,"position": number,"recipe_id": string,"text": string,"timer_mins"?: number | null
+                    "extra_mins"?: number | null,"id"?: string,"method_id"?: string | null,"optional"?: boolean,"position": number,"recipe_id": string,"text": string,"timer_mins"?: number | null,"why"?: string
                   }
                   Update: {
-                    "id"?: string,"method_id"?: string | null,"position"?: number,"recipe_id"?: string,"text"?: string,"timer_mins"?: number | null
+                    "extra_mins"?: number | null,"id"?: string,"method_id"?: string | null,"optional"?: boolean,"position"?: number,"recipe_id"?: string,"text"?: string,"timer_mins"?: number | null,"why"?: string
                   }
                   Relationships: [
                     {

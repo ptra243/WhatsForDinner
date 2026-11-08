@@ -12,9 +12,10 @@ import {
   useWakeLock,
   type Timer,
 } from '../lib/cook'
+import { cookedSteps, extraDetail, isCooked, skippedIngredients } from '../lib/extras'
 import { scaledQty } from '../lib/format'
 import { methodOf } from '../lib/methods'
-import { markCooked, updateRecipe, type Recipe, type RecipeIngredient } from '../lib/recipes'
+import { markCooked, updateRecipe, type Recipe, type RecipeIngredient, type RecipeStep } from '../lib/recipes'
 
 type Props = {
   householdId: string
@@ -22,6 +23,8 @@ type Props = {
   servings: number
   /** The recipe method to cook by; the recipe's own steps when missing or null. */
   methodId?: string | null
+  /** The optional steps chosen for the night, by id; the others show as "Could also…". */
+  extras?: string[]
   onChange: (recipe: Recipe) => void
   onExit: () => void
   onDone: (message: string) => void
@@ -29,15 +32,27 @@ type Props = {
 
 /**
  * Full-screen cooking: what to get ready, then one step at a time with the ingredients it uses,
- * then a finish screen to rate, note and mark as cooked. The last step names any ingredient no
+ * then a finish screen to rate, note and mark as cooked. The chosen extras are steps like any
+ * other; the optional steps not chosen show greyed out as "Could also…" after the step before them,
+ * and the ingredients only they use are left out. The last step names any ingredient no
  * step used. Step timers keep running when you move to another step; the screen stays awake while it is open.
  */
-export function CookMode({ householdId, recipe: r, servings, methodId, onChange, onExit, onDone }: Props) {
+export function CookMode({ householdId, recipe: r, servings, methodId, extras = [], onChange, onExit, onDone }: Props) {
   const method = methodOf(r, methodId)
-  const steps = method.steps.length ? method.steps : [{ text: 'No steps saved for this recipe.', timerMins: null }]
-  const uses = stepIngredients(method.steps, r.ingredients)
-  const prep = method.steps.length ? prepList(method.steps, r.ingredients) : []
-  const unused = unusedIngredients(method.steps, r.ingredients)
+  const cooked = cookedSteps(method.steps, extras)
+  const skipped = skippedIngredients(method.steps, r.ingredients, extras)
+  const ingredients = r.ingredients.filter((i) => !skipped.includes(i))
+  const steps = cooked.length ? cooked : [{ text: 'No steps saved for this recipe.', timerMins: null }]
+  const uses = stepIngredients(cooked, ingredients)
+  const prep = cooked.length ? prepList(cooked, ingredients) : []
+  const unused = unusedIngredients(cooked, ingredients)
+  // Each optional step not chosen, under the cooked step before it (the first, for any before it).
+  const could = new Map<number, RecipeStep[]>()
+  let at = 0
+  for (const s of method.steps) {
+    if (isCooked(s, extras)) at = cooked.indexOf(s)
+    else could.set(at, [...(could.get(at) ?? []), s])
+  }
   // -1 is the prep list before step 1.
   const [step, setStep] = useState(prep.length ? -1 : 0)
   const [finished, setFinished] = useState(false)
@@ -254,6 +269,17 @@ export function CookMode({ householdId, recipe: r, servings, methodId, onChange,
             onReset={() => reset(step)}
           />
         ) : null}
+        {(could.get(step) ?? []).length > 0 && (
+          <section className="stack tight could" aria-label="Could also">
+            <span className="label">Could also…</span>
+            {could.get(step)!.map((s, ix) => (
+              <p key={s.id ?? ix} className="small flat">
+                {s.text}
+                {extraDetail(s) && <small>{extraDetail(s)}</small>}
+              </p>
+            ))}
+          </section>
+        )}
         {elsewhere.map(({ ix, t }) => (
           <button key={ix} className="btn quiet other-timer" type="button" onClick={() => setStep(ix)}>
             Step {ix + 1} timer: {t.done ? 'time’s up' : `${clock(remaining(t, now))}${t.endAt == null ? ' paused' : ''}`}

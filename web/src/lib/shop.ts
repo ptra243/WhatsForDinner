@@ -41,17 +41,35 @@ export async function loadList(householdId: string, weekStart: string): Promise<
   const [dishes, ingredients, extras, marks, prices, pantry] = await Promise.all([
     supabase
       .from('meal_plan_dishes')
-      .select('day, servings, swaps, recipes(name, serves, recipe_ingredients(position, qty, unit, note, ingredients(name)))')
+      .select(
+        'day, servings, swaps, method_id, extras, recipes(name, serves, recipe_ingredients(id, position, qty, unit, note, ingredients(name)),' +
+          ' recipe_steps(id, method_id, optional, recipe_step_ingredients(recipe_ingredient_id)))',
+      )
       .match(week)
       .overrideTypes<
         {
           day: Day
           servings: number
           swaps: unknown
+          method_id: string | null
+          extras: string[]
           recipes: {
             name: string
             serves: number
-            recipe_ingredients: { position: number; qty: number | null; unit: string; note: string; ingredients: { name: string } | null }[]
+            recipe_ingredients: {
+              id: string
+              position: number
+              qty: number | null
+              unit: string
+              note: string
+              ingredients: { name: string } | null
+            }[]
+            recipe_steps: {
+              id: string
+              method_id: string | null
+              optional: boolean
+              recipe_step_ingredients: { recipe_ingredient_id: string }[] | null
+            }[]
           } | null
         }[],
         { merge: false }
@@ -72,13 +90,30 @@ export async function loadList(householdId: string, weekStart: string): Promise<
       day: d.day,
       servings: Number(d.servings),
       swaps: toSwaps(d.swaps),
+      extras: d.extras ?? [],
       recipe: d.recipes
         ? {
             name: d.recipes.name,
             serves: Number(d.recipes.serves),
             ingredients: [...d.recipes.recipe_ingredients]
               .sort((a, b) => a.position - b.position)
-              .map((i) => ({ name: i.ingredients?.name ?? '', qty: i.qty == null ? null : Number(i.qty), unit: i.unit, note: i.note })),
+              .map((i) => ({
+                id: i.id,
+                name: i.ingredients?.name ?? '',
+                qty: i.qty == null ? null : Number(i.qty),
+                unit: i.unit,
+                note: i.note,
+              })),
+            // The steps of the method it is cooked by, for which ingredients its skipped extras alone use.
+            steps: (d.recipes.recipe_steps ?? [])
+              .filter((s) => s.method_id === d.method_id)
+              .map((s) => ({
+                id: s.id,
+                text: '',
+                timerMins: null,
+                optional: s.optional,
+                uses: (s.recipe_step_ingredients ?? []).map((l) => l.recipe_ingredient_id),
+              })),
           }
         : undefined,
     })),

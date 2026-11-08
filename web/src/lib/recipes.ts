@@ -16,8 +16,20 @@ export type RecipeIngredient = {
   note: string
   allergens?: string[]
 }
-/** `uses`: the ids of the recipe's ingredient rows (`RecipeIngredient.id`) the step uses; missing or empty when none are saved. */
-export type RecipeStep = { id?: string; text: string; timerMins: number | null; uses?: string[] }
+/**
+ * `uses`: the ids of the recipe's ingredient rows (`RecipeIngredient.id`) the step uses; missing or
+ * empty when none are saved. An `optional` step is an extra a night can choose (#56), with the
+ * minutes it adds (`extraMins`) and why it's worth it (`why`).
+ */
+export type RecipeStep = {
+  id?: string
+  text: string
+  timerMins: number | null
+  uses?: string[]
+  optional?: boolean
+  extraMins?: number | null
+  why?: string
+}
 
 /**
  * Another way to cook a recipe (`recipe_methods`), with its own times and steps. `equipment`
@@ -61,7 +73,7 @@ const byPosition = (a: { position: number }, b: { position: number }) => a.posit
 
 const RECIPE_COLUMNS =
   'id, name, course, serves, active_mins, total_mins, provides, spice, tags, source, rating, notes, is_example, created_at,' +
-  ' recipe_ingredients(id, position, qty, unit, note, ingredients(name, allergens)), recipe_steps(id, position, text, timer_mins, method_id, recipe_step_ingredients(recipe_ingredient_id)),' +
+  ' recipe_ingredients(id, position, qty, unit, note, ingredients(name, allergens)), recipe_steps(id, position, text, timer_mins, method_id, optional, extra_mins, why, recipe_step_ingredients(recipe_ingredient_id)),' +
   ' recipe_methods(id, name, equipment, active_mins, total_mins)'
 
 type RecipeRow = {
@@ -93,6 +105,9 @@ type RecipeRow = {
     text: string
     timer_mins: number | null
     method_id: string | null
+    optional: boolean
+    extra_mins: number | null
+    why: string
     recipe_step_ingredients: { recipe_ingredient_id: string }[] | null
   }[]
   recipe_methods: { id: string; name: string; equipment: string | null; active_mins: number | null; total_mins: number | null }[]
@@ -108,6 +123,9 @@ const stepsOf = (r: RecipeRow, methodId: string | null): RecipeStep[] =>
       text: s.text,
       timerMins: s.timer_mins,
       uses: (s.recipe_step_ingredients ?? []).map((l) => l.recipe_ingredient_id),
+      optional: s.optional,
+      extraMins: s.extra_mins,
+      why: s.why,
     }))
 
 const toRecipe = (r: RecipeRow): Recipe => ({

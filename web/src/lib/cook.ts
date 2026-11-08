@@ -1,7 +1,10 @@
 // Cook mode helpers: which ingredients a step uses, what to get ready and what was left over,
 // step timers, the screen wake lock and the timer sound.
 import { useEffect, useState } from 'react'
+import { isLinked } from './extras'
 import type { RecipeIngredient, RecipeStep } from './recipes'
+
+export { isLinked }
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
@@ -15,9 +18,6 @@ export function stepUses(text: string, ingredients: RecipeIngredient[]): RecipeI
     return !!word && new RegExp(`\\b${escape(word)}(e?s)?\\b`, 'i').test(text)
   })
 }
-
-/** Whether a method's steps have their ingredients saved: then each step's own links are what it uses. */
-export const isLinked = (steps: readonly RecipeStep[]) => steps.some((s) => (s.uses?.length ?? 0) > 0)
 
 /**
  * The ingredients each step uses, in recipe order: the saved links when the steps have any (a

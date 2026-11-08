@@ -18,8 +18,20 @@ export type IngredientRow = {
   section: Section | ''
   allergens: Allergen[]
 }
-/** A step row. `uses` holds the keys of the ingredient rows it uses. */
-export type StepRow = { key: string; id?: string; text: string; timer: string; uses: string[] }
+/**
+ * A step row. `uses` holds the keys of the ingredient rows it uses. An `optional` step is an extra
+ * a night can choose, with the minutes it adds (`extra`) and why it's worth it (`why`).
+ */
+export type StepRow = {
+  key: string
+  id?: string
+  text: string
+  timer: string
+  uses: string[]
+  optional: boolean
+  extra: string
+  why: string
+}
 
 /** What the form holds, as typed. `id` is the recipe being edited. */
 export type RecipeFormState = {
@@ -52,8 +64,16 @@ export type SaveRecipe = {
   source: string
   notes: string
   ingredients: { id?: string; name: string; qty: number | null; unit: string; note: string; section?: string; allergens?: string[] }[]
-  /** `uses`: positions in `ingredients` of the ingredients the step uses. */
-  steps: { id?: string; text: string; timer_mins: number | null; uses: number[] }[]
+  /** `uses`: positions in `ingredients` of the ingredients the step uses. `extra_mins` and `why` only for an optional step. */
+  steps: {
+    id?: string
+    text: string
+    timer_mins: number | null
+    uses: number[]
+    optional: boolean
+    extra_mins: number | null
+    why: string
+  }[]
 }
 
 /** Problems keyed by field: `name`, `serves`, `activeMins`, `totalMins`, `ing:<key>:<field>`, `step:<key>:<field>`. */
@@ -74,7 +94,7 @@ export const emptyIngredient = (): IngredientRow => ({
   section: '',
   allergens: [],
 })
-export const emptyStep = (): StepRow => ({ key: newKey(), text: '', timer: '', uses: [] })
+export const emptyStep = (): StepRow => ({ key: newKey(), text: '', timer: '', uses: [], optional: false, extra: '', why: '' })
 
 /** The form for a recipe, or a blank one with a row each to start on. */
 export function formFromRecipe(r?: Recipe): RecipeFormState {
@@ -124,6 +144,9 @@ export function formFromRecipe(r?: Recipe): RecipeFormState {
       text: s.text,
       timer: text(s.timerMins),
       uses: (s.uses ?? []).flatMap((id) => keyOf.get(id) ?? []),
+      optional: !!s.optional,
+      extra: text(s.extraMins),
+      why: s.why ?? '',
     })),
   }
 }
@@ -139,7 +162,7 @@ export const isNew = (row: IngredientRow, known: ReadonlyMap<string, KnownIngred
   ingredientName(row.name) !== '' && !known.has(ingredientName(row.name))
 
 const blankIngredient = (r: IngredientRow) => !r.name.trim() && !r.qty.trim() && !r.note.trim()
-const blankStep = (s: StepRow) => !s.text.trim() && !s.timer.trim()
+const blankStep = (s: StepRow) => !s.text.trim() && !s.timer.trim() && !s.optional
 
 /** A quantity as typed: "2", "1.5", "1/2" or "1 1/2"; blank is null ("to taste"); undefined when unreadable. */
 export function parseQty(s: string): number | null | undefined {
@@ -195,6 +218,7 @@ export function problems(
     if (!step.text.trim()) p[`step:${step.key}:text`] = 'What happens in this step?'
     const timer = parseMins(step.timer)
     if (timer === undefined || timer === 0) p[`step:${step.key}:timer`] = 'Whole minutes, more than 0.'
+    if (step.optional && !(Number(parseMins(step.extra)) > 0)) p[`step:${step.key}:extra`] = 'How many minutes it adds, more than 0.'
   }
   return p
 }
@@ -232,6 +256,9 @@ export function toSaveRecipe(form: RecipeFormState, known: ReadonlyMap<string, K
         timer_mins: parseMins(s.timer) ?? null,
         // In recipe order; a removed or blank ingredient row drops out.
         uses: s.uses.flatMap((k) => position.get(k) ?? []).sort((a, b) => a - b),
+        optional: s.optional,
+        extra_mins: s.optional ? (parseMins(s.extra) ?? null) : null,
+        why: s.optional ? s.why.trim() : '',
       })),
   }
 }
