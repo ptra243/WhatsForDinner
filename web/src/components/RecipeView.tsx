@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { allergenWarnings, containsText, type TaggedSwap } from '../lib/allergens'
 import { recipePrompt } from '../lib/claude'
 import { stepIngredients } from '../lib/cook'
+import { extraDetail, skippedIngredients } from '../lib/extras'
 import { mins, scaledQty } from '../lib/format'
 import { allMethods, methodOf } from '../lib/methods'
 import { deleteRecipe, updateRecipe, type Recipe } from '../lib/recipes'
@@ -22,6 +23,8 @@ type Props = {
   swaps?: TaggedSwap[]
   /** The method shown first (the planned dish's, when opened from a night); the recipe's own when left out. */
   methodId?: string | null
+  /** The planned dish's chosen extras, for cooking it from here. */
+  extras?: string[]
   onChange: (recipe: Recipe) => void
   onDeleted: () => void
   onClose: () => void
@@ -38,6 +41,7 @@ export function RecipeView({
   avoid = [],
   swaps,
   methodId: startMethod,
+  extras,
   onChange,
   onDeleted,
   onClose,
@@ -96,6 +100,8 @@ export function RecipeView({
   const methods = allMethods(r)
   const method = methodOf(r, methodId)
   const stepUse = stepIngredients(method.steps, r.ingredients)
+  // Only optional steps use these, so they are needed only when one of those is chosen.
+  const optional = skippedIngredients(method.steps, r.ingredients)
 
   const meta = [
     r.course === 'side' ? 'Side' : 'Main',
@@ -202,6 +208,7 @@ export function RecipeView({
                 <span>
                   {i.name}
                   {i.note && <small> {i.note}</small>}
+                  {optional.includes(i) && <small> (optional)</small>}
                 </span>
                 <span>{scaledQty(i.qty, i.unit, servings, r.serves)}</span>
               </div>
@@ -213,7 +220,12 @@ export function RecipeView({
           <span className="label">{method.id ? `Method: ${method.name}` : 'Method'}</span>
           <ol className="steps">
             {method.steps.map((s, ix) => (
-              <li key={ix}>
+              <li key={ix} className={s.optional ? 'optional' : undefined}>
+                {s.optional && (
+                  <span className="opt">
+                    Optional{extraDetail(s) ? ` · ${extraDetail(s)}` : ''}
+                  </span>
+                )}
                 {stepUse[ix].length > 0 && (
                   <span className="small muted uses">{stepUse[ix].map((i) => i.name).join(', ')}</span>
                 )}
@@ -274,6 +286,7 @@ export function RecipeView({
           recipe={r}
           servings={servings}
           methodId={method.id}
+          extras={extras}
           onChange={(next) => {
             if (next.notes !== r.notes) setNotes(next.notes)
             onChange(next)

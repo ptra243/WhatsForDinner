@@ -1,7 +1,8 @@
 // The shopping list, worked out from the week's plan (docs/decisions/0004-derived-shopping-list.md).
 // Pure code: the caller loads the dishes, recipes, ingredient sections and extras.
+import { skippedIngredients } from './extras'
 import { fmtQty, toBase } from './format'
-import type { RecipeIngredient } from './recipes'
+import type { RecipeIngredient, RecipeStep } from './recipes'
 import { DAYS, DAY_NAMES, type Day } from './week'
 
 /** Sections in walking order, as the database allows them (docs/data-model.md). */
@@ -29,12 +30,17 @@ const asSection =(s: string | null | undefined): Section =>
 /** One ingredient swapped for another in one planned dish (`meal_plan_dishes.swaps`). Null qty or unit keeps the recipe's. */
 export type Swap = { from: string; to: string; qty: number | null; unit: string | null }
 
-/** A planned dish as the list needs it; `recipe` is undefined when the recipe is gone. */
+/**
+ * A planned dish as the list needs it; `recipe` is undefined when the recipe is gone. `steps` are
+ * those of the method it is cooked by and `extras` the optional ones chosen (none when missing):
+ * an ingredient only skipped steps use is left off.
+ */
 export type ListDish = {
   day: Day
   servings: number
   swaps: Swap[]
-  recipe?: { name?: string; serves: number; ingredients: RecipeIngredient[] }
+  extras?: string[]
+  recipe?: { name?: string; serves: number; ingredients: RecipeIngredient[]; steps?: RecipeStep[] }
 }
 
 /** How an ingredient is usually sold (`ingredients.pack_qty`, `pack_unit`): "500 g", "12 each". */
@@ -62,7 +68,8 @@ export type ListItem = {
 }
 
 /**
- * The week's list: each dish's ingredients scaled by servings / serves, swaps applied,
+ * The week's list: each dish's ingredients scaled by servings / serves, leaving out those only its
+ * skipped optional steps use, swaps applied,
  * kg and l normalised to g and ml, summed by name and unit, then extras, sorted by section and name.
  * Amounts that are missing add nothing; an item's qty is null only when none of its uses has one.
  * `packs` (ingredient name → pack size) goes onto the items so the list can show packs.
@@ -79,7 +86,9 @@ export function deriveList(
     const r = dish.recipe
     if (!r) continue
     const factor = (dish.servings || r.serves || 4) / (r.serves || 4)
+    const skipped = skippedIngredients(r.steps ?? [], r.ingredients, dish.extras)
     for (const ing of r.ingredients) {
+      if (skipped.includes(ing)) continue
       let name = ing.name.toLowerCase().trim()
       let qty = ing.qty
       let unit = ing.unit

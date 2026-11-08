@@ -254,3 +254,13 @@ fieldset.plain legend{padding:0;margin-bottom:6px}
 .suggestions b{min-width:0;overflow-wrap:anywhere}
 .suggestions .desc{overflow-wrap:anywhere}
 .suggestions .reply{font-style:italic}
+/* Optional steps and extras (#56) */
+.extras{display:flex;flex-direction:column}
+.extra{display:flex;gap:10px;align-items:flex-start;min-height:44px;padding:6px 0;font-size:14px}
+.extra input{flex:none;width:20px;height:20px;margin:1px 0 0;accent-color:var(--accent)}
+.extra small{display:block}
+ol.steps li.optional{color:var(--muted)}
+ol.steps .opt{display:block;font-size:13px;font-weight:700}
+.could{border-top:1px dashed var(--line);padding-top:10px}
+.could p{color:var(--muted);opacity:.85}
+.could small{display:block}

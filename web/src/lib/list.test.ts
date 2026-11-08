@@ -30,6 +30,30 @@ const dish = (day: ListDish['day'], recipe: ListDish['recipe'], servings: number
 const find = (items: ReturnType<typeof deriveList>, key: string) => items.find((i) => i.key === key)
 
 describe('deriveList', () => {
+  it('lists an optional ingredient only when one of its steps is chosen', () => {
+    const beef = { id: 'i-beef', ...ing('beef rump', 500, 'g') }
+    const corn = { id: 'i-corn', ...ing('cornflour', 1, 'tbsp') }
+    const soy = { id: 'i-soy', ...ing('soy sauce', 2, 'tbsp') }
+    const butter = { id: 'i-butter', ...ing('butter', 20, 'g') }
+    const stirFry = {
+      serves: 4,
+      ingredients: [beef, corn, soy, butter],
+      steps: [
+        { id: 'velvet', text: 'Velvet the beef.', timerMins: null, optional: true, extraMins: 15, uses: ['i-beef', 'i-corn', 'i-soy'] },
+        { id: 'fry', text: 'Stir-fry with the soy.', timerMins: null, uses: ['i-beef', 'i-soy'] },
+      ],
+    }
+    const without = deriveList([dish('mon', stirFry, 4)], sections).map((i) => i.name)
+    // Butter no step uses is still bought; soy and beef are also used by a required step.
+    expect(without).toEqual(['beef rump', 'butter', 'soy sauce'])
+    const withExtra = deriveList([{ ...dish('mon', stirFry, 4), extras: ['velvet'] }], sections)
+    expect(withExtra.map((i) => i.name)).toEqual(['beef rump', 'butter', 'cornflour', 'soy sauce'])
+    expect(find(withExtra, 'cornflour|tbsp')?.nights).toEqual(['mon'])
+    // Unlinked steps can't tell, so everything is bought.
+    const unlinked = { ...stirFry, steps: stirFry.steps.map((s) => ({ ...s, uses: [] })) }
+    expect(deriveList([dish('mon', unlinked, 4)], sections)).toHaveLength(4)
+  })
+
   it('scales each ingredient by servings over serves', () => {
     const items = deriveList([dish('mon', bolognese, 6)], sections)
     expect(find(items, 'beef mince|g')?.qty).toBe(750)

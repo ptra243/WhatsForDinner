@@ -83,7 +83,7 @@ describe('RecipeForm', () => {
       source: '',
       notes: '',
       ingredients: [{ name: 'leek', qty: 2, unit: 'each', note: '', section: 'fruit and veg', allergens: [] }],
-      steps: [{ text: 'Bake.', timer_mins: 30, uses: [0] }],
+      steps: [{ text: 'Bake.', timer_mins: 30, uses: [0], optional: false, extra_mins: null, why: '' }],
     })
   })
 
@@ -131,8 +131,8 @@ describe('RecipeForm', () => {
         name: 'Weeknight dal',
         ingredients: [{ id: 'i2', name: 'onion', qty: 1, unit: 'each', note: 'diced' }],
         steps: [
-          { text: 'Serve with rice.', timer_mins: null, uses: [0] },
-          { id: 's1', text: 'Simmer.', timer_mins: 25, uses: [0] },
+          { text: 'Serve with rice.', timer_mins: null, uses: [0], optional: false, extra_mins: null, why: '' },
+          { id: 's1', text: 'Simmer.', timer_mins: 25, uses: [0], optional: false, extra_mins: null, why: '' },
         ],
       }),
     )

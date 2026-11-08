@@ -62,6 +62,12 @@
       "qty": 400,
       "unit": "g",
       "note": ""
+    },
+    {
+      "name": "cornflour",
+      "qty": 1,
+      "unit": "tbsp",
+      "note": ""
     }
   ],
   "steps": [
@@ -71,6 +77,18 @@
       "uses": [
         "egg noodle"
       ]
+    },
+    {
+      "text": "Velvet the pork: toss the mince with the cornflour and 1 tbsp of the soy sauce, and leave it while the noodles cook.",
+      "timerMins": null,
+      "uses": [
+        "pork mince",
+        "cornflour",
+        "soy sauce"
+      ],
+      "optional": true,
+      "extraMins": 5,
+      "why": "silkier, more tender pork"
     },
     {
       "text": "Brown the pork mince in a hot wok, breaking it up.",

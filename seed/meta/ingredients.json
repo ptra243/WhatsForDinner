@@ -529,6 +529,16 @@
         "unit": "g"
       },
       "shelfDays": 730
+    },
+    "cornflour": {
+      "name": "cornflour",
+      "aisle": "pantry",
+      "allergens": [],
+      "pack": {
+        "qty": 300,
+        "unit": "g"
+      },
+      "shelfDays": 730
     }
   }
 }

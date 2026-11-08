@@ -33,11 +33,11 @@ where h.id <> private.template_household_id();
 
 - `recipes`: household_id, slug (lowercase-hyphenated, unique in the household), name, course (`main` / `side`), serves, active_mins, total_mins, provides text[] (`protein`, `veg`, `carb`), spice 0–3, tags text[], source, rating 1–5 (null until rated), notes, is_example, created_by.
 - `recipe_ingredients`: recipe_id, position (from 0), ingredient_slug → `ingredients`, qty (null for "to taste"), unit, note.
-- `recipe_steps`: recipe_id, method_id (null for the recipe's own steps), position (from 0 within each method), text, timer_mins (null unless the step involves waiting).
+- `recipe_steps`: recipe_id, method_id (null for the recipe's own steps), position (from 0 within each method), text, timer_mins (null unless the step involves waiting), optional (an extra that makes the dish better but takes longer, chosen per night), extra_mins (the minutes an optional step adds, required for one; the night counts them in both hands-on and total time, so include any waiting it adds), why (what it's worth, for an optional step: "silkier, more tender"). Only optional steps have extra_mins or why. An ingredient that only optional steps use is optional: the shopping list and cook mode leave it out unless one of its steps is chosen.
 - `recipe_methods`: recipe_id, name (unique in the recipe, e.g. `Pressure cooker`), equipment (as named in settings `equipment`; null when it needs nothing special), active_mins, total_mins. Another way to cook the recipe, with its own times and steps (`recipe_steps.method_id`). The recipe's own times and steps are its usual way.
 - `recipe_step_ingredients`: step_id → `recipe_steps`, recipe_ingredient_id → `recipe_ingredients`. The ingredients each step uses, for every method's steps. The database refuses a link to another recipe's ingredient; deleting the step or the ingredient row deletes the link. Cook mode shows each step's ingredients, lists them to get ready before step 1, and flags any no step used.
 - `ingredients`: slug (PK), name (unique), section, allergens text[] (below), pack_qty and pack_unit (how it is usually sold, both or neither), shelf_days (days it keeps once bought). Shared by all households.
-- `meal_plan_dishes`: household_id, week_start (always a Monday), day (`mon`..`sun`), position (order in the night, from 0), recipe_id, role (`main` / `side`), servings, swaps jsonb `[{"from", "to", "qty", "unit"}]`, method_id (null for the recipe's usual way; the database refuses another recipe's method).
+- `meal_plan_dishes`: household_id, week_start (always a Monday), day (`mon`..`sun`), position (order in the night, from 0), recipe_id, role (`main` / `side`), servings, swaps jsonb `[{"from", "to", "qty", "unit"}]`, method_id (null for the recipe's usual way; the database refuses another recipe's method), extras uuid[] (the optional steps chosen for that night, by `recipe_steps.id`; the database refuses any step that isn't an optional step of the dish's own recipe and method, and drops the chosen ones when the method changes).
 - `meal_plan_nights`: household_id, week_start, day, cooked, skip_check (no meal rule check that night), minutes (that night's own hands-on minutes, set in the app for a busy night; null means the weekday's `minutes` setting), locked (leave the night's dishes alone). Set in the app; read only for you.
 - `recipe_votes`: household_id, week_start (a Monday), recipe_id, user_id, vote (`1` 👍, `-1` 👎). Each member's say on a recipe for a coming week, set in the app. Read only for you: never write votes.
 - `suggestions`: id, household_id, created_by, name, description (may hold a link), status (`open` / `added` / `declined`), reply (your one line), recipe_id → recipes. Dinners members suggest in the app. You set only `status`, `reply` and `recipe_id` (Suggestions below).
@@ -82,7 +82,8 @@ The database rejects anything else.
 2. Check the week before for dinners that were planned but not marked cooked (plans change: a night out, a late finish). List them and ask whether to put any on the new week; don't assume, since the cook may have cooked and not ticked it. Leave the old week as it is.
 3. Favour recipes with a 👍 for the week, then well-rated ones. Leave out any recipe with a 👎 for the week unless asked to plan it. Say in the proposal which votes you followed ("Fish tacos: 👍 Sam. Left out beef ragù: 👎 you"); name members by the part of their email before the @. Votes are for that week only.
    Don't repeat anything cooked in the last two weeks; spread proteins across the week. A dinner planned but not cooked doesn't count as a repeat.
-4. Keep each night's hands-on minutes (`active_mins` of its dishes, by the method each is cooked by) within that night's minutes: its own when the app set one ("only 20 minutes tonight"), else the weekday's `minutes` (the nights query gives the right one). Put long cooks on weekends. On a weeknight, when a recipe's usual way takes too long and it has a method for equipment the household has (the methods query below), plan it with that method (`method_id`, query below) and say so ("Beef ragù in the pressure cooker, 1 h 20"). Never pick a method whose equipment isn't in `settings.equipment`.
+4. Keep each night's hands-on minutes (`active_mins` of its dishes, by the method each is cooked by, plus the `extra_mins` of their chosen extras) within that night's minutes: its own when the app set one ("only 20 minutes tonight"), else the weekday's `minutes` (the nights query gives the right one). Put long cooks on weekends. On a weeknight, when a recipe's usual way takes too long and it has a method for equipment the household has (the methods query below), plan it with that method (`method_id`, query below) and say so ("Beef ragù in the pressure cooker, 1 h 20"). Never pick a method whose equipment isn't in `settings.equipment`.
+   On a night with time to spare (a weekend, say), you may choose a dish's extras (the extras query below) when they still fit the night's minutes, and say so ("Sat: Pork stir-fry, velvet the pork +5 min"). Leave extras alone on a locked night, and don't choose one the owner unticked unless asked.
 5. Follow `mealRule`: with `veg+carb` every night covers a vegetable and a carb (from the main's `provides` or added sides); with `veg` just a vegetable; `off` no rule.
    When a main needs sides, prefer the ones the household actually cooks with it (the pairing query below: nights marked cooked in the last 26 weeks), then other sides that fill the gap. Pairings are worked out from the plan; there is nothing to save.
 6. Respect `notes`. Plan leftovers across the week where it helps (cook a big ragù Sunday, eat it again Tuesday).
@@ -105,6 +106,7 @@ When the owner asks to plan around the pantry ("Plan around my What's for Dinner
 ## Recipes
 
 - From pasted text or a photo: check the recipe list first and reuse an existing recipe rather than duplicating it. Otherwise convert it to the schema: course, provides, active and total minutes, serves, spice, steps with `timer_mins` where a step involves waiting, units from the list. Add any new ingredients, save, and summarise in two or three lines.
+- When the recipe has steps it calls optional or worth it if there's time ("optionally velvet the beef", "for extra flavour, toast the spices first"), save each as an optional step (`optional`, `extra_mins`, a short `why`), and leave its minutes out of the recipe's active and total minutes. Link its ingredients like any step's, so an ingredient only it uses is bought only on the nights it is chosen. Name the optional steps in your summary.
 - If only a link is given and you can't read it, ask for the text.
 - Set `source` (the link, book or "Photo") and `created_by` to the owner's id. Leave `rating` null; the cook rates it in the app. `is_example` is false.
 - When a recipe gives another way to cook it with a piece of equipment ("or 45 minutes in the pressure cooker"), save the usual way as the recipe and the other as a method (query below), named after the equipment, with its own active and total minutes and its full steps. Name the equipment as the household does in `settings.equipment` when it has it. The app doesn't edit methods; you add and change them.
@@ -277,11 +279,13 @@ where p.household_id = '<household_id>'
 order by p.best_before nulls last, i.name;
 ```
 
-Read a week:
+Read a week (a dish's hands-on minutes are `active_mins` plus the `extra_mins` of its chosen `extras`):
 
 ```sql
 select d.day, d.position, d.role, r.slug, r.name, d.servings, d.swaps, m.name as method,
-       coalesce(m.active_mins, r.active_mins) as active_mins, coalesce(m.total_mins, r.total_mins) as total_mins
+       coalesce(m.active_mins, r.active_mins) as active_mins, coalesce(m.total_mins, r.total_mins) as total_mins,
+       array(select s.text from recipe_steps s where s.id = any(d.extras) order by s.position) as extras,
+       coalesce((select sum(s.extra_mins) from recipe_steps s where s.id = any(d.extras)), 0) as extra_mins
 from meal_plan_dishes d
 join recipes r on r.id = d.recipe_id
 left join recipe_methods m on m.id = d.method_id
@@ -320,6 +324,32 @@ where r.id = d.recipe_id
 returning d.day, r.name, m.name as method, m.total_mins;
 ```
 
+The week's extras: each planned dish's optional steps (for the method it is cooked by), with the minutes each adds, why, and whether it is chosen:
+
+```sql
+select d.day, r.slug, s.position, s.text, s.extra_mins, s.why, s.id = any(d.extras) as chosen
+from meal_plan_dishes d
+join recipes r on r.id = d.recipe_id
+join recipe_steps s on s.recipe_id = d.recipe_id and s.method_id is not distinct from d.method_id and s.optional
+where d.household_id = '<household_id>' and d.week_start = '<week_start>'
+order by array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day), d.position, s.position;
+```
+
+Choose a planned dish's extras, by step position (from the extras query; `array[]::integer[]` for none). This replaces the dish's extras; no row returned means the dish isn't planned that night:
+
+```sql
+update meal_plan_dishes d
+set extras = array(select s.id from recipe_steps s
+                   where s.recipe_id = d.recipe_id and s.method_id is not distinct from d.method_id
+                     and s.optional and s.position = any(array[1])
+                   order by s.position)
+from recipes r
+where r.id = d.recipe_id
+  and d.household_id = '<household_id>' and d.week_start = '<week_start>'
+  and d.day = 'fri' and r.slug = 'pork-cabbage-stir-fry'
+returning d.day, r.name, cardinality(d.extras) as extras;
+```
+
 Save a recipe with new ingredients. First add the ingredients it needs that aren't in `ingredients` yet (existing ones are left as they are):
 
 ```sql
@@ -330,7 +360,7 @@ insert into ingredients (slug, name, section, allergens, pack_qty, pack_unit, sh
 on conflict do nothing;
 ```
 
-Then the recipe, its ingredients, its steps and the ingredients each step uses (step position, ingredient position) in one statement (an unknown ingredient name fails it, so nothing is half-saved):
+Then the recipe, its ingredients, its steps (an optional one with its extra minutes and why) and the ingredients each step uses (step position, ingredient position) in one statement (an unknown ingredient name fails it, so nothing is half-saved):
 
 ```sql
 with r as (
@@ -351,13 +381,13 @@ with r as (
   ) as v(position, name, qty, unit, note)
   returning id, position
 ), st as (
-  insert into recipe_steps (recipe_id, position, text, timer_mins)
-  select r.id, v.position, v.text, v.timer_mins
+  insert into recipe_steps (recipe_id, position, text, timer_mins, optional, extra_mins, why)
+  select r.id, v.position, v.text, v.timer_mins, v.optional, v.extra_mins, v.why
   from r, (values
-    (0, 'Mix the chicken with the lemongrass, garlic and fish sauce.', null::integer),
-    (1, 'Marinate.', 15),
-    (2, 'Fry in the oil in a hot pan until golden and cooked through.', 10)
-  ) as v(position, text, timer_mins)
+    (0, 'Mix the chicken with the lemongrass, garlic and fish sauce.', null::integer, false, null::integer, ''),
+    (1, 'Marinate.', 15, true, 15, 'more flavour, more tender'),
+    (2, 'Fry in the oil in a hot pan until golden and cooked through.', 10, false, null, '')
+  ) as v(position, text, timer_mins, optional, extra_mins, why)
   returning id, position
 )
 insert into recipe_step_ingredients (step_id, recipe_ingredient_id)
@@ -547,7 +577,7 @@ where i.name = v.name and (i.pack_qty is null or i.shelf_days is null)
 returning i.name, i.pack_qty, i.pack_unit, i.shelf_days;
 ```
 
-The week's items to price (staples left out), with what each needs (in g, ml or its own unit), what is already cached (`store source`, usable today; a Grocerly row until a week after its refresh) and each store's latest price (`store $price (pack) $unit price`, or `store –` for not found):
+The week's items to price (staples left out, and optional ingredients only when one of their steps is chosen), with what each needs (in g, ml or its own unit), what is already cached (`store source`, usable today; a Grocerly row until a week after its refresh) and each store's latest price (`store $price (pack) $unit price`, or `store –` for not found):
 
 ```sql
 with uses as (
@@ -562,6 +592,12 @@ with uses as (
                      where lower(trim(x->>'from')) = i.name limit 1) sw on true
   left join ingredients t on t.name = lower(trim(sw.x->>'to'))
   where d.household_id = '<household_id>' and d.week_start = '<week_start>'
+    -- Leave out an ingredient its method's steps use only in optional steps not chosen.
+    and (not exists (select 1 from recipe_step_ingredients l join recipe_steps s on s.id = l.step_id
+                     where l.recipe_ingredient_id = ri.id and s.method_id is not distinct from d.method_id)
+         or exists (select 1 from recipe_step_ingredients l join recipe_steps s on s.id = l.step_id
+                    where l.recipe_ingredient_id = ri.id and s.method_id is not distinct from d.method_id
+                      and (not s.optional or s.id = any(d.extras))))
   union all
   select i.slug, x.qty, x.unit
   from list_extras x

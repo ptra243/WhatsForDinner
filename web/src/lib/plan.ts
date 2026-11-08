@@ -1,4 +1,5 @@
 // A week's plan: nights, their dishes and the checks the prototype shows (prototype/dinner-planner.html).
+import { extraMinutes } from './extras'
 import { allergenWarnings, toAllergens, type Allergen, type AllergenWarning, type TaggedSwap } from './allergens'
 import { methodOf } from './methods'
 import type { Course, Recipe } from './recipes'
@@ -30,7 +31,8 @@ export const DEFAULT_SETTINGS: Settings = {
 
 /**
  * `swaps` (none when missing) carry the allergens of what each swaps to. `methodId` is the
- * recipe method it is cooked by; missing or null is the recipe's default.
+ * recipe method it is cooked by; missing or null is the recipe's default. `extras` are the ids
+ * of the method's optional steps chosen for the night (none when missing).
  */
 export type Dish = {
   id: string
@@ -40,6 +42,7 @@ export type Dish = {
   position: number
   swaps?: TaggedSwap[]
   methodId?: string | null
+  extras?: string[]
 }
 /**
  * `minutes` is this night's own hands-on time (null = the weekday's setting); `locked` asks
@@ -83,9 +86,9 @@ export type NightInfo = {
   dishes: PlannedDish[]
   main?: PlannedDish
   sides: PlannedDish[]
-  /** Hands-on minutes: the dishes' active minutes (by their chosen methods) added up. */
+  /** Hands-on minutes: the dishes' active minutes (by their chosen methods) and chosen extras added up. */
   active: number
-  /** Total minutes: the longest dish. */
+  /** Total minutes: the longest dish, with its extras. */
   total: number
   /** What the meal rule wants and no dish provides. */
   gaps: ('veg' | 'carb')[]
@@ -110,12 +113,13 @@ export function nightInfo(night: Night, day: Day, recipes: Map<string, Recipe>, 
   const provides = new Set<string>()
   let active = 0
   let total = 0
-  for (const { recipe: r, methodId } of dishes) {
+  for (const { recipe: r, methodId, extras } of dishes) {
     if (!r) continue
     r.provides.forEach((p) => provides.add(p))
     const m = methodOf(r, methodId)
-    active += m.activeMins ?? 0
-    total = Math.max(total, m.totalMins ?? 0)
+    const extra = extraMinutes(m.steps, extras)
+    active += (m.activeMins ?? 0) + extra
+    if (m.totalMins != null) total = Math.max(total, m.totalMins + extra)
   }
   const gaps: NightInfo['gaps'] = []
   if (dishes.length && !night.skipCheck && settings.mealRule !== 'off') {
@@ -220,7 +224,7 @@ export async function loadWeek(householdId: string, weekStart: string): Promise<
   const [dishes, nights] = await Promise.all([
     supabase
       .from('meal_plan_dishes')
-      .select('id, day, position, recipe_id, role, servings, swaps, method_id')
+      .select('id, day, position, recipe_id, role, servings, swaps, method_id, extras')
       .eq('household_id', householdId)
       .eq('week_start', weekStart)
       .order('position')
@@ -247,6 +251,7 @@ export async function loadWeek(householdId: string, weekStart: string): Promise<
       position: d.position,
       swaps: swaps.get(d.id)!.map((s) => ({ ...s, allergens: tags.get(s.to.toLowerCase().trim()) ?? [] })),
       methodId: d.method_id,
+      extras: d.extras,
     })
   }
   for (const n of nights.data) Object.assign(week[n.day as Day], { cooked: n.cooked, skipCheck: n.skip_check, minutes: n.minutes, locked: n.locked })
@@ -284,6 +289,12 @@ export async function setServings(dishId: string, servings: number): Promise<voi
 /** Cooks a planned dish by one of its recipe's methods, or the default with null. */
 export async function setDishMethod(dishId: string, methodId: string | null): Promise<void> {
   const { error } = await supabase.from('meal_plan_dishes').update({ method_id: methodId }).eq('id', dishId)
+  if (error) throw error
+}
+
+/** Chooses a planned dish's extras: optional steps of its recipe's method, by id. */
+export async function setDishExtras(dishId: string, extras: string[]): Promise<void> {
+  const { error } = await supabase.from('meal_plan_dishes').update({ extras }).eq('id', dishId)
   if (error) throw error
 }
 

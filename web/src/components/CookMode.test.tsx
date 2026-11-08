@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Recipe } from '../lib/recipes'
+import { CookMode } from './CookMode'
 import { RecipesTab } from './RecipesTab'
 
 const api = vi.hoisted(() => ({
@@ -251,5 +252,57 @@ describe('Cook mode', () => {
     expect(await within(done).findByRole('alert')).toHaveTextContent('offline')
     fireEvent.click(within(done).getByRole('button', { name: '‹ Steps' }))
     expect(screen.getByRole('dialog', { name: 'Cooking Red lentil dal' })).toHaveTextContent('Step 3 of 3')
+  })
+})
+
+describe('CookMode with extras', () => {
+  const STIR_FRY: Recipe = {
+    ...DAL,
+    id: 'stir-fry',
+    name: 'Beef stir-fry',
+    ingredients: [
+      { id: 'i-beef', name: 'beef rump', qty: 500, unit: 'g', note: '' },
+      { id: 'i-corn', name: 'cornflour', qty: 1, unit: 'tbsp', note: '' },
+      { id: 'i-chilli', name: 'chilli', qty: 1, unit: 'each', note: '' },
+    ],
+    steps: [
+      { id: 'velvet', text: 'Velvet the beef.', timerMins: null, optional: true, extraMins: 15, why: 'silkier, more tender', uses: ['i-beef', 'i-corn'] },
+      { id: 'fry', text: 'Stir-fry the beef.', timerMins: null, uses: ['i-beef'] },
+      { id: 'pickle', text: 'Pickle the chilli.', timerMins: null, optional: true, extraMins: 10, why: 'heat', uses: ['i-chilli'] },
+    ],
+  }
+  const cook = (extras?: string[]) =>
+    render(
+      <CookMode householdId="h1" recipe={STIR_FRY} servings={4} extras={extras} onChange={() => {}} onExit={() => {}} onDone={() => {}} />,
+    )
+
+  it('cooks the chosen extras as steps and greys out the rest as "Could also…"', () => {
+    cook(['velvet'])
+    const prep = screen.getByRole('dialog', { name: 'Cooking Beef stir-fry' })
+    expect(within(prep).getByText('cornflour')).toBeTruthy()
+    expect(within(prep).queryByText('chilli')).toBeNull()
+    fireEvent.click(within(prep).getByRole('button', { name: 'Start step 1' }))
+    expect(screen.getByText('Step 1 of 2')).toBeTruthy()
+    expect(screen.getByText('Velvet the beef.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByText('Stir-fry the beef.')).toBeTruthy()
+    const could = screen.getByRole('region', { name: 'Could also' })
+    expect(within(could).getByText('Pickle the chilli.')).toBeTruthy()
+    expect(within(could).getByText('heat · +10 min')).toBeTruthy()
+    // The chilli is only for the extra not chosen, so it isn't flagged as unused.
+    expect(screen.queryByRole('note')).toBeNull()
+  })
+
+  it('skips every extra when none is chosen', () => {
+    cook()
+    const prep = screen.getByRole('dialog', { name: 'Cooking Beef stir-fry' })
+    expect(within(prep).queryByText('cornflour')).toBeNull()
+    fireEvent.click(within(prep).getByRole('button', { name: 'Start step 1' }))
+    expect(screen.getByText('Step 1 of 1')).toBeTruthy()
+    const could = screen.getByRole('region', { name: 'Could also' })
+    expect(within(could).getAllByText(/the (beef|chilli)\./).map((p) => p.textContent)).toEqual([
+      'Velvet the beef.silkier, more tender · +15 min',
+      'Pickle the chilli.heat · +10 min',
+    ])
   })
 })

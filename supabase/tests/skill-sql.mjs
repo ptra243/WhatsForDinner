@@ -80,6 +80,11 @@ const pantryQueries = blocks.filter((b) => b.includes('from pantry_items'));
 if (pantryQueries.length !== 1) throw new Error(`Expected 1 pantry query in SKILL.md, found ${pantryQueries.length}`);
 const pantry = fill(pantryQueries[0]).replace(/;\s*$/, '');
 
+// The extras query (#56), checked before and after the example that chooses one.
+const extrasQueries = blocks.filter((b) => b.includes('as chosen'));
+if (extrasQueries.length !== 1) throw new Error(`Expected 1 extras query in SKILL.md, found ${extrasQueries.length}`);
+const weekExtras = fill(extrasQueries[0]).replace(/;\s*$/, '');
+
 // The query that finds the owner's household, so it can be checked with a member in the household (#16).
 const ownerQueries = blocks.filter((b) => b.includes("m.role = 'owner'"));
 if (ownerQueries.length !== 1) throw new Error(`Expected 1 owner household query in SKILL.md, found ${ownerQueries.length}`);
@@ -170,6 +175,18 @@ from ingredients i where i.name = 'onion';
 select pg_temp.expect('Tuesday''s items to price, staples left out, with what is cached',
   (select string_agg(name || ' ' || qty::numeric(10, 2) || ' ' || unit || ' [' || array_to_string(cached, ',') || ']', ', ') from (${priceItems}) q),
   'beef chuck 1000.00 g [coles grocerly], carrot 2.00 each [], celery 2.00 each [], crushed tomato 800.00 g [], garlic clove 4.00 each [], lemon 3.00 each [], onion 1.00 each [], red wine 250.00 ml [], tomato paste 2.00 tbsp []');
+-- Pork stir-fry on Friday, with its optional velveting step not chosen yet: the cornflour only
+-- that step uses isn't priced (#56).
+insert into meal_plan_dishes (household_id, week_start, day, position, recipe_id, role, servings)
+select :'hid', :'week', 'fri', 0, r.id, 'main', 4 from recipes r where r.household_id = :'hid' and r.slug = 'pork-cabbage-stir-fry';
+select pg_temp.expect('the week''s extras, none chosen',
+  (select string_agg(day || ' ' || slug || ' ' || position || ' ' || extra_mins || ' ' || chosen, ', ') from (${weekExtras}) q),
+  'fri pork-cabbage-stir-fry 1 5 false');
+select pg_temp.expect('the cornflour only an unchosen extra uses is not priced',
+  (select count(*) from (${priceItems}) q where name = 'cornflour'), 0::bigint);
+select pg_temp.expect('the soy sauce a required step also uses is still on the list',
+  (select count(*) from meal_plan_dishes d join recipe_ingredients ri on ri.recipe_id = d.recipe_id
+   join ingredients i on i.slug = ri.ingredient_slug where d.household_id = :'hid' and d.day = 'fri' and i.name = 'soy sauce'), 1::bigint);
 select pg_temp.expect('both suggestions open, oldest first, with who made them',
   (select string_agg(name || ' by ' || suggested_by, ', ') from (${openSuggestions}) q), 'Lemongrass chicken by skill-member, Pho by skill-member');
 `);
@@ -178,7 +195,20 @@ blocks.forEach((sql, i) => {
   console.log(`\\echo 'skill example ${i + 1} of ${blocks.length}'\n${fill(sql)}\n`);
 });
 
-console.log(`select pg_temp.expect('Monday dishes', (select count(*) from meal_plan_dishes where household_id = :'hid' and week_start = :'week' and day = 'mon'), 3::bigint);
+console.log(`select pg_temp.expect('Friday''s extra chosen, by the extras query',
+  (select string_agg(position || ' ' || chosen, ', ') from (${weekExtras}) q where day = 'fri'), '1 true');
+select pg_temp.expect('Friday''s extra and its minutes, by the read-a-week query',
+  (select string_agg(name || ' [' || array_to_string(extras, '; ') || '] ' || extra_mins, ', ') from (${readWeek}) q where day = 'fri'),
+  'Pork and cabbage stir-fry [Velvet the pork: toss the mince with the cornflour and 1 tbsp of the soy sauce, and leave it while the noodles cook.] 5');
+select pg_temp.expect('the cornflour priced once its extra is chosen',
+  (select string_agg(name || ' ' || qty::numeric(10, 2) || ' ' || unit, ', ') from (${priceItems}) q where name = 'cornflour'), 'cornflour 1.00 tbsp');
+select pg_temp.expect('the new recipe''s optional step',
+  (select string_agg(s.position || ' ' || s.optional || ' ' || coalesce(s.extra_mins::text, '-') || ' ' || coalesce(nullif(s.why, ''), '-'), ', ' order by s.position)
+   from recipe_steps s join recipes r on r.id = s.recipe_id where r.household_id = :'hid' and r.slug = 'lemongrass-chicken'),
+  '0 false - -, 1 true 15 more flavour, more tender, 2 false - -');
+-- Friday's stir-fry has egg noodles, which the household avoids: take it off before the allergen checks.
+delete from meal_plan_dishes where household_id = :'hid' and week_start = :'week' and day = 'fri';
+select pg_temp.expect('Monday dishes', (select count(*) from meal_plan_dishes where household_id = :'hid' and week_start = :'week' and day = 'mon'), 3::bigint);
 select pg_temp.expect('the week''s chicken and lemons priced and cached, with each store''s latest',
   (select string_agg(name || ' ' || qty::numeric(10, 2) || ' ' || unit || ' [' || array_to_string(cached, ',') || '] ' || array_to_string(latest, ', '), '; ')
    from (${priceItems}) q where name in ('chicken thigh', 'lemon', 'evaporated milk', 'beef chuck')),
