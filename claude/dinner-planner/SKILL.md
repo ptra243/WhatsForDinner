@@ -33,7 +33,7 @@ where h.id <> private.template_household_id();
 
 - `recipes`: household_id, slug (lowercase-hyphenated, unique in the household), name, course (`main` / `side`), serves, active_mins, total_mins, provides text[] (`protein`, `veg`, `carb`), spice 0–3, tags text[], source, rating 1–5 (null until rated), notes, is_example, created_by.
 - `recipe_ingredients`: recipe_id, position (from 0), ingredient_slug → `ingredients`, qty (null for "to taste"), unit, note.
-- `recipe_steps`: recipe_id, method_id (null for the recipe's own steps), position (from 0 within each method), text, timer_mins (null unless the step involves waiting), optional (an extra that makes the dish better but takes longer, chosen per night), extra_mins (the hands-on minutes an optional step adds; required for one), why (what it's worth, for an optional step: "silkier, more tender"). Only optional steps have extra_mins or why. An ingredient that only optional steps use is optional: the shopping list and cook mode leave it out unless one of its steps is chosen.
+- `recipe_steps`: recipe_id, method_id (null for the recipe's own steps), position (from 0 within each method), text, timer_mins (null unless the step involves waiting), optional (an extra that makes the dish better but takes longer, chosen per night), extra_mins (the minutes an optional step adds, required for one; the night counts them in both hands-on and total time, so include any waiting it adds), why (what it's worth, for an optional step: "silkier, more tender"). Only optional steps have extra_mins or why. An ingredient that only optional steps use is optional: the shopping list and cook mode leave it out unless one of its steps is chosen.
 - `recipe_methods`: recipe_id, name (unique in the recipe, e.g. `Pressure cooker`), equipment (as named in settings `equipment`; null when it needs nothing special), active_mins, total_mins. Another way to cook the recipe, with its own times and steps (`recipe_steps.method_id`). The recipe's own times and steps are its usual way.
 - `recipe_step_ingredients`: step_id → `recipe_steps`, recipe_ingredient_id → `recipe_ingredients`. The ingredients each step uses, for every method's steps. The database refuses a link to another recipe's ingredient; deleting the step or the ingredient row deletes the link. Cook mode shows each step's ingredients, lists them to get ready before step 1, and flags any no step used.
 - `ingredients`: slug (PK), name (unique), section, allergens text[] (below), pack_qty and pack_unit (how it is usually sold, both or neither), shelf_days (days it keeps once bought). Shared by all households.
@@ -385,7 +385,7 @@ with r as (
   select r.id, v.position, v.text, v.timer_mins, v.optional, v.extra_mins, v.why
   from r, (values
     (0, 'Mix the chicken with the lemongrass, garlic and fish sauce.', null::integer, false, null::integer, ''),
-    (1, 'Marinate.', 15, true, 5, 'more flavour, more tender'),
+    (1, 'Marinate.', 15, true, 15, 'more flavour, more tender'),
     (2, 'Fry in the oil in a hot pan until golden and cooked through.', 10, false, null, '')
   ) as v(position, text, timer_mins, optional, extra_mins, why)
   returning id, position

@@ -70,6 +70,9 @@ select pg_temp.refused('a required step with extra minutes',
 select pg_temp.refused('a required step with a why',
   $$insert into public.recipe_steps (recipe_id, position, text, why) values ('00000000-0000-4000-8000-0000000000e2', 1, 'Serve.', 'nicer')$$,
   '23514');
+select pg_temp.refused('an optional step without extra minutes',
+  $$insert into public.recipe_steps (recipe_id, position, text, optional) values ('00000000-0000-4000-8000-0000000000e2', 1, 'Serve.', true)$$,
+  '23514');
 select pg_temp.refused('an optional step with 0 extra minutes',
   $$insert into public.recipe_steps (recipe_id, position, text, optional, extra_mins) values ('00000000-0000-4000-8000-0000000000e2', 1, 'Serve.', true, 0)$$,
   '23514');
@@ -128,6 +131,15 @@ begin
     'id', '00000000-0000-4000-8000-0000000000e1', 'name', 'Beef stir-fry',
     'steps', jsonb_build_array(jsonb_build_object('text', 'Velvet.', 'optional', true, 'extra_mins', 0))));
   raise exception 'Optional step check failed: 0 extra minutes saved';
+exception when others then
+  if sqlerrm not like '%extra minutes must be more than 0%' then raise; end if;
+end $$;
+do $$
+begin
+  perform public.save_recipe('00000000-0000-4000-8000-0000000000a1', jsonb_build_object(
+    'id', '00000000-0000-4000-8000-0000000000e1', 'name', 'Beef stir-fry',
+    'steps', jsonb_build_array(jsonb_build_object('text', 'Velvet.', 'optional', true))));
+  raise exception 'Optional step check failed: an optional step saved without extra minutes';
 exception when others then
   if sqlerrm not like '%extra minutes must be more than 0%' then raise; end if;
 end $$;

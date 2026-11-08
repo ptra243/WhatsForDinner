@@ -7,7 +7,8 @@ alter table public.recipe_steps
   add column optional boolean not null default false,
   add column extra_mins integer check (extra_mins > 0),
   add column why text not null default '',
-  add constraint recipe_steps_extra_check check (optional or (extra_mins is null and why = ''));
+  add constraint recipe_steps_extra_check
+    check ((optional and extra_mins is not null) or (not optional and extra_mins is null and why = ''));
 
 -- The optional steps chosen for this night, in step order. Only optional steps of the dish's own
 -- recipe and method; the trigger below keeps it so.
@@ -227,7 +228,7 @@ begin
   for item in select * from jsonb_array_elements(coalesce(recipe->'steps', '[]')) loop
     if trim(coalesce(item->>'text', '')) = '' then raise exception 'Step % has no text', pos + 1; end if;
     opt := coalesce((item->>'optional')::boolean, false);
-    if opt and (item->>'extra_mins')::integer <= 0 then
+    if opt and coalesce((item->>'extra_mins')::integer, 0) <= 0 then
       raise exception 'Step %: extra minutes must be more than 0', pos + 1;
     end if;
     kept := null;

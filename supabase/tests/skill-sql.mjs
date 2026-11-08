@@ -205,7 +205,7 @@ select pg_temp.expect('the cornflour priced once its extra is chosen',
 select pg_temp.expect('the new recipe''s optional step',
   (select string_agg(s.position || ' ' || s.optional || ' ' || coalesce(s.extra_mins::text, '-') || ' ' || coalesce(nullif(s.why, ''), '-'), ', ' order by s.position)
    from recipe_steps s join recipes r on r.id = s.recipe_id where r.household_id = :'hid' and r.slug = 'lemongrass-chicken'),
-  '0 false - -, 1 true 5 more flavour, more tender, 2 false - -');
+  '0 false - -, 1 true 15 more flavour, more tender, 2 false - -');
 -- Friday's stir-fry has egg noodles, which the household avoids: take it off before the allergen checks.
 delete from meal_plan_dishes where household_id = :'hid' and week_start = :'week' and day = 'fri';
 select pg_temp.expect('Monday dishes', (select count(*) from meal_plan_dishes where household_id = :'hid' and week_start = :'week' and day = 'mon'), 3::bigint);
