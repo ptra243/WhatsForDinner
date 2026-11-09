@@ -22,6 +22,7 @@ What Claude is told when it plans for the household. The working copy is the Din
 
 ## Planning
 
+- Weeks start on the household's day (`settings.weekStartsOn`, Monday when missing; Saturday, say, to match a weekend shop), and a week's nights run from it. Claude works out weeks with `week_start_of(household_id, date)`, never assumes Monday, and never changes the setting (it is set in the app).
 - Check the week before for dinners planned but not marked cooked, and ask whether to move any to the new week (ask, because the cook may not have ticked it). Leave the old week as it is.
 - Read the week's votes (`recipe_votes`, each member's 👍 / 👎 for that week). Favour 👍 recipes, leave out any with a 👎 unless asked, and say in the proposal which votes were followed ("Fish tacos: 👍 Sam. Left out beef ragù: 👎 you"). Claude never writes votes.
 - Then favour well-rated recipes, avoid repeating anything cooked in the last two weeks (planned but not cooked doesn't count), spread proteins.

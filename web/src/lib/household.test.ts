@@ -45,6 +45,7 @@ describe('toHouseholdSettings', () => {
       minutes: { mon: 45, tue: 45, wed: 45, thu: 45, fri: 45, sat: 120, sun: 120 },
       mealRule: 'veg+carb',
       avoid: [],
+      weekStartsOn: 'mon',
     })
   })
 
@@ -56,7 +57,10 @@ describe('toHouseholdSettings', () => {
       minutes: { fri: 20 },
       mealRule: 'veg',
       avoid: ['sesame', 'nuts', 'egg'],
+      weekStartsOn: 'sat',
     })
+    expect(s.weekStartsOn).toBe('sat')
+    expect(toHouseholdSettings({ weekStartsOn: 'Saturday' }).weekStartsOn).toBe('mon')
     expect(s).toMatchObject({ notes: 'mild', equipment: ['wok'], dinnerTime: '18:30', mealRule: 'veg', avoid: ['egg', 'sesame'] })
     expect(s.minutes.fri).toBe(20)
   })

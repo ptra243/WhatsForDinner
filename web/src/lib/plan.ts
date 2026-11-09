@@ -5,7 +5,7 @@ import { methodOf } from './methods'
 import type { Course, Recipe } from './recipes'
 import { toSwaps } from './shop'
 import { supabase } from './supabase'
-import { DAYS, type Day } from './week'
+import { DAYS, dateOf, isDay, type Day } from './week'
 
 export type MealRule = 'veg+carb' | 'veg' | 'off'
 
@@ -19,6 +19,8 @@ export type Settings = {
   mealRule: MealRule
   avoid: Allergen[]
   equipment: string[]
+  /** The day the household's weeks start on, so a plan lines up with the shop. */
+  weekStartsOn: Day
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -27,6 +29,7 @@ export const DEFAULT_SETTINGS: Settings = {
   mealRule: 'veg+carb',
   avoid: [],
   equipment: [],
+  weekStartsOn: 'mon',
 }
 
 /**
@@ -210,6 +213,7 @@ export function toSettings(raw: unknown): Settings {
     mealRule: s.mealRule === 'veg' || s.mealRule === 'off' || s.mealRule === 'veg+carb' ? s.mealRule : DEFAULT_SETTINGS.mealRule,
     avoid: toAllergens(s.avoid),
     equipment: Array.isArray(s.equipment) ? s.equipment.filter((e): e is string => typeof e === 'string') : [],
+    weekStartsOn: isDay(s.weekStartsOn) ? s.weekStartsOn : DEFAULT_SETTINGS.weekStartsOn,
   }
 }
 
@@ -275,7 +279,7 @@ export async function loadCookedNights(householdId: string, since: string): Prom
   ])
   if (nights.error) throw nights.error
   if (dishes.error) throw dishes.error
-  const key = (n: { week_start: string; day: string }) => `${n.week_start} ${DAYS.indexOf(n.day as Day)}`
+  const key = (n: { week_start: string; day: string }) => dateOf(n.week_start, n.day as Day)
   const byNight = new Map<string, CookedNight>(nights.data.map((n) => [key(n), []]))
   for (const d of dishes.data) byNight.get(key(d))?.push({ recipeId: d.recipe_id, role: d.role as Course })
   return [...byNight].sort(([a], [b]) => b.localeCompare(a)).map(([, n]) => n)

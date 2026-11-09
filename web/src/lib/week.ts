@@ -1,4 +1,5 @@
-// Weeks start on Monday and are stored as local dates, YYYY-MM-DD (docs/data-model.md).
+// Weeks start on the household's day (settings `weekStartsOn`, Monday by default) and are
+// stored as local dates, YYYY-MM-DD (docs/data-model.md). A week's nights run from that day.
 
 export const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
 export type Day = (typeof DAYS)[number]
@@ -20,15 +21,36 @@ export function parseYmd(s: string): Date {
   return new Date(y, m - 1, d)
 }
 
-/** The Monday of the week holding `d`. */
-export function weekStartOf(d: Date): string {
+export const isDay = (v: unknown): v is Day => typeof v === 'string' && (DAYS as readonly string[]).includes(v)
+
+let householdStart: Day = 'mon'
+
+/**
+ * Sets the day the signed-in household's weeks start on, the default for `weekStartOf` and
+ * `weekDays`. The app sets it from the household settings before showing any week.
+ */
+export function setWeekStartsOn(day: Day): void {
+  householdStart = day
+}
+
+/** The first day of the week holding `d`, for weeks starting on `start`. */
+export function weekStartOf(d: Date, start: Day = householdStart): string {
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-  x.setDate(x.getDate() - ((x.getDay() + 6) % 7))
+  x.setDate(x.getDate() - ((x.getDay() + 6 - DAYS.indexOf(start) + 7) % 7))
   return ymd(x)
 }
 
 /** The weekday of `d`. */
 export const dayOf = (d: Date): Day => DAYS[(d.getDay() + 6) % 7]
+
+/** The seven days in order from `start`: from 'sat', Sat Sun Mon … Fri. */
+export function weekDays(start: Day = householdStart): Day[] {
+  const i = DAYS.indexOf(start)
+  return [...DAYS.slice(i), ...DAYS.slice(0, i)]
+}
+
+/** The nights of the week starting `weekStart`, in order from its first day. */
+export const nightsOf = (weekStart: string): Day[] => weekDays(dayOf(parseYmd(weekStart)))
 
 export function addDays(s: string, n: number): string {
   const x = parseYmd(s)
@@ -36,7 +58,8 @@ export function addDays(s: string, n: number): string {
   return ymd(x)
 }
 
-export const dateOf = (weekStart: string, day: Day) => addDays(weekStart, DAYS.indexOf(day))
+/** The date of `day`'s night in the week starting `weekStart` (whatever day that is). */
+export const dateOf = (weekStart: string, day: Day) => addDays(weekStart, nightsOf(weekStart).indexOf(day))
 
 /** "3 Nov" */
 export function dayLabel(s: string): string {

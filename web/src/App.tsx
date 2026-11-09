@@ -9,6 +9,7 @@ import { SettingsSheet } from './components/SettingsSheet'
 import { Tabs } from './components/Tabs'
 import { WeekTab } from './components/WeekTab'
 import { useHousehold, useSession, type Household } from './lib/auth'
+import { useWeekStartsOn } from './lib/household'
 import { CanAskClaude } from './lib/askAccess'
 import { flush, flushWhenShown, usePendingCount, useStalled } from './lib/offlineQueue'
 import { useOnline } from './lib/online'
@@ -86,6 +87,8 @@ function Shell({ user, household }: { user: { id: string; email: string }; house
   const waiting = usePendingCount(householdId)
   const stalled = useStalled(householdId)
   const changes = `${waiting} ${waiting === 1 ? 'change' : 'changes'}`
+  // The day weeks start on; the tabs show once it is known and start again when it changes.
+  const weekStart = useWeekStartsOn(householdId, settingsVersion)
 
   // List changes made with no signal are sent when the app opens, when the signal returns and
   // when the app is shown again; the queue also retries on a timer while sends get no answer.
@@ -150,8 +153,13 @@ function Shell({ user, household }: { user: { id: string; email: string }; house
               </p>
             )
           )}
-          {tab === 'recipes' ? (
+          {!weekStart ? (
+            <p className="muted" role="status">
+              Loading…
+            </p>
+          ) : tab === 'recipes' ? (
             <RecipesTab
+              key={weekStart}
               householdId={householdId}
               likedWeek={likedWeek}
               adding={addingRecipe}
@@ -159,6 +167,7 @@ function Shell({ user, household }: { user: { id: string; email: string }; house
             />
           ) : tab === 'week' ? (
             <WeekTab
+              key={weekStart}
               householdId={householdId}
               settingsVersion={settingsVersion}
               onShowVotes={(week) => {
@@ -167,9 +176,9 @@ function Shell({ user, household }: { user: { id: string; email: string }; house
               }}
             />
           ) : tab === 'pantry' ? (
-            <PantryTab householdId={householdId} adding={adding} onAddClose={() => setAdding(false)} />
+            <PantryTab key={weekStart} householdId={householdId} adding={adding} onAddClose={() => setAdding(false)} />
           ) : (
-            <ListTab householdId={householdId} adding={adding} onAddClose={() => setAdding(false)} />
+            <ListTab key={weekStart} householdId={householdId} adding={adding} onAddClose={() => setAdding(false)} />
           )}
         </div>
       </main>

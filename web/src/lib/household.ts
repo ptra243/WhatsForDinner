@@ -1,7 +1,9 @@
 // Household settings, the JSON export and clearing the example recipes.
+import { useEffect, useState } from 'react'
 import { DEFAULT_SETTINGS, toSettings, type Settings } from './plan'
 import { supabase } from './supabase'
 import type { Json } from './database.types'
+import { isDay, setWeekStartsOn, type Day } from './week'
 
 /** Everything in the settings sheet: what the week uses plus what Claude plans with. */
 export type HouseholdSettings = Settings & { notes: string }
@@ -12,6 +14,46 @@ export const DEFAULT_HOUSEHOLD_SETTINGS: HouseholdSettings = { ...DEFAULT_SETTIN
 export function toHouseholdSettings(raw: unknown): HouseholdSettings {
   const s = (raw && typeof raw === 'object' ? raw : {}) as { notes?: unknown }
   return { ...toSettings(raw), notes: typeof s.notes === 'string' ? s.notes : '' }
+}
+
+const startKey = (householdId: string) => `wfd-week-start:${householdId}`
+
+function cachedStart(householdId: string): Day | undefined {
+  try {
+    const v = localStorage.getItem(startKey(householdId))
+    return isDay(v) ? v : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The day the household's weeks start on, set as the default for the week helpers. It is
+ * remembered on the device so the app opens offline on the right weeks; undefined only while a
+ * first load is on its way. Loads again when `version` goes up (a settings save).
+ */
+export function useWeekStartsOn(householdId: string, version = 0): Day | undefined {
+  const [start, setStart] = useState(() => cachedStart(householdId))
+  useEffect(() => {
+    let live = true
+    loadHouseholdSettings(householdId).then(
+      (s) => {
+        if (!live) return
+        try {
+          localStorage.setItem(startKey(householdId), s.weekStartsOn)
+        } catch {
+          // Not remembered; it loads again next time.
+        }
+        setStart(s.weekStartsOn)
+      },
+      () => live && setStart((v) => v ?? DEFAULT_SETTINGS.weekStartsOn),
+    )
+    return () => {
+      live = false
+    }
+  }, [householdId, version])
+  if (start) setWeekStartsOn(start)
+  return start
 }
 
 /** "pressure cooker, slow cooker" → ['pressure cooker', 'slow cooker'] */

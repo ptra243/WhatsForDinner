@@ -31,7 +31,7 @@ import {
 } from '../lib/plan'
 import { addToNight, loadRecipes, matches, type Course, type Recipe } from '../lib/recipes'
 import { tallyText, useVotes } from '../lib/votes'
-import { DAY_FULL, DAY_NAMES, DAYS, addDays, dateOf, dayLabel, parseYmd, rangeLabel, weekStartOf, ymd, type Day } from '../lib/week'
+import { DAY_FULL, DAY_NAMES, addDays, nightsOf, dateOf, dayLabel, parseYmd, rangeLabel, weekStartOf, ymd, type Day } from '../lib/week'
 import { AskClaudeButton } from './AskClaude'
 import { CookMode } from './CookMode'
 import { RecipeView } from './RecipeView'
@@ -213,7 +213,7 @@ export function WeekTab({
         )
       ) : (
         <>
-          {DAYS.every((d) => !nights[d].dishes.length) && (
+          {nightsOf(week).every((d) => !nights[d].dishes.length) && (
             <div className="empty-state gapped">
               <h2>Nothing planned for this week</h2>
               <p className="muted small">
@@ -227,7 +227,7 @@ export function WeekTab({
             </div>
           )}
           <div className="paper week">
-            {DAYS.map((d) => {
+            {nightsOf(week).map((d) => {
               const date = dateOf(week, d)
               return (
                 <NightRow
@@ -248,7 +248,7 @@ export function WeekTab({
               )
             })}
           </div>
-          {DAYS.some((d) => nights[d].dishes.length) && (
+          {nightsOf(week).some((d) => nights[d].dishes.length) && (
             <AskClaudeButton className="btn ghost wide gap-top" prompt={weekPrompt(week)}>
               Ask Claude about this week
             </AskClaudeButton>
@@ -885,7 +885,7 @@ function MovePicker({
                 {rangeLabel(w)}
               </b>
               {week ? (
-                DAYS.filter((d) => w !== weekStart || d !== day).map((d) => option(w, d, week[d]))
+                nightsOf(w).filter((d) => w !== weekStart || d !== day).map((d) => option(w, d, week[d]))
               ) : error ? (
                 <p className="small warn flat">Could not load {rangeLabel(w)}: {error}</p>
               ) : (

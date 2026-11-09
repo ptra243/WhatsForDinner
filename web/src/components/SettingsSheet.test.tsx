@@ -24,6 +24,7 @@ const SAVED: HouseholdSettings = {
   minutes: { ...DEFAULT_HOUSEHOLD_SETTINGS.minutes, tue: 30 },
   mealRule: 'veg',
   avoid: ['egg'],
+  weekStartsOn: 'mon',
 }
 
 const props = { householdId: 'h1', user: { id: 'u1', email: 'cook@example.test' }, isOwner: true, onChanged: vi.fn(), onClose: vi.fn() }
@@ -46,6 +47,7 @@ describe('SettingsSheet', () => {
     expect(screen.getByLabelText('Tue')).toHaveValue(30)
     expect(screen.getByLabelText('Sat')).toHaveValue(120)
     expect(screen.getByLabelText('Every night needs')).toHaveValue('veg')
+    expect(screen.getByLabelText('Week starts on')).toHaveValue('mon')
     expect(screen.getByRole('button', { name: 'egg' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'milk' })).toHaveAttribute('aria-pressed', 'false')
   })
@@ -58,6 +60,8 @@ describe('SettingsSheet', () => {
     fireEvent.change(screen.getByLabelText('Mon'), { target: { value: '25' } })
     fireEvent.change(screen.getByLabelText('Wed'), { target: { value: '' } })
     fireEvent.change(screen.getByLabelText('Every night needs'), { target: { value: 'off' } })
+    fireEvent.change(screen.getByLabelText('Week starts on'), { target: { value: 'sat' } })
+    expect(screen.getByText(/Planned dinners keep their dates/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'egg' }))
     fireEvent.click(screen.getByRole('button', { name: 'sesame' }))
     fireEvent.click(screen.getByRole('button', { name: 'milk' }))
@@ -70,8 +74,16 @@ describe('SettingsSheet', () => {
       minutes: { mon: 25, tue: 30, wed: 45, thu: 45, fri: 45, sat: 120, sun: 120 },
       mealRule: 'off',
       avoid: ['milk', 'sesame'],
+      weekStartsOn: 'sat',
     })
     expect(props.onChanged).toHaveBeenCalled()
+  })
+
+  it('lists the nightly minutes from the day the week starts on', async () => {
+    api.loadHouseholdSettings.mockResolvedValue({ ...SAVED, weekStartsOn: 'sat' })
+    await open()
+    const labels = [...document.querySelectorAll('.minutes label')].map((l) => l.textContent)
+    expect(labels).toEqual(['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'])
   })
 
   it('stays open and says why when saving fails', async () => {

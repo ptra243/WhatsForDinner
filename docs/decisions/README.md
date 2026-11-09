@@ -14,3 +14,4 @@ Short records of settled decisions: the context, the decision and what it costs.
 | [0008](0008-review-harness.md) | Separate author and reviewer sessions; CI gates merges | 2026-10-28 |
 | [0009](0009-parallel-waves-and-used-reviews.md) | Ship milestones in waves; reviewers use the app | 2026-10-28 |
 | [0010](0010-start-sessions-ahead.md) | Start reviewers and next authors ahead; they wait on GitHub | 2026-11-03 |
+| [0011](0011-week-start-day.md) | Weeks start on the household's chosen day, not always Monday | 2026-11-04 |

@@ -216,6 +216,13 @@ describe('swapPrompt', () => {
     expect(swapPrompt(find(items, 'red onion|each')!, dishes, '2026-10-26')).toContain('for Bolognese on Mon,')
     expect(swapPrompt(find(items, 'onion|each')!, dishes, '2026-10-26')).toContain('for Green salad on Thu,')
   })
+
+  it('names the dishes in the order of the week, from the day it starts on', () => {
+    const dishes = [dish('mon', { ...bolognese, name: 'Bolognese' }, 4), dish('sat', { ...salad, name: 'Green salad' }, 2)]
+    const onion = find(deriveList(dishes, sections), 'onion|each')!
+    expect(swapPrompt(onion, dishes, '2026-10-31')).toContain('for Green salad on Sat, Bolognese on Mon,')
+    expect(swapPrompt(onion, dishes, '2026-10-26')).toContain('for Bolognese on Mon, Green salad on Sat,')
+  })
 })
 
 describe('packs', () => {

@@ -13,7 +13,7 @@ import {
 import { usePendingCount } from '../lib/offlineQueue'
 import type { MealRule } from '../lib/plan'
 import { supabase } from '../lib/supabase'
-import { DAY_NAMES, DAYS, ymd, type Day } from '../lib/week'
+import { DAY_FULL, DAY_NAMES, DAYS, weekDays, ymd, type Day } from '../lib/week'
 import { HouseholdMembers } from './HouseholdMembers'
 import { Sheet } from './Sheet'
 
@@ -46,6 +46,8 @@ export function SettingsSheet({
   )
   const [mealRule, setMealRule] = useState<MealRule>(DEFAULT_HOUSEHOLD_SETTINGS.mealRule)
   const [avoid, setAvoid] = useState<Allergen[]>(DEFAULT_HOUSEHOLD_SETTINGS.avoid)
+  const [weekStartsOn, setWeekStartsOn] = useState<Day>(DEFAULT_HOUSEHOLD_SETTINGS.weekStartsOn)
+  const [savedStart, setSavedStart] = useState<Day>(DEFAULT_HOUSEHOLD_SETTINGS.weekStartsOn)
   const [examples, setExamples] = useState(0)
   const [confirmClear, setConfirmClear] = useState(false)
   const [busy, setBusy] = useState<'save' | 'export' | 'clear'>()
@@ -65,6 +67,8 @@ export function SettingsSheet({
         setMinutes(Object.fromEntries(DAYS.map((d) => [d, String(s.minutes[d])])) as Record<Day, string>)
         setMealRule(s.mealRule)
         setAvoid(s.avoid)
+        setWeekStartsOn(s.weekStartsOn)
+        setSavedStart(s.weekStartsOn)
         setExamples(n)
         setLoaded(true)
       },
@@ -91,6 +95,7 @@ export function SettingsSheet({
         ) as Record<Day, number>,
         mealRule,
         avoid,
+        weekStartsOn,
       })
       onChanged()
       onClose()
@@ -163,6 +168,23 @@ export function SettingsSheet({
         />
       </div>
       <div className="stack tight">
+        <label className="lab" htmlFor="hs-start">
+          Week starts on
+        </label>
+        <select id="hs-start" className="field" value={weekStartsOn} onChange={(e) => setWeekStartsOn(e.target.value as Day)}>
+          {DAYS.map((d) => (
+            <option key={d} value={d}>
+              {DAY_FULL[d]}
+            </option>
+          ))}
+        </select>
+        <p className="small muted flat">
+          {weekStartsOn === savedStart
+            ? 'The plan and shopping list run from this day, so one shop buys one week.'
+            : 'Planned dinners keep their dates; list ticks, added items and votes move to the week they mostly overlap.'}
+        </p>
+      </div>
+      <div className="stack tight">
         <label className="lab" htmlFor="hs-time">
           Dinner time
         </label>
@@ -171,7 +193,7 @@ export function SettingsSheet({
       <fieldset className="stack tight plain">
         <legend className="lab">Hands-on minutes per night</legend>
         <div className="minutes">
-          {DAYS.map((d) => (
+          {weekDays(weekStartsOn).map((d) => (
             <div className="stack tight" key={d}>
               <label className="small" htmlFor={`hs-m-${d}`}>
                 {DAY_NAMES[d]}
