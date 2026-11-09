@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { addDays, dateOf, dayOf, nightsOf, rangeLabel, setWeekStartsOn, weekDays, weekStartOf } from './week'
+import { addDays, dateOf, dayOf, movedWeek, nightsOf, rangeLabel, setWeekStartsOn, weekDays, weekStartOf } from './week'
 
 describe('weeks', () => {
   it('starts on the Monday', () => {
@@ -36,6 +36,15 @@ describe('weeks from another day', () => {
     setWeekStartsOn('sat')
     expect(weekStartOf(new Date(2026, 10, 5))).toBe('2026-10-31')
     expect(weekDays()).toEqual(['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri'])
+  })
+
+  it('moves a week-wide row to the new week that overlaps it most', () => {
+    expect(movedWeek('2026-11-02', 'sat')).toBe('2026-10-31') // Mon → Sat: 2 days back, 5 days shared
+    expect(movedWeek('2026-11-02', 'fri')).toBe('2026-10-30') // 3 back, 4 shared
+    expect(movedWeek('2026-11-02', 'thu')).toBe('2026-11-05') // 3 on, 4 shared
+    expect(movedWeek('2026-11-02', 'sun')).toBe('2026-11-01')
+    expect(movedWeek('2026-11-07', 'sun')).toBe('2026-11-08')
+    expect(movedWeek('2026-11-02', 'mon')).toBe('2026-11-02')
   })
 
   it("orders a week's nights from its first day and dates them", () => {

@@ -33,6 +33,32 @@ export function setWeekStartsOn(day: Day): void {
   householdStart = day
 }
 
+type Loader = () => Promise<Day>
+let loader: Loader | undefined
+
+/** Registers how to load the household's start day again (the app shell does). Returns the unregister. */
+export function setWeekStartLoader(load: Loader): () => void {
+  loader = load
+  return () => {
+    if (loader === load) loader = undefined
+  }
+}
+
+/**
+ * Loads the household's start day again, for when a write was refused because its week no
+ * longer starts on that day (another member changed it). Resolves to the day now in use.
+ */
+export const recheckWeekStart = (): Promise<Day> => (loader ? loader() : Promise.resolve(householdStart))
+
+/**
+ * The week a week-wide row (a list mark or extra, a vote) moves to when weeks start on `start`
+ * instead: the one that overlaps it most, at most 3 days away, as the database moves them.
+ */
+export function movedWeek(week: string, start: Day): string {
+  const shift = ((DAYS.indexOf(start) - DAYS.indexOf(dayOf(parseYmd(week))) + 10) % 7) - 3
+  return addDays(week, shift)
+}
+
 /** The first day of the week holding `d`, for weeks starting on `start`. */
 export function weekStartOf(d: Date, start: Day = householdStart): string {
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate())

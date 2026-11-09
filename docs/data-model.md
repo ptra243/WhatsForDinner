@@ -40,14 +40,14 @@ Table privileges are granted explicitly, because the live project gives `anon` a
 
 ## Week start day
 
-The settings sheet's **Week starts on** sets `household_settings.settings.weekStartsOn` (default Monday), so the plan and the shopping list run from the day the household shops: Saturday to Friday for a weekend shop. A night is the day in its week with that weekday (`dateOf` in `web/src/lib/week.ts`; `public.week_start_of(hid, date)` in SQL gives a date's week). The Week tab, the shopping list, the week switchers and the votes all use the household's weeks, nights in order from the first day. The app loads the setting before showing a week and remembers it on the device for opening offline.
+The settings sheet's **Week starts on** sets `household_settings.settings.weekStartsOn` (default Monday), so the plan and the shopping list run from the day the household shops: Saturday to Friday for a weekend shop. A night is the day in its week with that weekday (`dateOf` in `web/src/lib/week.ts`; `public.week_start_of(hid, date)` in SQL gives a date's week). The Week tab, the shopping list, the week switchers and the votes all use the household's weeks, nights in order from the first day. The app loads the setting before showing a week and remembers it on the device for opening offline. It loads it again when the app is shown again and when the household's settings change (`household_settings` is in the realtime publication), so a phone left open picks up the other member's change; the tabs then start again on the new weeks. A queued list change refused for its week (the setting changed before it was sent) is sent again for the week it moved to (`movedWeek`, the same overlap rule as below) rather than dropped.
 
 A trigger (`private.check_week_start`) refuses a `week_start` on another weekday in `meal_plan_nights`, `meal_plan_dishes`, `list_marks`, `list_extras` and `recipe_votes`, whoever writes it (the app or Claude). Changing the setting moves the household's weeks in the same write (a trigger on `household_settings`, `private.move_weeks`), losing or doubling up nothing:
 
 - planned dishes and nights keep their dates: dinner on Wed 5 Nov stays on Wed 5 Nov, now in the week starting Sat 1 Nov (only `week_start` changes; `day` stays);
 - list marks, list extras and votes belong to a whole week and move to the new week that overlaps most with their old one (at most three days away).
 
-It is changed in the settings sheet; the Dinner Planner skill reads it and never changes it. CI checks it in `supabase/tests/week_start.sql`.
+It is changed in the settings sheet; the Dinner Planner skill reads it and never changes it. Members read, add and change the settings row but cannot delete it, since that would put weeks back on Monday without moving them. CI checks it in `supabase/tests/week_start.sql`.
 
 ## Derived shopping list
 

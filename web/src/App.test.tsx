@@ -31,6 +31,12 @@ const db = vi.hoisted(() => {
     rpc: vi.fn<(fn: string, args: unknown) => Promise<{ data: string | null; error: null | { message: string } }>>(
       async () => ({ data: 'new-household', error: null }),
     ),
+    // The shell listens for settings changes (the day weeks start on).
+    channel: vi.fn(() => {
+      const channel = { on: () => channel, subscribe: () => channel }
+      return channel
+    }),
+    removeChannel: vi.fn(async () => 'ok'),
   }
   return { state, client }
 })

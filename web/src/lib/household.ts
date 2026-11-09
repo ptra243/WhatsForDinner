@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { DEFAULT_SETTINGS, toSettings, type Settings } from './plan'
 import { supabase } from './supabase'
 import type { Json } from './database.types'
-import { isDay, setWeekStartsOn, type Day } from './week'
+import { isDay, setWeekStartLoader, setWeekStartsOn, type Day } from './week'
 
 /** Everything in the settings sheet: what the week uses plus what Claude plans with. */
 export type HouseholdSettings = Settings & { notes: string }
@@ -30,26 +30,50 @@ function cachedStart(householdId: string): Day | undefined {
 /**
  * The day the household's weeks start on, set as the default for the week helpers. It is
  * remembered on the device so the app opens offline on the right weeks; undefined only while a
- * first load is on its way. Loads again when `version` goes up (a settings save).
+ * first load is on its way. Loads again when `version` goes up (a settings save), when the app
+ * is shown again, when the household's settings change (another member's phone) and when a
+ * list change is refused for its week (`recheckWeekStart`).
  */
 export function useWeekStartsOn(householdId: string, version = 0): Day | undefined {
   const [start, setStart] = useState(() => cachedStart(householdId))
   useEffect(() => {
     let live = true
-    loadHouseholdSettings(householdId).then(
-      (s) => {
-        if (!live) return
-        try {
-          localStorage.setItem(startKey(householdId), s.weekStartsOn)
-        } catch {
-          // Not remembered; it loads again next time.
-        }
-        setStart(s.weekStartsOn)
-      },
-      () => live && setStart((v) => v ?? DEFAULT_SETTINGS.weekStartsOn),
-    )
+    const load = (): Promise<Day> =>
+      loadHouseholdSettings(householdId).then(
+        (s) => {
+          if (live) {
+            try {
+              localStorage.setItem(startKey(householdId), s.weekStartsOn)
+            } catch {
+              // Not remembered; it loads again next time.
+            }
+            setWeekStartsOn(s.weekStartsOn)
+            setStart(s.weekStartsOn)
+          }
+          return s.weekStartsOn
+        },
+        () => {
+          if (live) setStart((v) => v ?? DEFAULT_SETTINGS.weekStartsOn)
+          return cachedStart(householdId) ?? DEFAULT_SETTINGS.weekStartsOn
+        },
+      )
+    void load()
+    const offLoader = setWeekStartLoader(load)
+    const onShow = () => {
+      if (document.visibilityState === 'visible') void load()
+    }
+    document.addEventListener('visibilitychange', onShow)
+    const channel = supabase
+      .channel(`settings-${householdId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'household_settings', filter: `household_id=eq.${householdId}` }, () => {
+        void load()
+      })
+      .subscribe()
     return () => {
       live = false
+      offLoader()
+      document.removeEventListener('visibilitychange', onShow)
+      void supabase.removeChannel(channel)
     }
   }, [householdId, version])
   if (start) setWeekStartsOn(start)

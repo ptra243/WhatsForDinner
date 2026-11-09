@@ -108,6 +108,14 @@ select pg_temp.expect('the other household is untouched',
   '2026-11-02:wed 2026-11-04 theirs / 2026-11-02:wed t / marks 2026-11-02 rice|g; extras -; votes -'::text);
 select pg_temp.expect('the setting kept the other keys', (select settings->>'notes' from public.household_settings where household_id = :'hid'), 'mild'::text);
 
+-- A member can't delete the settings row (it would put weeks back on Monday without moving them).
+set local role authenticated;
+select pg_temp.as_user(:'partner');
+delete from public.household_settings where household_id = :'hid';
+reset role;
+select pg_temp.expect('the settings row is still there after a member''s delete',
+  (select settings->>'weekStartsOn' from public.household_settings where household_id = :'hid'), 'sat'::text);
+
 -- 4. Saturday weeks are now the only ones accepted, and the week of a date follows.
 select pg_temp.expect('a date''s week, from Saturday', public.week_start_of(:'hid', '2026-11-05'), '2026-10-31'::date);
 select pg_temp.expect('a Saturday is its own week start', public.week_start_of(:'hid', '2026-11-07'), '2026-11-07'::date);

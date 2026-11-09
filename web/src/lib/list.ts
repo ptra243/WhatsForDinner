@@ -57,7 +57,7 @@ export type ListItem = {
   qty: number | null
   unit: string
   section: Section
-  /** The nights that use it, Monday first. */
+  /** The nights that use it, in the order of the week. */
   nights: Day[]
   /** "Swap for onion", "Added by hand". */
   notes: string[]

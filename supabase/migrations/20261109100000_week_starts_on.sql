@@ -110,3 +110,18 @@ revoke execute on function private.move_weeks() from public, anon, authenticated
 
 create trigger household_settings_move_weeks after insert or update of settings
   on public.household_settings for each row execute function private.move_weeks();
+
+-- ---------------------------------------------------------------- keeping members in step
+
+-- Another member's phone picks up a change of start day as it happens.
+alter publication supabase_realtime add table public.household_settings;
+
+-- Members read, add and change the settings row but never delete it: deleting it would put weeks
+-- back on Monday without moving them. It goes with the household.
+drop policy "members all" on public.household_settings;
+create policy "members read settings" on public.household_settings for select to authenticated
+  using ((select private.is_member(household_id)));
+create policy "members add settings" on public.household_settings for insert to authenticated
+  with check ((select private.is_member(household_id)));
+create policy "members change settings" on public.household_settings for update to authenticated
+  using ((select private.is_member(household_id))) with check ((select private.is_member(household_id)));

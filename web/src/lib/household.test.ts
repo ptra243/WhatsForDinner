@@ -1,5 +1,14 @@
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearExamples, exportHousehold, parseEquipment, saveHouseholdSettings, toHouseholdSettings } from './household'
+import {
+  clearExamples,
+  exportHousehold,
+  parseEquipment,
+  saveHouseholdSettings,
+  toHouseholdSettings,
+  useWeekStartsOn,
+} from './household'
+import { recheckWeekStart, setWeekStartsOn, weekStartOf } from './week'
 
 type Call = [string, ...unknown[]]
 
@@ -27,7 +36,16 @@ const db = vi.hoisted(() => {
     )
     return builder
   }
-  return { state, client: { from: vi.fn(from) } }
+  // Realtime: the settings change handler the hook subscribes with.
+  const realtime = { onChange: undefined as (() => void) | undefined }
+  const channel = {
+    on: (_event: string, _filter: unknown, handler: () => void) => {
+      realtime.onChange = handler
+      return channel
+    },
+    subscribe: () => channel,
+  }
+  return { state, realtime, client: { from: vi.fn(from), channel: vi.fn(() => channel), removeChannel: vi.fn(async () => 'ok') } }
 })
 vi.mock('./supabase', () => ({ supabase: db.client }))
 
@@ -142,3 +160,42 @@ describe('exportHousehold', () => {
     await expect(exportHousehold('h1')).rejects.toEqual({ message: 'denied' })
   })
 })
+
+describe('useWeekStartsOn', () => {
+  const startsOn = (day: string) => {
+    db.state.respond = (table) =>
+      table === 'household_settings' ? { data: { settings: { weekStartsOn: day } }, error: null } : { data: null, error: null }
+  }
+
+  it("loads the household's day, and again when it changes elsewhere, the app is shown or a write is refused", async () => {
+    localStorage.clear()
+    startsOn('sat')
+    const { result, unmount } = renderHook(() => useWeekStartsOn('h1'))
+    await waitFor(() => expect(result.current).toBe('sat'))
+    expect(weekStartOf(new Date(2026, 10, 5))).toBe('2026-10-31')
+    expect(localStorage.getItem('wfd-week-start:h1')).toBe('sat')
+
+    // Another member's phone changes it.
+    startsOn('sun')
+    act(() => db.realtime.onChange?.())
+    await waitFor(() => expect(result.current).toBe('sun'))
+
+    // The app comes back to the front.
+    startsOn('tue')
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await waitFor(() => expect(result.current).toBe('tue'))
+
+    // A list change was refused for its week.
+    startsOn('wed')
+    await act(async () => expect(await recheckWeekStart()).toBe('wed'))
+    expect(result.current).toBe('wed')
+
+    unmount()
+    expect(db.client.removeChannel).toHaveBeenCalled()
+    setWeekStartsOn('mon')
+  })
+})
+
