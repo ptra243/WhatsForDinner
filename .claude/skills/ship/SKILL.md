@@ -24,15 +24,16 @@ Every session in the workflow is titled `#<issue> - <what it is doing>` so the o
 Background waits die without waking anyone (an app restart, or Git Bash running out of processes), and scheduled-task completion notifications do not wake you either; a `SendMessage` does (decision 0010). So in milestone mode, before starting any session:
 
 1. Get your own session id with `get_session` `"self"`.
-2. Create a scheduled task with `mcp__scheduled-tasks__create_scheduled_task`:
-   - `taskId` `<milestone>-ship-sweep-ping` (for example `m3-ship-sweep-ping`). If that id is taken, use the free id the refusal names and remember it.
+2. Create a scheduled task with `mcp__scheduled-tasks__create_scheduled_task`. There is one ping per milestone:
+   - `taskId` `<milestone>-ship-sweep-ping` (for example `m3-ship-sweep-ping`). If that id is taken, an earlier dispatcher for this milestone (or a hand-made ping) left it: do not create a second one. Take it over with `mcp__scheduled-tasks__update_scheduled_task`, with the `prompt` below carrying your id and `enabled: true`, and tell the owner in one line that you took over an earlier ping, since the session it pointed at may still be running.
+   - `description`, for example `Wakes the /ship M3 dispatcher hourly`.
    - `cronExpression` at a minute that isn't :00 or :30, for example `11 * * * *`.
    - `notifyOnCompletion: false` (the notifications never wake you; the message does).
    - `prompt`, with your session id filled in: `This task only wakes the /ship dispatcher session <id>, which does the real work. Load the SendMessage tool (ToolSearch "select:SendMessage") and send exactly one message: to = "<id>", message = "Hourly sweep ping: run the sweep.". Do nothing else: do not read or change any files, repos, GitHub issues or other sessions. Reply with one line saying whether the message was delivered.`
 
-Each ping is a turn like any other: run the sweep. A ping turn was started by a message, so starts are refused in it; the deck covers that.
+Each ping is a turn like any other: run the sweep. A ping turn was started by a message, so starts are refused in it; the deck covers that (see **When a start is refused**).
 
-When the milestone is **done**, after the owner-checks list has gone out, delete the task with `mcp__scheduled-tasks__delete_scheduled_task`. Single-issue mode does not create one.
+When the milestone is **done**, after the owner-checks list has gone out, delete the task with `mcp__scheduled-tasks__delete_scheduled_task`. Delete it too if the owner stops the milestone before then. Single-issue mode does not create one.
 
 ## Waves
 
@@ -90,3 +91,5 @@ End every turn the owner started with one line on what is in flight (`In flight:
 ## Talking to the owner
 
 Interrupt for blockers only: an issue that is not ready or unclear, an escalation, an author question that is the owner's decision, a refused start. Plus the one-line merge note and the closing owner-checks list.
+
+When the owner stops the milestone (tells you to stop, or abandons it), delete the hourly sweep ping task before ending your turn, so nothing keeps waking a finished dispatcher.
