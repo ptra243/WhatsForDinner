@@ -19,6 +19,21 @@ Read it from the arguments:
 
 Every session in the workflow is titled `#<issue> - <what it is doing>` so the owner can read the sidebar at a glance. Rename yourself with `set_session_title` (session `self`): `#N - ship: <issue title>` for one issue, `M1 - ship milestone` in milestone mode.
 
+## Hourly sweep ping (milestone mode)
+
+Background waits die without waking anyone (an app restart, or Git Bash running out of processes), and scheduled-task completion notifications do not wake you either; a `SendMessage` does (decision 0010). So in milestone mode, before starting any session:
+
+1. Get your own session id with `get_session` `"self"`.
+2. Create a scheduled task with `mcp__scheduled-tasks__create_scheduled_task`:
+   - `taskId` `<milestone>-ship-sweep-ping` (for example `m3-ship-sweep-ping`). If that id is taken, use the free id the refusal names and remember it.
+   - `cronExpression` at a minute that isn't :00 or :30, for example `11 * * * *`.
+   - `notifyOnCompletion: false` (the notifications never wake you; the message does).
+   - `prompt`, with your session id filled in: `This task only wakes the /ship dispatcher session <id>, which does the real work. Load the SendMessage tool (ToolSearch "select:SendMessage") and send exactly one message: to = "<id>", message = "Hourly sweep ping: run the sweep.". Do nothing else: do not read or change any files, repos, GitHub issues or other sessions. Reply with one line saying whether the message was delivered.`
+
+Each ping is a turn like any other: run the sweep. A ping turn was started by a message, so starts are refused in it; the deck covers that.
+
+When the milestone is **done**, after the owner-checks list has gone out, delete the task with `mcp__scheduled-tasks__delete_scheduled_task`. Single-issue mode does not create one.
+
 ## Waves
 
 An issue is **ready** when it is open, has acceptance criteria, and every issue under "Depends on" is closed or has a merged PR (an issue with owner checks stays open after its PR merges; that counts as done). If "Depends on" names an owner decision, ask the owner first. An issue whose dependencies are still in flight waits for a later slot (single issue: tell the owner which dependency is open and stop). An issue that is unclear or not ready for another reason: tell the owner why and leave it out.
@@ -61,16 +76,16 @@ Notes can arrive late or not at all: the app holds them after a long run of note
 - a `Review:` comment newer than your last relay: relay it;
 - after `CHANGES REQUESTED`, an author push or PR comment newer than the newest `Review:` comment, and the reviewer not yet asked: send it `Author updated PR #P; re-review.`;
 - an author session that is idle with no PR and not waiting: pass its question to the owner;
-- a waiting session (idle, its issue not built or its PR not reviewed) whose wait has died: read its newest events with `list_events`. A failed `wait-for.sh` notice with no output is a wait killed from outside (an app restart kills every background wait, and the session is not woken for it). `SendMessage` it `Your wait was killed; start it again.`;
+- a waiting session (idle, its issue not built or its PR not reviewed) whose wait has died: read its newest events with `list_events`. A failed `wait-for.sh` notice with no output is a wait killed from outside (an app restart kills every background wait, and so can Git Bash running out of processes; the session is not woken for it). `SendMessage` it `Your wait was killed; start it again.`;
 - a session whose wait timed out: tell the owner what it was waiting for.
 
-After an app restart the sweep is the only thing that notices killed waits, and it runs only when something wakes you. So when the owner's first message after a restart reaches you, sweep every waiting session.
+After an app restart the sweep is the only thing that notices killed waits, and it runs only when something wakes you: the hourly ping in milestone mode, or the owner's next message. So on the first turn after a restart, sweep every waiting session.
 
 **When a start is refused** (the app does not let you start sessions in a turn another session's message or an automated event started): only needed once the deck is empty. Send the owner a push notification if the tool is available, and end your turn with one line naming each waiting step, for example `#21 is ready for a slot; reply "go" to start it.` The owner's reply is your next turn; the sweep starts it.
 
 End every turn the owner started with one line on what is in flight (`In flight: #10 in review, #11 authoring; on deck: #12 after #10`).
 
-**Done** when every issue in scope is merged or handed to the owner with a reason. Then list every open **Owner checks** item in scope, one row per issue with its link, in one message.
+**Done** when every issue in scope is merged or handed to the owner with a reason. Then list every open **Owner checks** item in scope, one row per issue with its link, in one message. In milestone mode, then delete the hourly sweep ping task.
 
 ## Talking to the owner
 
