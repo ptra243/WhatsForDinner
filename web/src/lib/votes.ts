@@ -12,7 +12,7 @@ export type Vote = { recipeId: string; userId: string; vote: VoteValue }
 export const CurrentUser = createContext('')
 export const useCurrentUser = () => useContext(CurrentUser)
 
-/** The week votes are for unless switched: the coming one, next Monday's. */
+/** The week votes are for unless switched: the coming one. */
 export const comingWeek = (now = new Date()) => addDays(weekStartOf(now), 7)
 
 /** "this week", "next week" or "for 16 Nov". */

@@ -481,6 +481,9 @@ isOneToOne: false
                            },
 "save_recipe":
 { Args: { "hid": string,"recipe": Json }; Returns: string
+                           },
+"week_start_of":
+{ Args: { "d": string,"hid": string }; Returns: string
                            }
           }
           Enums: {

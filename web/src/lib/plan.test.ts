@@ -253,6 +253,8 @@ describe('settings', () => {
     expect(toSettings({ avoid: ['sesame', 'nuts', 'egg'] }).avoid).toEqual(['egg', 'sesame'])
     expect(toSettings({ equipment: ['pressure cooker', 3] }).equipment).toEqual(['pressure cooker'])
     expect(toSettings({ equipment: 'wok' }).equipment).toEqual([])
+    expect(toSettings({ weekStartsOn: 'sat' }).weekStartsOn).toBe('sat')
+    expect(toSettings({ weekStartsOn: 6 }).weekStartsOn).toBe('mon')
   })
 })
 

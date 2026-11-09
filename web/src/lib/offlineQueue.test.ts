@@ -3,6 +3,7 @@ import { NO_MARK } from './list'
 import { renderHook } from '@testing-library/react'
 import { clearQueues, enqueue, flush, flushWhenShown, pending, RETRY_FIRST, useStalled, withPending, type Change, type Queued } from './offlineQueue'
 import type { ListData } from './shop'
+import { setWeekStartLoader } from './week'
 
 const api = vi.hoisted(() => ({ removeExtra: vi.fn(async () => {}) }))
 vi.mock('./supabase', () => ({ supabase: {} }))
@@ -139,6 +140,36 @@ describe('flush', () => {
     enqueue('h1', { kind: 'remove', week: W, id: 'x2' })
     await flush('h1', save)
     expect(save).toHaveBeenCalledTimes(2)
+    expect(pending('h1')).toEqual([])
+  })
+
+  it('sends a change refused for its week again for the week it moved to', async () => {
+    const wrongWeek = { code: '23514', message: "week_start 2026-11-02 is not a start of the household's week" }
+    // Monday weeks are refused: another member moved the household to Saturday weeks.
+    const save = vi.fn(async (_h: string, c: Change) => {
+      if (c.kind !== 'remove' && c.week === '2026-11-02') throw wrongWeek
+    })
+    const off = setWeekStartLoader(async () => 'sat')
+    enqueue('h1', { kind: 'mark', week: '2026-11-02', key: 'onion|each', change: { ticked: true } })
+    enqueue('h1', { kind: 'add', week: '2026-11-02', extra: milk })
+    await flush('h1', save)
+    off()
+    expect(save.mock.calls.map(([, c]) => `${c.kind} ${c.week}`)).toEqual([
+      'mark 2026-11-02',
+      'mark 2026-10-31',
+      'add 2026-11-02',
+      'add 2026-10-31',
+    ])
+    expect(pending('h1')).toEqual([])
+  })
+
+  it('drops a change refused for its week when the day has not changed', async () => {
+    const save = vi.fn().mockRejectedValue({ code: '23514', message: 'week_start 2026-11-03 is not a start' })
+    const off = setWeekStartLoader(async () => 'mon')
+    enqueue('h1', { kind: 'mark', week: '2026-11-02', key: 'onion|each', change: { ticked: true } })
+    await flush('h1', save)
+    off()
+    expect(save).toHaveBeenCalledTimes(1)
     expect(pending('h1')).toEqual([])
   })
 

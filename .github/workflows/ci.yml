@@ -50,6 +50,8 @@ jobs:
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/prices.sql
       - name: Members keep the pantry, for their household only
         run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/pantry.sql
+      - name: Week start day checks
+        run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/week_start.sql
       - name: Dinner Planner skill SQL examples run
         run: node supabase/tests/skill-sql.mjs | psql "$DB_URL" -v ON_ERROR_STOP=1
 

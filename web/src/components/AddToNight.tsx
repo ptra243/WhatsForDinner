@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { addToNight, loadWeekMains, type Recipe } from '../lib/recipes'
-import { DAY_NAMES, DAYS, dateOf, parseYmd, weekStartOf, type Day } from '../lib/week'
+import { DAY_NAMES, dateOf, nightsOf, parseYmd, weekStartOf, type Day } from '../lib/week'
 import { Sheet } from './Sheet'
 import { WeekNav } from './WeekNav'
 
@@ -55,7 +55,7 @@ export function AddToNight({
         </p>
       )}
       <div className="pick">
-        {DAYS.map((d) => (
+        {nightsOf(week).map((d) => (
           <button key={d} type="button" disabled={busy} onClick={() => pick(d)}>
             <span>
               <b>

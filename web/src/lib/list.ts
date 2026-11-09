@@ -3,7 +3,7 @@
 import { skippedIngredients } from './extras'
 import { fmtQty, toBase } from './format'
 import type { RecipeIngredient, RecipeStep } from './recipes'
-import { DAYS, DAY_NAMES, type Day } from './week'
+import { DAY_NAMES, nightsOf, weekDays, type Day } from './week'
 
 /** Sections in walking order, as the database allows them (docs/data-model.md). */
 export const SECTIONS = [
@@ -57,7 +57,7 @@ export type ListItem = {
   qty: number | null
   unit: string
   section: Section
-  /** The nights that use it, Monday first. */
+  /** The nights that use it, in the order of the week. */
   nights: Day[]
   /** "Swap for onion", "Added by hand". */
   notes: string[]
@@ -81,7 +81,8 @@ export function deriveList(
   packs: Record<string, Pack> = {},
 ): ListItem[] {
   const items = new Map<string, ListItem>()
-  const ordered = [...dishes].sort((a, b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day))
+  const order = weekDays()
+  const ordered = [...dishes].sort((a, b) => order.indexOf(a.day) - order.indexOf(b.day))
   for (const dish of ordered) {
     const r = dish.recipe
     if (!r) continue
@@ -233,7 +234,8 @@ export const rowPacks = (row: ShopRow) => (showsBought(row) ? '' : packText(row.
 /** The question for Claude when an item could not be bought: what it is for, and to update the plan if the swap is good. */
 export function swapPrompt(item: ListItem, dishes: ListDish[], weekStart: string): string {
   const uses: string[] = []
-  for (const d of [...dishes].sort((a, b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day))) {
+  const order = nightsOf(weekStart)
+  for (const d of [...dishes].sort((a, b) => order.indexOf(a.day) - order.indexOf(b.day))) {
     const r = d.recipe
     const is = (name: string) => name.toLowerCase().trim() === item.name
     const usesIt =

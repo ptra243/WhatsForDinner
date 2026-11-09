@@ -27,7 +27,7 @@ left join household_settings s on s.household_id = h.id
 where h.id <> private.template_household_id();
 ```
 
-`settings` holds `notes` (preferences such as spice level), `dinnerTime`, `minutes` (hands-on minutes per weekday, `mon`..`sun`), `equipment` (e.g. pressure cooker; decides which recipe methods you can plan), `mealRule` (`veg+carb`, `veg` or `off`) and `avoid` (allergens to avoid, from the list below; missing means none).
+`settings` holds `notes` (preferences such as spice level), `dinnerTime`, `minutes` (hands-on minutes per weekday, `mon`..`sun`), `equipment` (e.g. pressure cooker; decides which recipe methods you can plan), `mealRule` (`veg+carb`, `veg` or `off`), `avoid` (allergens to avoid, from the list below; missing means none) and `weekStartsOn` (`mon`..`sun`, the day the household's week starts on, to match when it shops; missing means Monday).
 
 ## Schema
 
@@ -37,9 +37,9 @@ where h.id <> private.template_household_id();
 - `recipe_methods`: recipe_id, name (unique in the recipe, e.g. `Pressure cooker`), equipment (as named in settings `equipment`; null when it needs nothing special), active_mins, total_mins. Another way to cook the recipe, with its own times and steps (`recipe_steps.method_id`). The recipe's own times and steps are its usual way.
 - `recipe_step_ingredients`: step_id → `recipe_steps`, recipe_ingredient_id → `recipe_ingredients`. The ingredients each step uses, for every method's steps. The database refuses a link to another recipe's ingredient; deleting the step or the ingredient row deletes the link. Cook mode shows each step's ingredients, lists them to get ready before step 1, and flags any no step used.
 - `ingredients`: slug (PK), name (unique), section, allergens text[] (below), pack_qty and pack_unit (how it is usually sold, both or neither), shelf_days (days it keeps once bought). Shared by all households.
-- `meal_plan_dishes`: household_id, week_start (always a Monday), day (`mon`..`sun`), position (order in the night, from 0), recipe_id, role (`main` / `side`), servings, swaps jsonb `[{"from", "to", "qty", "unit"}]`, method_id (null for the recipe's usual way; the database refuses another recipe's method), extras uuid[] (the optional steps chosen for that night, by `recipe_steps.id`; the database refuses any step that isn't an optional step of the dish's own recipe and method, and drops the chosen ones when the method changes).
+- `meal_plan_dishes`: household_id, week_start (the first day of the household's week, the `weekStartsOn` day; the database refuses any other), day (`mon`..`sun`, the night in that week with that weekday), position (order in the night, from 0), recipe_id, role (`main` / `side`), servings, swaps jsonb `[{"from", "to", "qty", "unit"}]`, method_id (null for the recipe's usual way; the database refuses another recipe's method), extras uuid[] (the optional steps chosen for that night, by `recipe_steps.id`; the database refuses any step that isn't an optional step of the dish's own recipe and method, and drops the chosen ones when the method changes).
 - `meal_plan_nights`: household_id, week_start, day, cooked, skip_check (no meal rule check that night), minutes (that night's own hands-on minutes, set in the app for a busy night; null means the weekday's `minutes` setting), locked (leave the night's dishes alone). Set in the app; read only for you.
-- `recipe_votes`: household_id, week_start (a Monday), recipe_id, user_id, vote (`1` 👍, `-1` 👎). Each member's say on a recipe for a coming week, set in the app. Read only for you: never write votes.
+- `recipe_votes`: household_id, week_start (the first day of the household's week), recipe_id, user_id, vote (`1` 👍, `-1` 👎). Each member's say on a recipe for a coming week, set in the app. Read only for you: never write votes.
 - `suggestions`: id, household_id, created_by, name, description (may hold a link), status (`open` / `added` / `declined`), reply (your one line), recipe_id → recipes. Dinners members suggest in the app. You set only `status`, `reply` and `recipe_id` (Suggestions below).
 - `ingredient_prices`: household_id, ingredient_slug → `ingredients`, store (`coles` / `woolworths` / `aldi`), source (`whichgrocer` / `grocerly` / `paid`), seen_on (date, defaults to today), product, pack_qty and pack_unit (a unit from the list), price (the pack's shelf price), unit_price and unit_basis (`kg` / `l` / `each`), on_special, source_updated_on (when the source last refreshed, where it says). One row per ingredient, store, source and day: saving again that day overwrites it. A not found row (no acceptable match at that store) has product, pack, price and unit price null. You write these (Prices below); the app only reads them, through the view `ingredient_prices_latest` (each ingredient's latest row per store), and shows them on the shopping list. They are the price history: never delete them.
 - `pantry_items`: household_id, ingredient_slug → `ingredients`, qty (null when nobody measured it), unit, location (`fridge` / `freezer` / `pantry`), best_before (date; null when nobody knows), note. What the household has at home, kept in the app's Pantry tab (the app fills best_before from the ingredient's `shelf_days`; **Used up** deletes a row). Read only for you: never write the pantry.
@@ -148,7 +148,16 @@ Short, plain, phone-sized replies. Simple lists, no tables (except the price com
 
 ## Example SQL
 
-Replace `<household_id>`, `<owner_id>`, `<week_start>` (a Monday, `yyyy-mm-dd`) and `<suggestion_id>` with real values. Each block is one call to `execute_sql`.
+Replace `<household_id>`, `<owner_id>`, `<week_start>` (the first day of the household's week, `yyyy-mm-dd`) and `<suggestion_id>` with real values. Each block is one call to `execute_sql`.
+
+Weeks start on the household's `weekStartsOn` day (Monday when missing), and a week's nights run in order from it (from Saturday: Sat, Sun, Mon … Fri). A date's week, this one and the next:
+
+```sql
+select week_start_of('<household_id>', current_date) as this_week,
+       week_start_of('<household_id>', current_date) + 7 as next_week;
+```
+
+Use it for "this week", "next week" or a date the owner names, never a Monday worked out by hand. Never change `weekStartsOn`: it is set in the app's settings.
 
 List recipes, with the last week each was cooked (a night marked cooked in the app) and planned:
 
@@ -175,7 +184,7 @@ left join meal_plan_nights n on n.household_id = d.household_id
  and n.week_start = d.week_start and n.day = d.day
 where d.household_id = '<household_id>' and d.week_start = '<week_start>'::date - 7
   and not coalesce(n.cooked, false)
-order by array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day), d.position;
+order by (array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day) - extract(isodow from d.week_start)::int + 7) % 7, d.position;
 ```
 
 The week's votes, recipes with a 👎 first (leave them out), then the most 👍:
@@ -262,7 +271,7 @@ from unnest(array['mon','tue','wed','thu','fri','sat','sun']) with ordinality as
 left join household_settings s on s.household_id = '<household_id>'
 left join meal_plan_nights n on n.household_id = '<household_id>'
  and n.week_start = '<week_start>' and n.day = d.day
-order by d.i;
+order by (d.i - extract(isodow from '<week_start>'::date)::int + 7) % 7;
 ```
 
 The pantry, soonest best-before first (`days_left` below 0 is past it), with the household's recipes that use each item:
@@ -290,7 +299,7 @@ from meal_plan_dishes d
 join recipes r on r.id = d.recipe_id
 left join recipe_methods m on m.id = d.method_id
 where d.household_id = '<household_id>' and d.week_start = '<week_start>'
-order by array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day), d.position;
+order by (array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day) - extract(isodow from d.week_start)::int + 7) % 7, d.position;
 ```
 
 Write a night. This replaces everything planned that night (an unknown slug fails the whole statement, so nothing is half-saved); for an empty night, keep only the `delete`:
@@ -332,7 +341,7 @@ from meal_plan_dishes d
 join recipes r on r.id = d.recipe_id
 join recipe_steps s on s.recipe_id = d.recipe_id and s.method_id is not distinct from d.method_id and s.optional
 where d.household_id = '<household_id>' and d.week_start = '<week_start>'
-order by array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day), d.position, s.position;
+order by (array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day) - extract(isodow from d.week_start)::int + 7) % 7, d.position, s.position;
 ```
 
 Choose a planned dish's extras, by step position (from the extras query; `array[]::integer[]` for none). This replaces the dish's extras; no row returned means the dish isn't planned that night:
@@ -546,7 +555,7 @@ cross join lateral (select coalesce(swap.name, i.name) as ingredient,
                            case when swap.name is null then i.allergens else coalesce(t.allergens, '{}') end as allergens) x
 where d.household_id = '<household_id>' and d.week_start = '<week_start>'
   and x.allergens && array(select jsonb_array_elements_text(coalesce(s.settings->'avoid', '[]')))
-order by array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day), d.position;
+order by (array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day) - extract(isodow from d.week_start)::int + 7) % 7, d.position;
 ```
 
 Ingredients missing a pack size or shelf life, those the household's recipes use first:

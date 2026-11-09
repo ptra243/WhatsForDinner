@@ -6,6 +6,7 @@ import { useSyncExternalStore } from 'react'
 import type { ListExtra, Mark } from './list'
 import { addExtra, applyMark, removeExtra, setMark, type ListData } from './shop'
 import { showToast } from './toast'
+import { movedWeek, recheckWeekStart } from './week'
 
 export type Change =
   /** Only the columns that changed, as `setMark` writes them. */
@@ -110,11 +111,18 @@ export function send(householdId: string, change: Change): Promise<void> {
  */
 const refused = (e: unknown) => !!(e as { code?: string })?.code
 
+/** A check failure on `week_start`: the week does not start on the household's day. */
+const wrongWeek = (e: unknown) => {
+  const { code, message } = (e ?? {}) as { code?: string; message?: string }
+  return code === '23514' && !!message?.includes('week_start')
+}
+
 const errorText = (e: unknown) => (e as { message?: string })?.message ?? String(e)
 
 /**
  * Sends the queue oldest first while there is signal. A change the database refuses is dropped
- * with a toast so it does not hold up the rest; anything else stops and tries again later
+ * with a toast so it does not hold up the rest, unless it was refused for its week: then it is
+ * sent again for the week it moved to; anything else stops and tries again later
  * (`retryLater`). Only one run per household at a time; changes queued meanwhile are sent in
  * the same run. Runs on app start, when the signal returns, when the app is shown again,
  * after each change, and on the retry timer.
@@ -134,6 +142,18 @@ export function flush(householdId: string, save = send): Promise<void> {
         caughtUp(householdId)
       } catch (e) {
         if (!refused(e)) return retryLater(householdId, save)
+        // Refused for its week: another member changed the day weeks start on. Load the day
+        // again and send the change for the week it now belongs to, as the database moved the rest.
+        if (wrongWeek(e) && next.kind !== 'remove') {
+          const week = movedWeek(next.week, await recheckWeekStart())
+          if (week !== next.week) {
+            write(
+              householdId,
+              pending(householdId).map((q) => (q.n === next.n ? { ...q, week } : q)),
+            )
+            continue
+          }
+        }
         showToast(`A change could not be saved, so it was dropped: ${errorText(e)}`)
         dropListeners.forEach((l) => l())
       } finally {
