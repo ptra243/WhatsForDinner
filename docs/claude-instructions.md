@@ -18,6 +18,7 @@ What Claude is told when it plans for the household. The working copy is the Din
 - Allergens from a fixed list: egg, milk, peanut, tree nut, sesame, soy, wheat, gluten, fish, crustacean, mollusc, lupin. Tag every new ingredient with what it usually contains, erring towards tagging; names hide them (`egg noodle`, `wonton wrapper`, mayonnaise, fresh pasta and brioche have egg; stock and most sauces wheat and gluten). Tags are generic, so never promise a dish is safe: "check the label".
 - Every recipe has course (main / side), provides (protein / veg / carb), active and total minutes, steps (with `timer_mins` where a step involves waiting).
 - A step the recipe calls optional or worth it if there's time ("optionally velvet the beef") is saved as an optional step (`recipe_steps.optional`, with the minutes it adds, `extra_mins`, and a short `why`), left out of the recipe's own minutes. An ingredient only optional steps use is bought only on the nights one of them is chosen.
+- Every recipe, sides included, has at least one or two optional extras. When the source gives none, Claude adds its own (marinate ahead, a quick sauce, a garnish), with any extra ingredients linked only to that step.
 - Check existing recipes before creating one; reuse ids.
 
 ## Planning
