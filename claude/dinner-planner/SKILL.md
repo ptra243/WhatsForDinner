@@ -82,15 +82,56 @@ The database rejects anything else.
 2. Check the week before for dinners that were planned but not marked cooked (plans change: a night out, a late finish). List them and ask whether to put any on the new week; don't assume, since the cook may have cooked and not ticked it. Leave the old week as it is.
 3. Favour recipes with a 👍 for the week, then well-rated ones. Leave out any recipe with a 👎 for the week unless asked to plan it. Say in the proposal which votes you followed ("Fish tacos: 👍 Sam. Left out beef ragù: 👎 you"); name members by the part of their email before the @. Votes are for that week only.
    Don't repeat anything cooked in the last two weeks; spread proteins across the week. A dinner planned but not cooked doesn't count as a repeat.
+   Every week has at least one Asian dinner, Chinese when one fits. While the household has fewer than about 50 recipes, every pair's choices include a new recipe (Pairs and choices below).
 4. Keep each night's hands-on minutes (`active_mins` of its dishes, by the method each is cooked by, plus the `extra_mins` of their chosen extras) within that night's minutes: its own when the app set one ("only 20 minutes tonight"), else the weekday's `minutes` (the nights query gives the right one). Put long cooks on weekends. On a weeknight, when a recipe's usual way takes too long and it has a method for equipment the household has (the methods query below), plan it with that method (`method_id`, query below) and say so ("Beef ragù in the pressure cooker, 1 h 20"). Never pick a method whose equipment isn't in `settings.equipment`.
    On a night with time to spare (a weekend, say), you may choose a dish's extras (the extras query below) when they still fit the night's minutes, and say so ("Sat: Pork stir-fry, velvet the pork +5 min"). Leave extras alone on a locked night, and don't choose one the owner unticked unless asked.
 5. Follow `mealRule`: with `veg+carb` every night covers a vegetable and a carb (from the main's `provides` or added sides); with `veg` just a vegetable; `off` no rule.
    When a main needs sides, prefer the ones the household actually cooks with it (the pairing query below: nights marked cooked in the last 26 weeks), then other sides that fill the gap. Pairings are worked out from the plan; there is nothing to save.
-6. Respect `notes`. Plan leftovers across the week where it helps (cook a big ragù Sunday, eat it again Tuesday).
+6. Respect `notes`. Plan leftovers within a pair (Pairs and choices below): cook a big ragù Sunday, eat it again Monday.
 7. If `avoid` lists allergens, find the recipes containing them (query below). Plan one only if every ingredient bringing an avoided allergen gets a swap to an ingredient without it, and say so in the proposal ("Wonton noodle soup, egg noodles → rice noodles; check the label"). Otherwise leave it out. Save those swaps on the dish once the night is written (swap SQL below), then check the week (query below) returns nothing.
 8. Servings are usually the recipe's `serves`; scale to the household.
 9. Never change a locked night's dishes (the nights query) unless asked to by name: plan the other nights around it, and in the proposal say it is kept ("Wed: locked, kept"). Writing a night replaces its dishes, so skip locked nights.
-10. Propose the plan as a short day-by-day list and wait for approval before writing, unless asked to just do it. Then write each night and say it's saved, and price the week's list (Prices below).
+10. Propose the plan as pairs with three choices each (Pairs and choices below) and wait for the owner's pick before writing, unless asked to just do it. Then write each night and say it's saved, and price the week's list (Prices below).
+
+## Pairs and choices
+
+Plan the week as pairs of nights, so the owner makes three choices instead of seven and food bought in bulk or cooked once does two dinners.
+
+- **Nights:** Saturday is free (no dinner planned) unless the owner asks for it or `settings.freeNights` says otherwise; locked and cooked nights are kept. The open nights pair up in week order, two next to each other at a time: from a Saturday start, Sun–Mon, Tue–Wed, Thu–Fri. A night left without a partner (a kept night between, a Monday start's Sunday) is a single.
+- **A pair is one of:**
+  - **twice:** one dish both nights with different sides (a stew with mash, then with crusty bread and greens). Cook enough for both; the second night is about 10 minutes to reheat. For recipes tagged `leftovers-ok` or `freezes well`.
+  - **remake:** a big cook (a roast, tag `makes-leftovers`), then a dish that uses its leftovers (fried rice, wraps, a pasta bake; tag `uses-leftovers`), eaten the next night or the one after. Raise the big cook's servings to cover it and say what to keep ("Keep 300 g of the chicken for Mon"). Until #91 links the two dishes, the list still shows the second dish's leftover ingredient (`cooked meat`): say in the proposal to mark it as already have. With no big cook that week, a `uses-leftovers` recipe gets a swap from `cooked meat` to raw meat (`chicken thigh`, with an amount) so the list buys it.
+  - **shared:** two dishes that share meat or a pack the first doesn't use up (a 1 kg chicken thigh pack for a stir-fry and a traybake; the rest of the cream or coriander).
+  - **separate:** two dishes, when nothing pairs well.
+  The big cook goes on the night with more time. A shared protein is fine within a pair; across pairs, spread proteins and mix the kinds (not three stews).
+- **Specials first:** before choosing, search WhichGrocer specials (`search_specials`, with a category) for the proteins and two or three key veg, about 4–6 credits, and favour recipes that use what's on special. Compare on unit price, not discount: a Woolworths special can still cost more than Aldi's everyday price. Skip this when credits are short (Prices below).
+- **Three choices per pair:** 1 your top pick; 2 another of the household's recipes that fits the same nights; 3 a new recipe idea, one line, that fits the nights' minutes, the meal rule and the week's specials and avoids the proteins the other pairs use. Under about 50 recipes every pair gets a new idea; from about 50, two pairs a week do.
+- **The proposal:** per pair, the three choices with each night's dishes (sides included), the kind, an estimated cost from cached prices, and what's on special. Then free and kept nights, and the votes followed. For example:
+
+  > **Sun–Mon** (120, 45 min)
+  > 1 Roast chicken + roast potatoes → Mon fried rice from the leftovers · ~$24 · chicken on special at Aldi
+  > 2 Beef ragù + pappardelle → Mon ragù + crusty bread, green salad · ~$28
+  > 3 *New:* Char siu pork + rice → Mon pork noodle soup · ~$22
+  > **Sat:** free
+
+  The owner replies `OK` for all the top picks, or picks (`Sun–Mon 3, Thu–Fri 2`). Recheck the week after a change (no recipe twice, proteins spread, an Asian dinner, minutes), then write it. A picked new idea is written up and saved as a recipe first (Recipes below), tags included.
+- **Tags:** give recipes the tags pairs use when you save or are asked to tidy them: `leftovers-ok` (reheats well), `makes-leftovers` (a big cook worth scaling up), `uses-leftovers` (takes cooked meat or another leftover), and the cuisine (`chinese`, `thai`, `indian`…).
+
+### The planner script
+
+When the chat can run code, let a script do the filtering and scoring. It never touches the database or a connector: you run the queries, hand it the results, and save what the owner picks.
+
+1. Fetch the scripts: `curl -sSfO https://raw.githubusercontent.com/ptra243/WhatsForDinner/master/claude/dinner-planner/scripts/plan_week.py` (and `choose_shop.py`). If GitHub can't be reached or code can't run, plan by hand with the same rules.
+2. Run the planner query below ("Everything the planner needs"), save its `planner_input` value to `planner.json` as returned, and run `python3 plan_week.py planner.json --specials "pork shoulder,broccoli"` with the ingredient names you found on special (`--plan-saturday` if asked).
+3. It prints each pair's top pick and an alternative (kind, method on a short night, estimated cost, specials) and a brief for the new idea. It only plans mains: add sides for the meal rule, check allergens and notes, write the new ideas, and change anything that looks wrong (two pasta nights in a row) before proposing.
+
+## Where to shop
+
+After pricing a week (Prices below), say where to shop.
+
+- **Discounts:** the owner's household gets 5% off at Woolworths, and once a month a 10% Woolworths shop. Take 5% off the Woolworths total when comparing. When planning, ask if this is the month's 10% shop; if so, use 10% for that week and offer a stock-up (pantry staples, rice, sauces, meat to freeze) so the 10% covers more. #93 will move these to settings; until then use these defaults unless `notes` says otherwise.
+- **One shop or two:** default to the cheapest single shop after discounts. Suggest splitting between two only when it saves more than $15, or when one shop lacks items the others have (Aldi often lacks international items).
+- **Script:** save the items-to-price query's rows (after saving the prices) as `items.json` and run `python3 choose_shop.py items.json` (`--monthly` for the 10% shop). It counts packs to buy × pack price as the list does and prints the totals, the recommendation and what isn't found there.
 
 ## Plan around the pantry
 
@@ -140,7 +181,7 @@ Every time you save a week's plan (and when asked to compare shops), price that 
 3. **Cache:** look up only items with no row from that source today (Grocerly: none since its last weekly refresh; the `cached` column of the items query allows for both). Not found rows count as cached, so re-saving a plan costs a few credits, not the whole list.
 4. **Check every match** before saving it; WhichGrocer matches by relevance only. Like for like: no organic, premium or free-range pick unless the recipe or household asks; no paste, dried, frozen or jarred version of a fresh item (garlic cloves, not garlic paste; fresh parsley, not dried); the right kind of product (lemons, not lemon biscuits; fresh ginger, not a 1 kg jar; rosemary, not a roast veg mix); a pack that suits the amount needed. Prefer the plain store brand when it fits. Retry once with a better search when a match is wrong (retries cost credits too), else save that store as not found.
 5. **Save** (upsert below): one row per item and store searched, found or not, so the cache works. A found row has the product name, the pack in a unit from the list (`500 g`, `1 kg`, `6 each`), the shelf price, the unit price per kg, litre or item (from the source, or worked out from the pack), `on_special`, and `source_updated_on` for Grocerly.
-6. **Reply** with one compact comparison table (the only table this skill uses): a row per item with each store's price and $/kg (or $/L, each), `–` for not found; then each store's total and how many items it covers ("Aldi $121 · 20 of 24 items"), counting an item as packs to buy × the pack price, as the list does; then any match you rejected or weren't sure of, one line each.
+6. **Reply** with one compact comparison table (the only table this skill uses): a row per item with each store's price and $/kg (or $/L, each), `–` for not found; then each store's total and how many items it covers ("Aldi $121 · 20 of 24 items"), counting an item as packs to buy × the pack price, as the list does; then any match you rejected or weren't sure of, one line each; then where to shop (Where to shop above).
 7. When the owner says a match is wrong ("Coles mince should be the 500 g pack"), search again and save the right one (the same day overwrites). The app can't correct a price itself.
 
 ## Style
@@ -273,6 +314,70 @@ left join household_settings s on s.household_id = '<household_id>'
 left join meal_plan_nights n on n.household_id = '<household_id>'
  and n.week_start = '<week_start>' and n.day = d.day
 order by (d.i - extract(isodow from '<week_start>'::date)::int + 7) % 7;
+```
+
+Everything the planner needs, as one JSON value (`planner_input`) to save as `planner.json` for the planner script (Pairs and choices above): the settings, how many recipes the household has, the week's nights in order (minutes, locked, cooked, what's planned), the mains (with the quickest method the household has the equipment for, the date each was last cooked, the week's 👍 and 👎, and ingredients as `[name, qty, unit]` without staples), and the mains' ingredients with section, pack and each store's latest `[unit price, per, special]`:
+
+```sql
+select jsonb_build_object(
+  'week_start', '<week_start>'::date,
+  'settings', coalesce((select s.settings from household_settings s where s.household_id = '<household_id>'), '{}'::jsonb),
+  'recipe_count', (select count(*) from recipes r where r.household_id = '<household_id>'),
+  'nights', (
+    select jsonb_agg(jsonb_build_object(
+             'day', d.day,
+             'minutes', coalesce(n.minutes, (s.settings->'minutes'->>d.day)::int),
+             'locked', coalesce(n.locked, false),
+             'cooked', coalesce(n.cooked, false),
+             'planned', array(select r.slug from meal_plan_dishes x join recipes r on r.id = x.recipe_id
+                              where x.household_id = '<household_id>' and x.week_start = '<week_start>'
+                                and x.day = d.day order by x.position))
+           order by (d.i - extract(isodow from '<week_start>'::date)::int + 7) % 7)
+    from unnest(array['mon','tue','wed','thu','fri','sat','sun']) with ordinality as d(day, i)
+    left join household_settings s on s.household_id = '<household_id>'
+    left join meal_plan_nights n on n.household_id = '<household_id>'
+     and n.week_start = '<week_start>' and n.day = d.day),
+  'recipes', (
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'slug', r.slug, 'name', r.name, 'provides', r.provides, 'serves', r.serves,
+             'active_mins', r.active_mins, 'total_mins', r.total_mins, 'spice', r.spice,
+             'rating', r.rating, 'tags', r.tags,
+             -- The quickest way to cook it with equipment the household has.
+             'best_method', (select jsonb_build_object('name', m.name, 'active_mins', m.active_mins, 'total_mins', m.total_mins)
+                             from recipe_methods m
+                             where m.recipe_id = r.id and (m.equipment is null or exists (
+                               select 1 from household_settings s, jsonb_array_elements_text(coalesce(s.settings->'equipment', '[]')) e
+                               where s.household_id = r.household_id and lower(trim(e)) = lower(trim(m.equipment))))
+                             order by m.active_mins, m.total_mins limit 1),
+             -- The date of the last night it was cooked.
+             'last_cooked', (select max(d.week_start + (array_position(array['mon','tue','wed','thu','fri','sat','sun'], d.day)
+                                                        - extract(isodow from d.week_start)::int + 7) % 7)
+                             from meal_plan_dishes d
+                             join meal_plan_nights n on n.household_id = d.household_id
+                              and n.week_start = d.week_start and n.day = d.day and n.cooked
+                             where d.recipe_id = r.id),
+             'likes', (select count(*) from public.recipe_votes v where v.recipe_id = r.id and v.week_start = '<week_start>' and v.vote = 1),
+             'dislikes', (select count(*) from public.recipe_votes v where v.recipe_id = r.id and v.week_start = '<week_start>' and v.vote = -1),
+             -- [name, qty, unit], staples left out (as when pricing).
+             'ingredients', (select coalesce(jsonb_agg(jsonb_build_array(i.name, ri.qty, ri.unit) order by ri.position), '[]'::jsonb)
+                             from recipe_ingredients ri join ingredients i on i.slug = ri.ingredient_slug
+                             where ri.recipe_id = r.id and i.section <> 'herbs and spices'
+                               and i.name !~ '(^|\s)(oil|sauce|stock)$')
+           ) order by r.name), '[]'::jsonb)
+    from recipes r
+    where r.household_id = '<household_id>' and r.course = 'main'),
+  -- Each ingredient the mains use: section, pack, and each store's latest [unit price, per, special].
+  'ingredients', (
+    select coalesce(jsonb_object_agg(i.name, jsonb_build_object(
+             'section', i.section, 'pack', case when i.pack_qty is null then null else jsonb_build_array(i.pack_qty, i.pack_unit) end,
+             'prices', (select coalesce(jsonb_object_agg(l.store, jsonb_build_array(l.unit_price, l.unit_basis, l.on_special)), '{}'::jsonb)
+                        from ingredient_prices_latest l
+                        where l.household_id = '<household_id>' and l.ingredient_slug = i.slug and l.unit_price is not null))), '{}'::jsonb)
+    from ingredients i
+    where i.section <> 'herbs and spices' and i.name !~ '(^|\s)(oil|sauce|stock)$'
+      and exists (select 1 from recipe_ingredients ri join recipes r on r.id = ri.recipe_id
+                  where ri.ingredient_slug = i.slug and r.household_id = '<household_id>' and r.course = 'main'))
+) as planner_input;
 ```
 
 The pantry, soonest best-before first (`days_left` below 0 is past it), with the household's recipes that use each item:

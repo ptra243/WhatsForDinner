@@ -1,0 +1,760 @@
+{
+ "nights": [
+  {
+   "day": "mon",
+   "cooked": false,
+   "locked": false,
+   "minutes": 45,
+   "planned": []
+  },
+  {
+   "day": "tue",
+   "cooked": false,
+   "locked": false,
+   "minutes": 45,
+   "planned": []
+  },
+  {
+   "day": "wed",
+   "cooked": false,
+   "locked": false,
+   "minutes": 45,
+   "planned": []
+  },
+  {
+   "day": "thu",
+   "cooked": false,
+   "locked": false,
+   "minutes": 45,
+   "planned": []
+  },
+  {
+   "day": "fri",
+   "cooked": false,
+   "locked": false,
+   "minutes": 45,
+   "planned": []
+  },
+  {
+   "day": "sat",
+   "cooked": false,
+   "locked": false,
+   "minutes": 120,
+   "planned": []
+  },
+  {
+   "day": "sun",
+   "cooked": false,
+   "locked": false,
+   "minutes": 120,
+   "planned": []
+  }
+ ],
+ "recipes": [
+  {
+   "name": "Beef ragù",
+   "slug": "beef-ragu",
+   "tags": [
+    "weekend",
+    "freezes well"
+   ],
+   "likes": 0,
+   "spice": 0,
+   "rating": 5,
+   "serves": 6,
+   "dislikes": 0,
+   "provides": [
+    "protein",
+    "veg"
+   ],
+   "total_mins": 180,
+   "active_mins": 25,
+   "best_method": {
+    "name": "Pressure cooker",
+    "total_mins": 80,
+    "active_mins": 25
+   },
+   "ingredients": [
+    [
+     "beef chuck",
+     1,
+     "kg"
+    ],
+    [
+     "onion",
+     1,
+     "each"
+    ],
+    [
+     "carrot",
+     2,
+     "each"
+    ],
+    [
+     "celery",
+     2,
+     "each"
+    ],
+    [
+     "garlic clove",
+     4,
+     "each"
+    ],
+    [
+     "crushed tomato",
+     800,
+     "g"
+    ],
+    [
+     "red wine",
+     250,
+     "ml"
+    ],
+    [
+     "tomato paste",
+     2,
+     "tbsp"
+    ]
+   ],
+   "last_cooked": null
+  },
+  {
+   "name": "Fish tacos",
+   "slug": "fish-tacos",
+   "tags": [],
+   "likes": 0,
+   "spice": 1,
+   "rating": 4,
+   "serves": 4,
+   "dislikes": 0,
+   "provides": [
+    "protein",
+    "carb"
+   ],
+   "total_mins": 30,
+   "active_mins": 25,
+   "best_method": null,
+   "ingredients": [
+    [
+     "white fish fillet",
+     600,
+     "g"
+    ],
+    [
+     "tortilla",
+     8,
+     "each"
+    ],
+    [
+     "lime",
+     2,
+     "each"
+    ],
+    [
+     "avocado",
+     2,
+     "each"
+    ],
+    [
+     "greek yoghurt",
+     150,
+     "g"
+    ],
+    [
+     "chipotle in adobo",
+     1,
+     "tbsp"
+    ]
+   ],
+   "last_cooked": "2026-11-10"
+  },
+  {
+   "name": "Lemon garlic chicken",
+   "slug": "lemon-garlic-chicken",
+   "tags": [],
+   "likes": 0,
+   "spice": 0,
+   "rating": 4,
+   "serves": 4,
+   "dislikes": 0,
+   "provides": [
+    "protein"
+   ],
+   "total_mins": 45,
+   "active_mins": 15,
+   "best_method": null,
+   "ingredients": [
+    [
+     "chicken thigh",
+     600,
+     "g"
+    ],
+    [
+     "lemon",
+     2,
+     "each"
+    ],
+    [
+     "garlic clove",
+     6,
+     "each"
+    ],
+    [
+     "cream",
+     200,
+     "ml"
+    ],
+    [
+     "parsley",
+     1,
+     "bunch"
+    ]
+   ],
+   "last_cooked": null
+  },
+  {
+   "name": "Pork and cabbage stir-fry",
+   "slug": "pork-cabbage-stir-fry",
+   "tags": [
+    "quick"
+   ],
+   "likes": 0,
+   "spice": 0,
+   "rating": 4,
+   "serves": 4,
+   "dislikes": 0,
+   "provides": [
+    "protein",
+    "veg",
+    "carb"
+   ],
+   "total_mins": 25,
+   "active_mins": 20,
+   "best_method": null,
+   "ingredients": [
+    [
+     "pork mince",
+     500,
+     "g"
+    ],
+    [
+     "cabbage",
+     0.5,
+     "each"
+    ],
+    [
+     "carrot",
+     1,
+     "each"
+    ],
+    [
+     "spring onion",
+     1,
+     "bunch"
+    ],
+    [
+     "garlic clove",
+     3,
+     "each"
+    ],
+    [
+     "egg noodle",
+     400,
+     "g"
+    ],
+    [
+     "cornflour",
+     1,
+     "tbsp"
+    ]
+   ],
+   "last_cooked": null
+  },
+  {
+   "name": "Red lentil dal",
+   "slug": "red-lentil-dal",
+   "tags": [
+    "vegetarian",
+    "mild"
+   ],
+   "likes": 0,
+   "spice": 1,
+   "rating": 5,
+   "serves": 4,
+   "dislikes": 0,
+   "provides": [
+    "protein",
+    "veg"
+   ],
+   "total_mins": 40,
+   "active_mins": 15,
+   "best_method": null,
+   "ingredients": [
+    [
+     "red lentil",
+     300,
+     "g"
+    ],
+    [
+     "onion",
+     1,
+     "each"
+    ],
+    [
+     "garlic clove",
+     3,
+     "each"
+    ],
+    [
+     "ginger",
+     20,
+     "g"
+    ],
+    [
+     "crushed tomato",
+     400,
+     "g"
+    ],
+    [
+     "coconut milk",
+     400,
+     "ml"
+    ],
+    [
+     "baby spinach",
+     120,
+     "g"
+    ]
+   ],
+   "last_cooked": null
+  },
+  {
+   "name": "Roast chicken",
+   "slug": "roast-chicken",
+   "tags": [
+    "weekend"
+   ],
+   "likes": 0,
+   "spice": 0,
+   "rating": 5,
+   "serves": 4,
+   "dislikes": 0,
+   "provides": [
+    "protein"
+   ],
+   "total_mins": 90,
+   "active_mins": 15,
+   "best_method": null,
+   "ingredients": [
+    [
+     "whole chicken",
+     1.8,
+     "kg"
+    ],
+    [
+     "lemon",
+     1,
+     "each"
+    ],
+    [
+     "garlic clove",
+     4,
+     "each"
+    ],
+    [
+     "thyme",
+     1,
+     "bunch"
+    ],
+    [
+     "butter",
+     30,
+     "g"
+    ]
+   ],
+   "last_cooked": null
+  },
+  {
+   "name": "Shakshuka",
+   "slug": "shakshuka",
+   "tags": [
+    "vegetarian"
+   ],
+   "likes": 0,
+   "spice": 1,
+   "rating": 4,
+   "serves": 4,
+   "dislikes": 0,
+   "provides": [
+    "protein",
+    "veg"
+   ],
+   "total_mins": 30,
+   "active_mins": 10,
+   "best_method": null,
+   "ingredients": [
+    [
+     "egg",
+     8,
+     "each"
+    ],
+    [
+     "crushed tomato",
+     800,
+     "g"
+    ],
+    [
+     "capsicum",
+     2,
+     "each"
+    ],
+    [
+     "onion",
+     1,
+     "each"
+    ],
+    [
+     "garlic clove",
+     3,
+     "each"
+    ],
+    [
+     "feta",
+     100,
+     "g"
+    ],
+    [
+     "coriander",
+     1,
+     "bunch"
+    ]
+   ],
+   "last_cooked": null
+  }
+ ],
+ "settings": {
+  "notes": "",
+  "minutes": {
+   "fri": 45,
+   "mon": 45,
+   "sat": 120,
+   "sun": 120,
+   "thu": 45,
+   "tue": 45,
+   "wed": 45
+  },
+  "mealRule": "veg+carb",
+  "equipment": [
+   "pressure cooker"
+  ],
+  "dinnerTime": "18:30"
+ },
+ "week_start": "2026-11-23",
+ "ingredients": {
+  "egg": {
+   "pack": [
+    12,
+    "each"
+   ],
+   "prices": {},
+   "section": "dairy and fridge"
+  },
+  "feta": {
+   "pack": [
+    200,
+    "g"
+   ],
+   "prices": {},
+   "section": "dairy and fridge"
+  },
+  "lime": {
+   "pack": [
+    1,
+    "each"
+   ],
+   "prices": {},
+   "section": "fruit and veg"
+  },
+  "cream": {
+   "pack": [
+    300,
+    "ml"
+   ],
+   "prices": {},
+   "section": "dairy and fridge"
+  },
+  "lemon": {
+   "pack": [
+    1,
+    "each"
+   ],
+   "prices": {},
+   "section": "fruit and veg"
+  },
+  "onion": {
+   "pack": [
+    1,
+    "each"
+   ],
+   "prices": {},
+   "section": "fruit and veg"
+  },
+  "thyme": {
+   "pack": [
+    1,
+    "bunch"
+   ],
+   "prices": {},
+   "section": "fruit and veg"
+  },
+  "butter": {
+   "pack": [
+    250,
+    "g"
+   ],
+   "prices": {},
+   "section": "dairy and fridge"
+  },
+  "carrot": {
+   "pack": [
+    1,
+    "each"
+   ],
+   "prices": {},
+   "section": "fruit and veg"
+  },
+  "celery": {
+   "pack": [
+    1,
+    "bunch"
+   ],
+   "prices": {},
+   "section": "fruit and veg"
+  },
+  "ginger": {
+   "pack": [
+    100,
+    "g"
+   ],
+   "prices": {},
+   "section": "fruit and veg"
+  },
+  "avocado": {
+   "pack": [
+    1,
+    "each"
+   ],
+   "prices": {},
+   "section": "fruit and veg"
+  },
+  "cabbage": {
+   "pack": [
+    1,
+    "each"
+   ],
+   "prices": {},
+   "section": "fruit and veg"
+  },
+  "parsley": {
+   "pack": [
+    1,
+    "bunch"
+   ],
+   "prices": {},
+   "section": "fruit and veg"
+  },
+  "capsicum": {
+   "pack": [
+    1,
+    "each"
+   ],
+   "prices": {},
+   "section": "fruit and veg"
+  },
+  "red wine": {
+   "pack": [
+    750,
+    "ml"
+   ],
+   "prices": {},
+   "section": "pantry"
+  },
+  "tortilla": {
+   "pack": [
+    8,
+    "each"
+   ],
+   "prices": {},
+   "section": "international"
+  },
+  "coriander": {
+   "pack": [
+    1,
+    "bunch"
+   ],
+   "prices": {},
+   "section": "fruit and veg"
+  },
+  "cornflour": {
+   "pack": [
+    300,
+    "g"
+   ],
+   "prices": {},
+   "section": "pantry"
+  },
+  "beef chuck": {
+   "pack": [
+    1,
+    "kg"
+   ],
+   "prices": {},
+   "section": "meat and seafood"
+  },
+  "egg noodle": {
+   "pack": [
+    440,
+    "g"
+   ],
+   "prices": {},
+   "section": "international"
+  },
+  "pork mince": {
+   "pack": [
+    500,
+    "g"
+   ],
+   "prices": {
+    "aldi": [
+     10.5,
+     "kg",
+     true
+    ],
+    "coles": [
+     13.0,
+     "kg",
+     false
+    ],
+    "woolworths": [
+     12.0,
+     "kg",
+     false
+    ]
+   },
+   "section": "meat and seafood"
+  },
+  "red lentil": {
+   "pack": [
+    500,
+    "g"
+   ],
+   "prices": {},
+   "section": "pantry"
+  },
+  "baby spinach": {
+   "pack": [
+    120,
+    "g"
+   ],
+   "prices": {},
+   "section": "fruit and veg"
+  },
+  "coconut milk": {
+   "pack": [
+    400,
+    "ml"
+   ],
+   "prices": {},
+   "section": "international"
+  },
+  "garlic clove": {
+   "pack": [
+    10,
+    "each"
+   ],
+   "prices": {},
+   "section": "fruit and veg"
+  },
+  "spring onion": {
+   "pack": [
+    1,
+    "bunch"
+   ],
+   "prices": {},
+   "section": "fruit and veg"
+  },
+  "tomato paste": {
+   "pack": [
+    140,
+    "g"
+   ],
+   "prices": {},
+   "section": "canned veg"
+  },
+  "chicken thigh": {
+   "pack": [
+    500,
+    "g"
+   ],
+   "prices": {
+    "aldi": [
+     10.5,
+     "kg",
+     true
+    ],
+    "coles": [
+     13.0,
+     "kg",
+     false
+    ],
+    "woolworths": [
+     12.0,
+     "kg",
+     false
+    ]
+   },
+   "section": "meat and seafood"
+  },
+  "greek yoghurt": {
+   "pack": [
+    500,
+    "g"
+   ],
+   "prices": {},
+   "section": "dairy and fridge"
+  },
+  "whole chicken": {
+   "pack": [
+    1.6,
+    "kg"
+   ],
+   "prices": {},
+   "section": "meat and seafood"
+  },
+  "crushed tomato": {
+   "pack": [
+    400,
+    "g"
+   ],
+   "prices": {},
+   "section": "canned veg"
+  },
+  "chipotle in adobo": {
+   "pack": [
+    200,
+    "g"
+   ],
+   "prices": {},
+   "section": "international"
+  },
+  "white fish fillet": {
+   "pack": [
+    400,
+    "g"
+   ],
+   "prices": {},
+   "section": "meat and seafood"
+  }
+ },
+ "recipe_count": 15
+}
