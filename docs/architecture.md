@@ -35,6 +35,12 @@ flowchart LR
 - With no signal a stored login reads as unexpired (`offlineStorage` in `web/src/lib/supabase.ts`), so supabase-js does not spend 30 seconds retrying a token refresh before showing anything.
 - The cached reads are household data in the browser's Cache Storage, and the queue is in local storage; signing out deletes both.
 
+## Back button and reopening where you were
+
+- The phone's back button closes what is open before it leaves the app: a sheet, then cook mode, then the recipe, then a tab other than Week goes to Week. Only back on the Week tab leaves. Each open thing has a history entry of its own (`useBackCloses` in `web/src/lib/back.ts`); closing it from its own button steps history back, so the two stay in step. Sheets get this from `Sheet`; full-screen views (`RecipeView`, `CookMode`, `RecipeForm`) call the hook themselves, and so must any new one.
+- The app remembers where the user was (`web/src/lib/place.ts`, in local storage): the tab, the week on the Week tab, the open recipe with its servings and method, the cook-mode step, the Recipes search and filter, and how far down each tab was. It reopens there after a reload, or when opened again within 3 hours of last being on screen; after that it opens on the Week tab. Cook-mode timers are not kept.
+- The tab is also in the URL (`#list`); a tab in the URL wins over the remembered one. Signing out forgets the place.
+
 ## Keys
 
 - The project URL and **publishable (anon) key** are committed in `web/src/config.ts`. They are public by design; Row Level Security protects the data.

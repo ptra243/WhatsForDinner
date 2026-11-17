@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { allergenWarnings, containsText, type TaggedSwap } from '../lib/allergens'
+import { useBackCloses } from '../lib/back'
 import { recipePrompt } from '../lib/claude'
+import { getPlace, setPlace } from '../lib/place'
 import { stepIngredients } from '../lib/cook'
 import { extraDetail, skippedIngredients } from '../lib/extras'
 import { mins, scaledQty } from '../lib/format'
@@ -30,6 +32,17 @@ type Props = {
   onClose: () => void
 }
 
+const VIEW_KEY = 'recipe'
+type KeptView = { id: string; servings: number; methodId: string | null; cooking: boolean }
+
+/** What the open recipe view was showing, when it was this recipe and still fits it. */
+function keptView(r: Recipe): KeptView | undefined {
+  const k = getPlace(VIEW_KEY) as Partial<KeptView> | undefined
+  if (!k || k.id !== r.id || typeof k.servings !== 'number' || k.servings < 1) return undefined
+  const methodId = allMethods(r).some((m) => m.id === k.methodId) ? (k.methodId ?? null) : null
+  return { id: r.id, servings: Math.round(k.servings), methodId, cooking: k.cooking === true }
+}
+
 /**
  * Full-screen recipe: meta, votes for the coming week, ingredients scaled to the chosen servings,
  * method (with a switcher when the recipe has other methods), rating and notes.
@@ -46,16 +59,24 @@ export function RecipeView({
   onDeleted,
   onClose,
 }: Props) {
-  const [servings, setServings] = useState(startServings ?? r.serves)
-  const [methodId, setMethodId] = useState(startMethod ?? null)
+  // Reopened where it was (after a reload, say): the servings, method and cook mode come back.
+  const [kept] = useState(() => keptView(r))
+  const [servings, setServings] = useState(kept?.servings ?? startServings ?? r.serves)
+  const [methodId, setMethodId] = useState(kept ? kept.methodId : (startMethod ?? null))
   const [notes, setNotes] = useState(r.notes)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [adding, setAdding] = useState(false)
-  const [cooking, setCooking] = useState(false)
+  const [cooking, setCooking] = useState(kept?.cooking ?? false)
   const [editing, setEditing] = useState(false)
   const [status, setStatus] = useState<string>()
   const [error, setError] = useState<string>()
   const back = useRef<HTMLButtonElement>(null)
+  useBackCloses(onClose)
+
+  useEffect(() => {
+    setPlace(VIEW_KEY, { id: r.id, servings, methodId, cooking } satisfies KeptView)
+    return () => setPlace(VIEW_KEY, undefined)
+  }, [r.id, servings, methodId, cooking])
 
   useEffect(() => {
     back.current?.focus()

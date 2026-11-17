@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Recipe } from '../lib/recipes'
 import { CookMode } from './CookMode'
@@ -304,5 +304,35 @@ describe('CookMode with extras', () => {
       'Velvet the beef.silkier, more tender · +15 min',
       'Pickle the chilli.heat · +10 min',
     ])
+  })
+})
+
+describe('Reopening where it was', () => {
+  it('comes back to the recipe, its servings and the cook step after a reload', async () => {
+    const cook = await startCooking(2)
+    fireEvent.click(within(cook).getByRole('button', { name: 'Next' }))
+    expect(within(cook).getByText('Step 2 of 3')).toBeInTheDocument()
+
+    // A reload ends the page without closing anything, so what was kept stays.
+    const kept = localStorage.getItem('wfd-place-1')!
+    cleanup()
+    localStorage.setItem('wfd-place-1', kept)
+
+    render(<RecipesTab householdId="h1" />)
+    const again = await screen.findByRole('dialog', { name: 'Cooking Red lentil dal' })
+    expect(within(again).getByText('Step 2 of 3')).toBeInTheDocument()
+    fireEvent.click(within(again).getByRole('button', { name: '‹ Recipe' }))
+    expect(within(screen.getByRole('dialog', { name: 'Red lentil dal' })).getByText('6 serves')).toBeInTheDocument()
+  })
+
+  it('starts from the top once the recipe has been closed', async () => {
+    const cook = await startCooking()
+    fireEvent.click(within(cook).getByRole('button', { name: '‹ Recipe' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Red lentil dal' })).getByRole('button', { name: '‹ Back' }))
+    cleanup()
+
+    render(<RecipesTab householdId="h1" />)
+    await screen.findByRole('button', { name: /Red lentil dal/ })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

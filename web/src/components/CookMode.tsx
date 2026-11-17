@@ -12,6 +12,8 @@ import {
   useWakeLock,
   type Timer,
 } from '../lib/cook'
+import { useBackCloses } from '../lib/back'
+import { getPlace, setPlace } from '../lib/place'
 import { cookedSteps, extraDetail, isCooked, skippedIngredients } from '../lib/extras'
 import { scaledQty } from '../lib/format'
 import { methodOf } from '../lib/methods'
@@ -29,6 +31,9 @@ type Props = {
   onExit: () => void
   onDone: (message: string) => void
 }
+
+const COOK_KEY = 'cook'
+type KeptCook = { id: string; step: number; finished: boolean }
 
 /**
  * Full-screen cooking: what to get ready, then one step at a time with the ingredients it uses,
@@ -53,9 +58,14 @@ export function CookMode({ householdId, recipe: r, servings, methodId, extras = 
     if (isCooked(s, extras)) at = cooked.indexOf(s)
     else could.set(at, [...(could.get(at) ?? []), s])
   }
-  // -1 is the prep list before step 1.
-  const [step, setStep] = useState(prep.length ? -1 : 0)
-  const [finished, setFinished] = useState(false)
+  // -1 is the prep list before step 1. Reopened where it was (after a reload, say), the step comes back.
+  const first = prep.length ? -1 : 0
+  const [kept] = useState(() => {
+    const k = getPlace(COOK_KEY) as Partial<KeptCook> | undefined
+    return k && k.id === r.id && Number.isInteger(k.step) ? k : undefined
+  })
+  const [step, setStep] = useState(kept ? Math.min(Math.max(kept.step!, first), steps.length - 1) : first)
+  const [finished, setFinished] = useState(kept?.finished === true)
   const [timers, setTimers] = useState<Record<number, Timer>>({})
   const [now, setNow] = useState(() => Date.now())
   const [notes, setNotes] = useState(r.notes)
@@ -66,6 +76,12 @@ export function CookMode({ householdId, recipe: r, servings, methodId, extras = 
   const panel = useRef<HTMLDivElement>(null)
   const back = useRef<HTMLButtonElement>(null)
   const awake = useWakeLock()
+  useBackCloses(onExit)
+
+  useEffect(() => {
+    setPlace(COOK_KEY, { id: r.id, step, finished } satisfies KeptCook)
+    return () => setPlace(COOK_KEY, undefined)
+  }, [r.id, step, finished])
 
   const running = Object.values(timers).some((t) => t.endAt != null)
   useEffect(() => {
