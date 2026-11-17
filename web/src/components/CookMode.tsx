@@ -16,6 +16,7 @@ import {
   rescaleLabel,
   startTimer,
   stepIngredients,
+  tipText,
   unusedIngredients,
   useWakeLock,
   type Rescale,
@@ -44,7 +45,8 @@ type Props = {
 /**
  * Full-screen cooking: what to get ready, then one step at a time with the ingredients it uses,
  * then a finish screen to rate, note and mark as cooked. The chosen extras are steps like any
- * other; the optional steps not chosen show greyed out as "Could also…" after the step before them,
+ * other, with what done looks like ("Done when: …") and its usual problem's fix ("If …") under the
+ * instruction when the step has them; the optional steps not chosen show greyed out as "Could also…" after the step before them,
  * and the ingredients only they use are left out. The last step names any ingredient no
  * step used. Step timers keep running when you move to another step; the screen stays awake while it is open.
  *
@@ -61,7 +63,7 @@ export function CookMode({ householdId, recipe: r, servings, methodId, extras = 
   const cooked = cookedSteps(method.steps, extras)
   const skipped = skippedIngredients(method.steps, r.ingredients, extras)
   const ingredients = r.ingredients.filter((i) => !skipped.includes(i))
-  const steps = cooked.length ? cooked : [{ text: 'No steps saved for this recipe.', timerMins: null }]
+  const steps: RecipeStep[] = cooked.length ? cooked : [{ text: 'No steps saved for this recipe.', timerMins: null }]
   const uses = stepIngredients(cooked, ingredients)
   const prep = cooked.length ? prepList(cooked, ingredients) : []
   const unused = unusedIngredients(cooked, ingredients)
@@ -372,6 +374,12 @@ export function CookMode({ householdId, recipe: r, servings, methodId, extras = 
           </section>
         )}
         <p className="bigstep">{st.text}</p>
+        {st.cue && (
+          <p className="cue flat">
+            <strong>Done when:</strong> {st.cue}
+          </p>
+        )}
+        {st.tip && <p className="tip flat">{tipText(st.tip)}</p>}
         {st.timerMins ? (
           <StepTimer
             timer={timers[step]}

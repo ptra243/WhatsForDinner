@@ -232,6 +232,7 @@ export function RecipeView({
                 )}
                 {s.text}
                 {s.timerMins ? <span className="tm"> {s.timerMins} min timer</span> : null}
+                {s.cue && <span className="small muted cue">Done when: {s.cue}</span>}
               </li>
             ))}
           </ol>

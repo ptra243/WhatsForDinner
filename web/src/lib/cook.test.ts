@@ -15,6 +15,7 @@ import {
   type Rescale,
   stepIngredients,
   stepUses,
+  tipText,
   unusedIngredients,
 } from './cook'
 
@@ -71,6 +72,14 @@ describe('linked steps', () => {
       { step: 0, ingredients: [butter] },
       { step: 1, ingredients: [stock] },
     ])
+  })
+})
+
+describe('tipText', () => {
+  it('leads a tip in with "If it looks wrong:" unless it is already written as "If …"', () => {
+    expect(tipText('Soaking up the oil is normal; keep going.')).toBe('If it looks wrong: Soaking up the oil is normal; keep going.')
+    expect(tipText(' If they are still crunchy, give them 5 more minutes. ')).toBe('If they are still crunchy, give them 5 more minutes.')
+    expect(tipText('Iffy colour is fine.')).toBe('If it looks wrong: Iffy colour is fine.')
   })
 })
 

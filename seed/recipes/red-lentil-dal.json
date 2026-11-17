@@ -76,7 +76,8 @@
       "timerMins": 8,
       "uses": [
         "onion"
-      ]
+      ],
+      "cue": "soft and see-through"
     },
     {
       "text": "Add the garlic, ginger and spices and cook for a minute.",
@@ -95,7 +96,9 @@
         "red lentil",
         "crushed tomato",
         "coconut milk"
-      ]
+      ],
+      "cue": "the lentils have broken down and it is thick like porridge",
+      "tip": "If it catches on the bottom, add a splash of water and stir more often."
     },
     {
       "text": "Stir in the spinach until wilted and season.",

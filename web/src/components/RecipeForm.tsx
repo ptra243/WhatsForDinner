@@ -4,6 +4,7 @@ import { addRecipePrompt } from '../lib/claude'
 import { SECTIONS, UNITS } from '../lib/list'
 import {
   byName,
+  CUE_MAX,
   emptyIngredient,
   emptyStep,
   fieldOfError,
@@ -577,6 +578,32 @@ function StepEditor({
         <span className="muted">minutes, if it needs one</span>
       </label>
       {p('timer') && <span className="small warn">{p('timer')}</span>}
+      <label className="stack tight small">
+        Done when
+        <input
+          className="field"
+          aria-label={`Step ${index + 1} done when`}
+          placeholder="e.g. browned at the edges"
+          maxLength={CUE_MAX}
+          value={step.cue}
+          aria-invalid={!!p('cue')}
+          onChange={(e) => onChange({ cue: e.target.value })}
+        />
+      </label>
+      {p('cue') && <span className="small warn">{p('cue')}</span>}
+      <label className="stack tight small">
+        If it looks wrong
+        <input
+          className="field"
+          aria-label={`Step ${index + 1} tip`}
+          placeholder="e.g. If it sticks, wait a minute"
+          maxLength={CUE_MAX}
+          value={step.tip}
+          aria-invalid={!!p('tip')}
+          onChange={(e) => onChange({ tip: e.target.value })}
+        />
+      </label>
+      {p('tip') && <span className="small warn">{p('tip')}</span>}
       <label className="row small">
         <input
           type="checkbox"

@@ -33,7 +33,7 @@ where h.id <> private.template_household_id();
 
 - `recipes`: household_id, slug (lowercase-hyphenated, unique in the household), name, course (`main` / `side`), serves, active_mins, total_mins, provides text[] (`protein`, `veg`, `carb`), spice 0–3, tags text[], source, rating 1–5 (null until rated), notes, is_example, created_by.
 - `recipe_ingredients`: recipe_id, position (from 0), ingredient_slug → `ingredients`, qty (null for "to taste"), unit, note.
-- `recipe_steps`: recipe_id, method_id (null for the recipe's own steps), position (from 0 within each method), text, timer_mins (null unless the step involves waiting), optional (an extra that makes the dish better but takes longer, chosen per night), extra_mins (the minutes an optional step adds, required for one; the night counts them in both hands-on and total time, so include any waiting it adds), why (what it's worth, for an optional step: "silkier, more tender"). Only optional steps have extra_mins or why. An ingredient that only optional steps use is optional: the shopping list and cook mode leave it out unless one of its steps is chosen.
+- `recipe_steps`: recipe_id, method_id (null for the recipe's own steps), position (from 0 within each method), text, timer_mins (null unless the step involves waiting), optional (an extra that makes the dish better but takes longer, chosen per night), extra_mins (the minutes an optional step adds, required for one; the night counts them in both hands-on and total time, so include any waiting it adds), why (what it's worth, for an optional step: "silkier, more tender"). Only optional steps have extra_mins or why. cue (what done looks like: "browned at the edges", "a knife slides in"; null for none) and tip (the step's one usual problem and its fix: "Soaking up the oil is normal; keep going, don't add more"; null for none) are each at most 140 characters and never an empty string; cook mode shows them under the step as "Done when: …" and "If …", and the recipe view shows the cue. An ingredient that only optional steps use is optional: the shopping list and cook mode leave it out unless one of its steps is chosen.
 - `recipe_methods`: recipe_id, name (unique in the recipe, e.g. `Pressure cooker`), equipment (as named in settings `equipment`; null when it needs nothing special), active_mins, total_mins. Another way to cook the recipe, with its own times and steps (`recipe_steps.method_id`). The recipe's own times and steps are its usual way.
 - `recipe_step_ingredients`: step_id → `recipe_steps`, recipe_ingredient_id → `recipe_ingredients`. The ingredients each step uses, for every method's steps. The database refuses a link to another recipe's ingredient; deleting the step or the ingredient row deletes the link. Cook mode shows each step's ingredients, lists them to get ready before step 1, and flags any no step used.
 - `ingredients`: slug (PK), name (unique), section, allergens text[] (below), pack_qty and pack_unit (how it is usually sold, both or neither), shelf_days (days it keeps once bought). Shared by all households.
@@ -147,7 +147,7 @@ When the owner asks to plan around the pantry ("Plan around my What's for Dinner
 
 ## Recipes
 
-- From pasted text or a photo: check the recipe list first and reuse an existing recipe rather than duplicating it. Otherwise convert it to the schema: course, provides, active and total minutes, serves, spice, steps with `timer_mins` where a step involves waiting, units from the list. Add any new ingredients, save, and summarise in two or three lines.
+- From pasted text or a photo: check the recipe list first and reuse an existing recipe rather than duplicating it. Otherwise convert it to the schema: course, provides, active and total minutes, serves, spice, steps with `timer_mins` where a step involves waiting and a cue where done is a judgement (below), units from the list. Add any new ingredients, save, and summarise in two or three lines.
 - Tablespoons: a recipe from the US, the UK, New Zealand or anywhere else that uses a 15 ml tablespoon is converted to 20 ml tablespoons when you add it, in the ingredients and in any step that names an amount. Multiply its tablespoons by 0.75 and write the result in whole and quarter tbsp, or tbsp plus tsp when that is easier to measure: 3 US tbsp → 2 tbsp + 1 tsp (save it as `2.25 tbsp`), 1 US tbsp → 3 tsp, 2 US tbsp → 1.5 tbsp, 4 US tbsp → 3 tbsp. Teaspoons are 5 ml everywhere, so leave them. An Australian recipe already uses 20 ml: leave it. When you can't tell where a recipe is from, ask. Say in your summary that you converted the tablespoons. Don't convert recipes already saved.
 - Keep spoon measures of butter, flour, sugar, honey and the like as spoons when the recipe gives them that way; the app shows the grams beside them ("2 tbsp ≈ 40 g").
 - When the recipe has steps it calls optional or worth it if there's time ("optionally velvet the beef", "for extra flavour, toast the spices first"), save each as an optional step (`optional`, `extra_mins`, a short `why`), and leave its minutes out of the recipe's active and total minutes. Link its ingredients like any step's, so an ingredient only it uses is bought only on the nights it is chosen. Name the optional steps in your summary.
@@ -156,6 +156,10 @@ When the owner asks to plan around the pantry ("Plan around my What's for Dinner
 - Set `source` (the link, book or "Photo") and `created_by` to the owner's id. Leave `rating` null; the cook rates it in the app. `is_example` is false.
 - When a recipe gives another way to cook it with a piece of equipment ("or 45 minutes in the pressure cooker"), save the usual way as the recipe and the other as a method (query below), named after the equipment, with its own active and total minutes and its full steps. Name the equipment as the household does in `settings.equipment` when it has it. The app doesn't edit methods; you add and change them.
 - Link every step you write to the ingredients it uses (`recipe_step_ingredients`), a method's steps too: each ingredient on the step where it goes in, and again on any later step that adds more of it. A step that only waits, rests or serves uses nothing. Each way of cooking the recipe uses every ingredient at least once; check with the query below and fix the links (or ask) when one is left over.
+- Write a cue (`cue`) for every step where "done" is a judgement: browning, softening, thickening, reducing, cooked through, tender, set. Say what the cook sees, feels or smells ("deep golden and crisp all over", "a knife slides in", "coats the back of a spoon"), not the time again; the timer already has that. A step with nothing to judge (chop, mix, rest, serve) gets no cue. A method's steps get them too.
+- Write a tip (`tip`) only where a step has a well-known way of going wrong, and say what to do about it: "Soaking up the oil is normal; keep going, don't add more", "If they are still crunchy, give them 10 more minutes". One tip a step at most, and most steps have none; never a general cooking tip or a safety warning for its own sake. Cook mode leads a tip in with "If it looks wrong:" unless it starts with "If".
+- Cues and tips are short, 140 characters at most, lower case to start for a cue (it follows "Done when:"), a full sentence for a tip. Null when there is none, never an empty string.
+- When asked to add cues to the household's recipes ("add cues to my recipes", "say what done looks like"), find the ways of cooking with none (query below), read each recipe in full, and add cues and tips by these rules without changing the steps' text. Keep any already there. Reply with one line per recipe.
 - When asked to link the household's recipes' steps ("link my recipes' steps"), find the methods with no links (query below), read each recipe in full, and link its steps from their text without changing it. Reply with one line per recipe, naming anything you weren't sure of.
 
 ## Suggestions
@@ -478,7 +482,7 @@ insert into ingredients (slug, name, section, allergens, pack_qty, pack_unit, sh
 on conflict do nothing;
 ```
 
-Then the recipe, its ingredients, its steps (an optional one with its extra minutes and why) and the ingredients each step uses (step position, ingredient position) in one statement (an unknown ingredient name fails it, so nothing is half-saved):
+Then the recipe, its ingredients, its steps (an optional one with its extra minutes and why; a cue where done is a judgement, and a tip where it often goes wrong) and the ingredients each step uses (step position, ingredient position) in one statement (an unknown ingredient name fails it, so nothing is half-saved):
 
 ```sql
 with r as (
@@ -499,13 +503,15 @@ with r as (
   ) as v(position, name, qty, unit, note)
   returning id, position
 ), st as (
-  insert into recipe_steps (recipe_id, position, text, timer_mins, optional, extra_mins, why)
-  select r.id, v.position, v.text, v.timer_mins, v.optional, v.extra_mins, v.why
+  insert into recipe_steps (recipe_id, position, text, timer_mins, optional, extra_mins, why, cue, tip)
+  select r.id, v.position, v.text, v.timer_mins, v.optional, v.extra_mins, v.why, v.cue, v.tip
   from r, (values
-    (0, 'Mix the chicken with the lemongrass, garlic and fish sauce.', null::integer, false, null::integer, ''),
-    (1, 'Marinate.', 15, true, 15, 'more flavour, more tender'),
-    (2, 'Fry in the oil in a hot pan until golden and cooked through.', 10, false, null, '')
-  ) as v(position, text, timer_mins, optional, extra_mins, why)
+    (0, 'Mix the chicken with the lemongrass, garlic and fish sauce.', null::integer, false, null::integer, '', null::text, null::text),
+    (1, 'Marinate.', 15, true, 15, 'more flavour, more tender', null, null),
+    (2, 'Fry in the oil in a hot pan until golden and cooked through.', 10, false, null, '',
+     'golden outside, with no pink in the thickest piece',
+     'If it sticks, leave it a minute longer; it lets go once it has browned.')
+  ) as v(position, text, timer_mins, optional, extra_mins, why, cue, tip)
   returning id, position
 )
 insert into recipe_step_ingredients (step_id, recipe_ingredient_id)
@@ -515,7 +521,7 @@ join st on st.position = u.step
 join ing on ing.position = u.ingredient;
 ```
 
-Add another method to a saved recipe, with its own times, steps and the ingredients each step uses (by name), in one statement (the recipe's ingredients are shared):
+Add another method to a saved recipe, with its own times, steps (with their cues) and the ingredients each step uses (by name), in one statement (the recipe's ingredients are shared):
 
 ```sql
 with m as (
@@ -524,13 +530,13 @@ with m as (
   from recipes r where r.household_id = '<household_id>' and r.slug = 'red-lentil-dal'
   returning id, recipe_id
 ), st as (
-  insert into recipe_steps (recipe_id, method_id, position, text, timer_mins)
-  select m.recipe_id, m.id, v.position, v.text, v.timer_mins
+  insert into recipe_steps (recipe_id, method_id, position, text, timer_mins, cue)
+  select m.recipe_id, m.id, v.position, v.text, v.timer_mins, v.cue
   from m, (values
-    (0, 'Soften the onion, garlic, ginger and spices on the sauté setting.', 5::integer),
-    (1, 'Add the lentils, crushed tomato, coconut milk and 400 ml water. Cook on high pressure, then release quickly.', 8),
-    (2, 'Stir in the spinach until wilted and season.', null)
-  ) as v(position, text, timer_mins)
+    (0, 'Soften the onion, garlic, ginger and spices on the sauté setting.', 5::integer, 'the onion is soft and see-through'),
+    (1, 'Add the lentils, crushed tomato, coconut milk and 400 ml water. Cook on high pressure, then release quickly.', 8, null),
+    (2, 'Stir in the spinach until wilted and season.', null, null)
+  ) as v(position, text, timer_mins, cue)
   returning id, recipe_id, position
 )
 insert into recipe_step_ingredients (step_id, recipe_ingredient_id)
@@ -593,6 +599,35 @@ where r.household_id = '<household_id>'
   and not exists (select 1 from recipe_steps s join recipe_step_ingredients l on l.step_id = s.id
                   where s.recipe_id = r.id and s.method_id is not distinct from m.id and l.recipe_ingredient_id = ri.id)
 order by r.slug, m.name nulls first, ri.position;
+```
+
+The ways of cooking a recipe with no cue or tip on any step yet, step by step (for "add cues to my recipes"):
+
+```sql
+select r.slug, r.name, coalesce(m.name, 'Usual way') as method, s.position, s.text, s.timer_mins
+from recipes r
+join recipe_steps s on s.recipe_id = r.id
+left join recipe_methods m on m.id = s.method_id
+where r.household_id = '<household_id>'
+  and not exists (select 1 from recipe_steps x
+                  where x.recipe_id = r.id and x.method_id is not distinct from s.method_id
+                    and (x.cue is not null or x.tip is not null))
+order by r.name, m.name nulls first, s.position;
+```
+
+Add cues and tips to a saved recipe's steps, by method (null for the usual way) and step position; null leaves that one alone, and a cue or tip already there is kept:
+
+```sql
+update recipe_steps s
+set cue = coalesce(s.cue, v.cue), tip = coalesce(s.tip, v.tip)
+from recipes r
+cross join (values
+  (null::text, 0, 'the water is gone and steam holes dot the surface', 'If it is still wet, cover it again for 2 more minutes.'),
+  (null, 1, 'the grains are tender and separate', null)
+) as v(method, step, cue, tip)
+left join recipe_methods m on m.recipe_id = r.id and m.name = v.method
+where r.household_id = '<household_id>' and r.slug = 'steamed-rice'
+  and s.recipe_id = r.id and s.method_id is not distinct from m.id and s.position = v.step;
 ```
 
 The open suggestions, oldest first, with who made them:

@@ -96,16 +96,28 @@ select pg_temp.expect('A ingredients differ from template',
      from public.recipe_ingredients ri join public.recipes r on r.id = ri.recipe_id where r.household_id = :'hid_a') d), 0::bigint);
 select pg_temp.expect('A steps differ from template',
   (select count(*) from (
-     select r.slug, m.name, rs.position, rs.text, rs.timer_mins, rs.optional, rs.extra_mins, rs.why
+     select r.slug, m.name, rs.position, rs.text, rs.timer_mins, rs.optional, rs.extra_mins, rs.why, rs.cue, rs.tip
      from public.recipe_steps rs join public.recipes r on r.id = rs.recipe_id
      left join public.recipe_methods m on m.id = rs.method_id where r.household_id = :'tid'
      except
-     select r.slug, m.name, rs.position, rs.text, rs.timer_mins, rs.optional, rs.extra_mins, rs.why
+     select r.slug, m.name, rs.position, rs.text, rs.timer_mins, rs.optional, rs.extra_mins, rs.why, rs.cue, rs.tip
      from public.recipe_steps rs join public.recipes r on r.id = rs.recipe_id
      left join public.recipe_methods m on m.id = rs.method_id and m.recipe_id = r.id where r.household_id = :'hid_a') d), 0::bigint);
 select pg_temp.expect('the template has optional steps to copy',
   (select count(*) > 0 from public.recipe_steps rs join public.recipes r on r.id = rs.recipe_id
    where r.household_id = :'tid' and rs.optional), true);
+select pg_temp.expect('the template has cues to copy, on methods'' steps too',
+  (select count(*) filter (where rs.method_id is null) > 0 and count(*) filter (where rs.method_id is not null) > 0
+   from public.recipe_steps rs join public.recipes r on r.id = rs.recipe_id
+   where r.household_id = :'tid' and rs.cue is not null), true);
+select pg_temp.expect('the template has tips to copy',
+  (select count(*) > 0 from public.recipe_steps rs join public.recipes r on r.id = rs.recipe_id
+   where r.household_id = :'tid' and rs.tip is not null), true);
+select pg_temp.expect('A got the examples'' cues and tips',
+  (select count(rs.cue) || ' cues, ' || count(rs.tip) || ' tips' from public.recipe_steps rs join public.recipes r on r.id = rs.recipe_id
+   where r.household_id = :'hid_a'),
+  (select count(rs.cue) || ' cues, ' || count(rs.tip) || ' tips' from public.recipe_steps rs join public.recipes r on r.id = rs.recipe_id
+   where r.household_id = :'tid'));
 select pg_temp.expect('A step links differ from template',
   (select count(*) from (
      select r.slug, m.name, rs.position, ri.position
