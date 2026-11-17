@@ -62,6 +62,8 @@ describe('RecipeForm', () => {
     fireEvent.change(screen.getByLabelText('Ingredient 1 unit'), { target: { value: 'each' } })
     type('Step 1', 'Bake.')
     type('Step 1 timer minutes', '30')
+    type('Step 1 done when', ' golden and bubbling ')
+    type('Step 1 tip', 'If the top browns too fast, cover it with foil.')
     fireEvent.click(within(screen.getByRole('group', { name: 'Step 1 uses' })).getByRole('button', { name: 'leek' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Save recipe' }))
@@ -83,7 +85,18 @@ describe('RecipeForm', () => {
       source: '',
       notes: '',
       ingredients: [{ name: 'leek', qty: 2, unit: 'each', note: '', section: 'fruit and veg', allergens: [] }],
-      steps: [{ text: 'Bake.', timer_mins: 30, uses: [0], optional: false, extra_mins: null, why: '' }],
+      steps: [
+        {
+          text: 'Bake.',
+          timer_mins: 30,
+          uses: [0],
+          optional: false,
+          extra_mins: null,
+          why: '',
+          cue: 'golden and bubbling',
+          tip: 'If the top browns too fast, cover it with foil.',
+        },
+      ],
     })
   })
 
@@ -131,8 +144,8 @@ describe('RecipeForm', () => {
         name: 'Weeknight dal',
         ingredients: [{ id: 'i2', name: 'onion', qty: 1, unit: 'each', note: 'diced' }],
         steps: [
-          { text: 'Serve with rice.', timer_mins: null, uses: [0], optional: false, extra_mins: null, why: '' },
-          { id: 's1', text: 'Simmer.', timer_mins: 25, uses: [0], optional: false, extra_mins: null, why: '' },
+          { text: 'Serve with rice.', timer_mins: null, uses: [0], optional: false, extra_mins: null, why: '', cue: null, tip: null },
+          { id: 's1', text: 'Simmer.', timer_mins: 25, uses: [0], optional: false, extra_mins: null, why: '', cue: null, tip: null },
         ],
       }),
     )

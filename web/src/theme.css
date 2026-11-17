@@ -128,7 +128,7 @@ button.ing span:last-child::after{content:" \203A";color:var(--accent)}
 ol.steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:10px}
 ol.steps li{padding-left:4px}
 ol.steps .tm{color:var(--warn);font-family:var(--display);font-weight:700;font-size:14px}
-ol.steps .uses{display:block}
+ol.steps .uses,ol.steps .cue{display:block}
 .rate{display:flex;gap:2px}
 .rate button{width:44px;height:44px;border:0;background:none;font-size:28px;line-height:1;color:var(--line);padding:0}
 .rate button.on{color:var(--star)}
@@ -268,6 +268,8 @@ fieldset.plain legend{padding:0;margin-bottom:6px}
 .extra small{display:block}
 ol.steps li.optional{color:var(--muted)}
 ol.steps .opt{display:block;font-size:13px;font-weight:700}
+.cue{font-size:17px;line-height:1.4}
+.tip{font-size:15px;line-height:1.4;color:var(--muted)}
 .could{border-top:1px dashed var(--line);padding-top:10px}
 .could p{color:var(--muted);opacity:.85}
 .could small{display:block}

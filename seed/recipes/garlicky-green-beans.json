@@ -36,7 +36,8 @@
       "timerMins": 4,
       "uses": [
         "green bean"
-      ]
+      ],
+      "cue": "bright green and bends without snapping"
     },
     {
       "text": "Toss in butter with sliced garlic for a minute.",

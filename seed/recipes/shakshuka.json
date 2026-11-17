@@ -86,14 +86,16 @@
         "smoked paprika",
         "ground cumin",
         "crushed tomato"
-      ]
+      ],
+      "cue": "a spoon dragged through leaves a trail"
     },
     {
       "text": "Make wells, crack in the eggs, cover and cook until the whites set.",
       "timerMins": 8,
       "uses": [
         "egg"
-      ]
+      ],
+      "cue": "the whites are opaque and the yolks still wobble"
     },
     {
       "text": "Crumble over the feta and coriander.",

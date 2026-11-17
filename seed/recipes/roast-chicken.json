@@ -59,7 +59,8 @@
     {
       "text": "Roast until the juices run clear.",
       "timerMins": 75,
-      "uses": []
+      "uses": [],
+      "cue": "the juices run clear when you pierce the thigh, with no pink"
     },
     {
       "text": "Rest before carving.",

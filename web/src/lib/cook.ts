@@ -23,6 +23,12 @@ export function stepUses(text: string, ingredients: RecipeIngredient[]): RecipeI
 }
 
 /**
+ * A step's tip as cook mode shows it, under "Done when": one written as "If …" stands as it is,
+ * any other ("Soaking up the oil is normal; keep going") is led in with "If it looks wrong:".
+ */
+export const tipText = (tip: string) => (/^if\b/i.test(tip.trim()) ? tip.trim() : `If it looks wrong: ${tip.trim()}`)
+
+/**
  * The ingredients each step uses, in recipe order: the saved links when the steps have any (a
  * step with none uses nothing), otherwise guessed from each step's text (`stepUses`).
  */

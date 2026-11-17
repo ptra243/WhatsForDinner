@@ -95,7 +95,9 @@
       "timerMins": 5,
       "uses": [
         "pork mince"
-      ]
+      ],
+      "cue": "no pink left and starting to crisp",
+      "tip": "If it is stewing in its liquid, turn the heat up and stop stirring for a minute."
     },
     {
       "text": "Add the garlic, cabbage and carrot and stir-fry until just tender.",

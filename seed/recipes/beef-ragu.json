@@ -76,7 +76,9 @@
       "timerMins": 10,
       "uses": [
         "beef chuck"
-      ]
+      ],
+      "cue": "deep brown on most sides",
+      "tip": "Grey and steaming means the pot is crowded; brown fewer pieces at a time."
     },
     {
       "text": "Soften the chopped onion, carrot and celery, then add the garlic and tomato paste.",
@@ -87,7 +89,8 @@
         "celery",
         "garlic clove",
         "tomato paste"
-      ]
+      ],
+      "cue": "soft and see-through, not browned"
     },
     {
       "text": "Add the wine and bubble for 2 minutes, then the tomato and stock. Return the beef.",
@@ -101,7 +104,9 @@
     {
       "text": "Cover and simmer gently until the beef falls apart.",
       "timerMins": 150,
-      "uses": []
+      "uses": [],
+      "cue": "a piece pulls apart with a fork",
+      "tip": "If it looks dry, add a splash of water and turn the heat down."
     },
     {
       "text": "Shred the beef into the sauce and season.",
@@ -121,7 +126,9 @@
           "timerMins": 10,
           "uses": [
             "beef chuck"
-          ]
+          ],
+          "cue": "deep brown on most sides",
+          "tip": "Grey and steaming means the pot is crowded; brown fewer pieces at a time."
         },
         {
           "text": "Soften the chopped onion, carrot and celery, then add the garlic and tomato paste.",
@@ -132,7 +139,8 @@
             "celery",
             "garlic clove",
             "tomato paste"
-          ]
+          ],
+          "cue": "soft and see-through, not browned"
         },
         {
           "text": "Add the wine and bubble for 2 minutes, then the tomato and stock. Return the beef.",

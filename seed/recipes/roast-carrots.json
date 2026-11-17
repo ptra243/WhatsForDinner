@@ -43,7 +43,9 @@
     {
       "text": "Roast until tender and caramelised.",
       "timerMins": 35,
-      "uses": []
+      "uses": [],
+      "cue": "a knife slides in and the edges are dark and sticky",
+      "tip": "If they are still crunchy, give them 10 more minutes."
     }
   ],
   "rating": null,

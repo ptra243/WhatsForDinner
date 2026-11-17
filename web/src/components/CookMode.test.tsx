@@ -255,6 +255,69 @@ describe('Cook mode', () => {
   })
 })
 
+describe('CookMode with cues and tips', () => {
+  const PASTA: Recipe = {
+    ...DAL,
+    id: 'pasta',
+    name: 'Creamy chicken pasta',
+    ingredients: [],
+    steps: [
+      {
+        text: 'Fry the mushrooms.',
+        timerMins: 5,
+        cue: 'browned at the edges',
+        tip: 'Soaking up the oil is normal; keep going, don’t add more.',
+      },
+      { text: 'Add the carrots.', timerMins: null, cue: 'a knife slides in' },
+      { text: 'Serve.', timerMins: null },
+    ],
+    methods: [
+      {
+        id: 'm1',
+        name: 'Slow cooker',
+        equipment: 'slow cooker',
+        activeMins: 10,
+        totalMins: 240,
+        steps: [{ text: 'Cook on low.', timerMins: null, tip: 'If it is watery, leave the lid off for the last half hour.' }],
+      },
+    ],
+  }
+  const cook = (methodId?: string) =>
+    render(
+      <CookMode householdId="h1" recipe={PASTA} servings={4} methodId={methodId} onChange={() => {}} onExit={() => {}} onDone={() => {}} />,
+    )
+
+  it('shows what done looks like under the instruction, and the tip under that', () => {
+    cook()
+    const text = screen.getByText('Fry the mushrooms.')
+    const cue = screen.getByText('browned at the edges', { exact: false })
+    const tip = screen.getByText('If it looks wrong: Soaking up the oil is normal; keep going, don’t add more.')
+    expect(cue.textContent).toBe('Done when: browned at the edges')
+    expect(text.compareDocumentPosition(cue) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(cue.compareDocumentPosition(tip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // Both sit above the timer.
+    expect(tip.compareDocumentPosition(screen.getByRole('region', { name: 'Timer' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('shows a cue alone, and nothing extra on a step with neither', () => {
+    cook()
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByText('a knife slides in', { exact: false }).textContent).toBe('Done when: a knife slides in')
+    expect(screen.queryByText(/^If /)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByText('Serve.')).toBeTruthy()
+    expect(screen.queryByText(/Done when/)).toBeNull()
+    expect(screen.queryByText(/^If /)).toBeNull()
+  })
+
+  it('shows a method’s own steps’ tips, one written as "If …" as it is', () => {
+    cook('m1')
+    expect(screen.getByText('Cook on low.')).toBeTruthy()
+    expect(screen.getByText('If it is watery, leave the lid off for the last half hour.')).toBeTruthy()
+    expect(screen.queryByText(/Done when/)).toBeNull()
+  })
+})
+
 describe('CookMode with extras', () => {
   const STIR_FRY: Recipe = {
     ...DAL,

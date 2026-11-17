@@ -70,6 +70,11 @@ const unusedQueries = blocks.filter((b) => b.includes('l.recipe_ingredient_id = 
 if (unusedQueries.length !== 1) throw new Error(`Expected 1 unused ingredients query in SKILL.md, found ${unusedQueries.length}`);
 const unused = fill(unusedQueries[0]).replace(/;\s*$/, '');
 
+// The ways of cooking with no cue or tip yet (#67), checked before and after the backfill example.
+const uncuedQueries = blocks.filter((b) => b.includes('x.cue is not null or x.tip is not null'));
+if (uncuedQueries.length !== 1) throw new Error(`Expected 1 steps without cues query in SKILL.md, found ${uncuedQueries.length}`);
+const uncued = fill(uncuedQueries[0]).replace(/;\s*$/, '');
+
 // The items to price (#84), checked before and after the example that saves prices.
 const priceQueries = blocks.filter((b) => b.includes('as cached'));
 if (priceQueries.length !== 1) throw new Error(`Expected 1 items to price query in SKILL.md, found ${priceQueries.length}`);
@@ -179,6 +184,11 @@ select pg_temp.expect('methods with no step links',
   (select string_agg(slug || ' ' || method || ' ' || steps, ', ') from (${unlinked}) q), 'roast-potatoes Usual way 2');
 select pg_temp.expect('ingredients no step uses',
   (select string_agg(ingredient, ', ') from (${unused}) q), 'potato, olive oil, rosemary');
+-- The examples with no cue or tip on any step (#67).
+select pg_temp.expect('ways of cooking with no cue or tip',
+  (select string_agg(slug || ' ' || method || ' ' || steps, ', ' order by slug)
+   from (select slug, method, count(*) as steps from (${uncued}) q group by slug, method) g),
+  'buttered-pappardelle Usual way 2, cabbage-slaw Usual way 2, crusty-bread Usual way 1, green-salad Usual way 2, steamed-rice Usual way 2');
 -- Lemons and dish soap added by hand: lemon is an ingredient and is priced, dish soap isn't (#84).
 insert into list_extras (household_id, week_start, name, qty, unit, section) values
   (:'hid', :'week', 'lemon', 3, 'each', 'fruit and veg'), (:'hid', :'week', 'dish soap', 1, 'each', 'other');
@@ -263,6 +273,29 @@ select pg_temp.expect('backfilled roast potatoes',
    join recipe_ingredients ri on ri.id = l.recipe_ingredient_id join ingredients i on i.slug = ri.ingredient_slug
    join recipes r on r.id = s.recipe_id where r.household_id = :'hid' and r.slug = 'roast-potatoes'),
   '0 potato, 1 olive oil, 1 rosemary');
+select pg_temp.expect('the new recipe''s cue and tip, on the step with something to judge',
+  (select string_agg(s.position || ' ' || coalesce(s.cue, '-') || ' / ' || coalesce(s.tip, '-'), ', ' order by s.position)
+   from recipe_steps s join recipes r on r.id = s.recipe_id where r.household_id = :'hid' and r.slug = 'lemongrass-chicken'),
+  '0 - / -, 1 - / -, 2 golden outside, with no pink in the thickest piece / If it sticks, leave it a minute longer; it lets go once it has browned.');
+select pg_temp.expect('the dal''s new method''s cue',
+  (select string_agg(s.position || ' ' || coalesce(s.cue, '-'), ', ' order by s.position)
+   from recipe_steps s join recipe_methods m on m.id = s.method_id join recipes r on r.id = m.recipe_id
+   where r.household_id = :'hid' and r.slug = 'red-lentil-dal'),
+  '0 the onion is soft and see-through, 1 -, 2 -');
+select pg_temp.expect('the steamed rice''s backfilled cues and tip',
+  (select string_agg(s.position || ' ' || coalesce(s.cue, '-') || ' / ' || coalesce(s.tip, '-'), ', ' order by s.position)
+   from recipe_steps s join recipes r on r.id = s.recipe_id where r.household_id = :'hid' and r.slug = 'steamed-rice'),
+  '0 the water is gone and steam holes dot the surface / If it is still wet, cover it again for 2 more minutes., 1 the grains are tender and separate / -');
+select pg_temp.expect('the steamed rice left the ways of cooking with no cue or tip',
+  (select string_agg(distinct slug, ', ') from (${uncued}) q),
+  'buttered-pappardelle, cabbage-slaw, crusty-bread, green-salad');
+-- Running the backfill again with other words keeps what is there.
+update recipe_steps s set cue = coalesce(s.cue, 'something else')
+from recipes r where r.household_id = :'hid' and r.slug = 'steamed-rice' and s.recipe_id = r.id and s.position = 0;
+select pg_temp.expect('a cue already there is kept',
+  (select s.cue from recipe_steps s join recipes r on r.id = s.recipe_id
+   where r.household_id = :'hid' and r.slug = 'steamed-rice' and s.position = 0),
+  'the water is gone and steam holes dot the surface');
 select pg_temp.expect('no methods left with no step links', (select count(*) from (${unlinked}) q), 0::bigint);
 select pg_temp.expect('every ingredient used by a step', (select count(*) from (${unused}) q), 0::bigint);
 select pg_temp.expect('new recipe owner',
