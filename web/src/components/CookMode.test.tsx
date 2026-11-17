@@ -280,6 +280,8 @@ describe('CookMode with extras', () => {
     cook(['velvet'])
     const prep = screen.getByRole('dialog', { name: 'Cooking Beef stir-fry' })
     expect(within(prep).getByText('cornflour')).toBeTruthy()
+    // Grams beside a spoon measure of something you'd weigh (#96).
+    expect(within(prep).getByText('1 tbsp ≈ 10 g')).toBeTruthy()
     expect(within(prep).queryByText('chilli')).toBeNull()
     fireEvent.click(within(prep).getByRole('button', { name: 'Start step 1' }))
     expect(screen.getByText('Step 1 of 2')).toBeTruthy()
