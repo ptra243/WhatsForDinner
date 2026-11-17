@@ -4,7 +4,7 @@ Read `docs/` before changing anything: `vision.md`, `architecture.md`, `data-mod
 
 ## Workflow
 
-- The repo is the source of truth. Tickets are GitHub Issues (milestones M1 · Real use, M2 · Household, M3 · Other households, Later). Use the REST API (`gh api repos/ptra243/WhatsForDinner/...`); GraphQL is not available here.
+- The repo is the source of truth. Tickets are GitHub Issues (milestones M1 · Real use, M2 · Household, M2.5 · Everyday use, M3 · Other households, Later). Use the REST API (`gh api repos/ptra243/WhatsForDinner/...`); GraphQL is not available here.
 - Small fixes may go straight to `master`; features go on a branch with a PR that references its issue.
 - Issues are worked through `/ship #N` (or `/ship M1`): a dispatcher starts an author session (`/implement-issue`) and a separate reviewer (`/review-pr`), which merges once it approves and CI is green. A session never merges a PR it wrote. Milestones run in waves of up to 3 issues, and authors and reviewers use changed screens in a browser. Reviewers and the next issues' authors start ahead and wait on GitHub (`.claude/skills/ship/wait-for.sh`). See decisions 0008, 0009 and 0010.
 - Before merge, the live database is for dry runs that roll back; the reviewer applies migrations and seed changes after merging.
