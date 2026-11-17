@@ -4,6 +4,7 @@ import { Header } from './components/Header'
 import { ListTab } from './components/ListTab'
 import { PantryTab } from './components/PantryTab'
 import { RecipesTab } from './components/RecipesTab'
+import { ResumeCook } from './components/ResumeCook'
 import { SignIn } from './components/SignIn'
 import { SettingsSheet } from './components/SettingsSheet'
 import { Tabs } from './components/Tabs'
@@ -183,6 +184,7 @@ function Shell({ user, household }: { user: { id: string; email: string }; house
         </div>
       </main>
       <Tabs current={tab} onChange={changeTab} />
+      {weekStart && <ResumeCook householdId={householdId} />}
       <Toast />
       {settingsOpen && (
         <SettingsSheet
