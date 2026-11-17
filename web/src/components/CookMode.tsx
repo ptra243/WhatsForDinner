@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { caughtUp, clearCookSession, loadCookSession, saveCookSession, type CookSession } from '../lib/cookSession'
 import {
   clock,
   doneTimer,
@@ -16,6 +17,7 @@ import { cookedSteps, extraDetail, isCooked, skippedIngredients } from '../lib/e
 import { scaledQty } from '../lib/format'
 import { methodOf } from '../lib/methods'
 import { markCooked, updateRecipe, type Recipe, type RecipeIngredient, type RecipeStep } from '../lib/recipes'
+import { dayOf, weekStartOf } from '../lib/week'
 
 type Props = {
   householdId: string
@@ -25,6 +27,8 @@ type Props = {
   methodId?: string | null
   /** The optional steps chosen for the night, by id; the others show as "Could also…". */
   extras?: string[]
+  /** The saved session to pick up, when the app reopens cook mode after a reload. */
+  resume?: CookSession
   onChange: (recipe: Recipe) => void
   onExit: () => void
   onDone: (message: string) => void
@@ -36,8 +40,12 @@ type Props = {
  * other; the optional steps not chosen show greyed out as "Could also…" after the step before them,
  * and the ingredients only they use are left out. The last step names any ingredient no
  * step used. Step timers keep running when you move to another step; the screen stays awake while it is open.
+ *
+ * The dish, step and timers are saved on this device as you go (`lib/cookSession`), so cooking
+ * picks up where it was when the phone reloads the tab or the same dish is opened again that
+ * night. Marking as cooked or going back to the recipe forgets them.
  */
-export function CookMode({ householdId, recipe: r, servings, methodId, extras = [], onChange, onExit, onDone }: Props) {
+export function CookMode({ householdId, recipe: r, servings, methodId, extras = [], resume, onChange, onExit, onDone }: Props) {
   const method = methodOf(r, methodId)
   const cooked = cookedSteps(method.steps, extras)
   const skipped = skippedIngredients(method.steps, r.ingredients, extras)
@@ -53,16 +61,38 @@ export function CookMode({ householdId, recipe: r, servings, methodId, extras = 
     if (isCooked(s, extras)) at = cooked.indexOf(s)
     else could.set(at, [...(could.get(at) ?? []), s])
   }
+  const firstStep = prep.length ? -1 : 0
+  // The night being cooked and where its saved session left off, worked out once on opening.
+  const [opened] = useState(() => {
+    const today = new Date()
+    const night = {
+      householdId,
+      week: resume?.week ?? weekStartOf(today),
+      day: resume?.day ?? dayOf(today),
+      recipeId: r.id,
+    }
+    const saved = resume ?? loadCookSession(night)
+    // A session for other steps (another method or extras, or the recipe was edited) starts again.
+    const fits =
+      saved &&
+      saved.methodId === method.id &&
+      saved.extras.join() === extras.join() &&
+      saved.step >= firstStep &&
+      saved.step < steps.length
+    const timers = fits
+      ? Object.fromEntries(Object.entries(caughtUp(saved.timers, today.getTime())).filter(([ix]) => steps[Number(ix)]?.timerMins))
+      : {}
+    return { night, step: fits ? saved.step : firstStep, finished: fits ? saved.finished : false, timers }
+  })
   // -1 is the prep list before step 1.
-  const [step, setStep] = useState(prep.length ? -1 : 0)
-  const [finished, setFinished] = useState(false)
-  const [timers, setTimers] = useState<Record<number, Timer>>({})
+  const [step, setStep] = useState(opened.step)
+  const [finished, setFinished] = useState(opened.finished)
+  const [timers, setTimers] = useState<Record<number, Timer>>(opened.timers)
   const [now, setNow] = useState(() => Date.now())
   const [notes, setNotes] = useState(r.notes)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [chime] = useState(makeChime)
-  const endings = useRef(new Map<number, ReturnType<typeof setTimeout>>())
   const panel = useRef<HTMLDivElement>(null)
   const back = useRef<HTMLButtonElement>(null)
   const awake = useWakeLock()
@@ -74,47 +104,68 @@ export function CookMode({ householdId, recipe: r, servings, methodId, extras = 
     return () => clearInterval(id)
   }, [running])
 
+  useEffect(() => () => chime.close(), [chime])
+
+  // Each running timer rings when its end time comes, including one picked up from a saved session.
   useEffect(() => {
-    const ends = endings.current
-    return () => {
-      ends.forEach(clearTimeout)
-      chime.close()
-    }
-  }, [chime])
+    const ids = Object.entries(timers)
+      .filter(([, t]) => t.endAt != null)
+      .map(([ix, t]) =>
+        setTimeout(
+          () => {
+            chime.play()
+            setTimers((ts) => (ts[Number(ix)]?.endAt === t.endAt ? { ...ts, [ix]: doneTimer } : ts))
+          },
+          Math.max(0, t.endAt! - Date.now()),
+        ),
+      )
+    return () => ids.forEach(clearTimeout)
+  }, [timers, chime])
+
+  // A page can only play sound after a tap, so after a reload the first tap readies the timer sound.
+  useEffect(() => {
+    if (!Object.values(opened.timers).some((t) => t.endAt != null)) return
+    const prime = () => chime.prime()
+    document.addEventListener('pointerdown', prime, { once: true })
+    return () => document.removeEventListener('pointerdown', prime)
+  }, [opened, chime])
+
+  const methodKey = method.id
+  const extrasKey = extras.join()
+  useEffect(() => {
+    saveCookSession({
+      ...opened.night,
+      methodId: methodKey,
+      extras: extrasKey ? extrasKey.split(',') : [],
+      servings,
+      step,
+      finished,
+      timers,
+      savedAt: Date.now(),
+    })
+  }, [opened, methodKey, extrasKey, servings, step, finished, timers])
+
+  /** Closing on purpose: the session is not picked up again. */
+  const exit = () => {
+    clearCookSession(opened.night)
+    onExit()
+  }
 
   useEffect(() => {
     back.current?.focus()
     panel.current?.scrollTo?.(0, 0)
   }, [step, finished])
 
-  const stopEnding = (ix: number) => {
-    clearTimeout(endings.current.get(ix))
-    endings.current.delete(ix)
-  }
-
   const start = (ix: number) => {
     chime.prime()
-    const t = startTimer(timers[ix], (steps[ix].timerMins ?? 0) * 60, Date.now())
-    stopEnding(ix)
-    endings.current.set(
-      ix,
-      setTimeout(() => {
-        endings.current.delete(ix)
-        chime.play()
-        setTimers((ts) => ({ ...ts, [ix]: doneTimer }))
-      }, t.left * 1000),
-    )
     setNow(Date.now())
-    setTimers({ ...timers, [ix]: t })
+    setTimers({ ...timers, [ix]: startTimer(timers[ix], (steps[ix].timerMins ?? 0) * 60, Date.now()) })
   }
 
-  const pause = (ix: number) => {
-    stopEnding(ix)
+  const pause = (ix: number) =>
     setTimers({ ...timers, [ix]: pauseTimer(timers[ix], Date.now()) })
-  }
 
   const reset = (ix: number) => {
-    stopEnding(ix)
     const next = { ...timers }
     delete next[ix]
     setTimers(next)
@@ -146,6 +197,7 @@ export function CookMode({ householdId, recipe: r, servings, methodId, extras = 
         onChange({ ...r, notes })
       }
       const ticked = await markCooked(householdId, r.id)
+      clearCookSession(opened.night)
       onDone(ticked ? 'Marked as cooked. Tonight is ticked off.' : 'Marked as cooked.')
     })
 
@@ -202,7 +254,7 @@ export function CookMode({ householdId, recipe: r, servings, methodId, extras = 
       <div ref={panel} className="panel" role="dialog" aria-modal="true" aria-label={`Cooking ${r.name}`}>
         <div className="wrap">
           <div className="row spread">
-            <button ref={back} className="back" type="button" onClick={onExit}>
+            <button ref={back} className="back" type="button" onClick={exit}>
               ‹ Recipe
             </button>
             {method.id && <span className="small muted">{method.name}</span>}
@@ -234,7 +286,7 @@ export function CookMode({ householdId, recipe: r, servings, methodId, extras = 
     <div ref={panel} className="panel" role="dialog" aria-modal="true" aria-label={`Cooking ${r.name}`}>
       <div className="wrap">
         <div className="row spread">
-          <button ref={back} className="back" type="button" onClick={onExit}>
+          <button ref={back} className="back" type="button" onClick={exit}>
             ‹ Recipe
           </button>
           <span className="small muted">
