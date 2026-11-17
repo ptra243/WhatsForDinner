@@ -308,3 +308,156 @@ describe('CookMode with extras', () => {
     ])
   })
 })
+
+describe('CookMode rescaled mid-cook (#97)', () => {
+  const PASTA: Recipe = {
+    ...DAL,
+    id: 'pasta',
+    name: 'Creamy chicken pasta',
+    ingredients: [
+      { id: 'i-butter', name: 'butter', qty: 2, unit: 'tbsp', note: '' },
+      { id: 'i-chicken', name: 'chicken thigh', qty: 500, unit: 'g', note: 'diced' },
+      { id: 'i-pasta', name: 'pasta', qty: 350, unit: 'g', note: '' },
+      { id: 'i-cream', name: 'cream', qty: 200, unit: 'ml', note: '' },
+      { id: 'i-parmesan', name: 'parmesan', qty: null, unit: 'g', note: '' },
+    ],
+    steps: [
+      { text: 'Brown the chicken in the butter.', timerMins: 5, uses: ['i-chicken', 'i-butter'] },
+      { text: 'Boil the 350 g pasta.', timerMins: 10, uses: ['i-pasta'] },
+      { text: 'Stir the cream through.', timerMins: null, uses: ['i-cream'] },
+      { text: 'Serve with parmesan.', timerMins: null, uses: ['i-parmesan'] },
+    ],
+  }
+  const cook = (recipe = PASTA) =>
+    render(<CookMode householdId="h1" recipe={recipe} servings={4} onChange={() => {}} onExit={() => {}} onDone={() => {}} />)
+  const click = (name: string | RegExp) => fireEvent.click(screen.getByRole('button', { name }))
+  const uses = () => screen.getByRole('region', { name: 'This step uses' })
+  /** Tap the ingredient and say how much of it went in. */
+  const used = (ingredient: RegExp, amount: string) => {
+    click(ingredient)
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: amount } })
+    click('Rescale')
+  }
+
+  it('rescales this step and the ones to come around the amount used, and says what to add to catch up', () => {
+    cook()
+    click('Start step 1')
+    click('Next')
+    click(/^pasta/)
+    // Asked in the ingredient's own unit; nothing changes until an amount is given.
+    expect(screen.getByLabelText('I used a different amount of pasta')).toHaveValue(null)
+    expect(screen.getByRole('button', { name: 'Rescale' })).toBeDisabled()
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '525' } })
+    click('Rescale')
+
+    expect(screen.getByRole('status')).toHaveTextContent('Scaled to 525 g pasta.')
+    expect(uses()).toHaveTextContent('pasta525 g, was 350 g')
+    // What the first step already used, with the extra each needs; the grams follow.
+    const add = screen.getByRole('region', { name: 'Add to catch up' })
+    expect(add).toHaveTextContent('butter1 tbsp ≈ 20 g more')
+    expect(add).toHaveTextContent('chicken thigh250 g more')
+    expect(add).not.toHaveTextContent('pasta')
+    // Step text and the timer are as the recipe has them.
+    expect(screen.getByText('Boil the 350 g pasta.')).toBeInTheDocument()
+    expect(screen.getByRole('timer')).toHaveTextContent('10:00')
+
+    click('Next')
+    expect(uses()).toHaveTextContent('cream300 ml, was 200 ml')
+    expect(screen.getByRole('status')).toHaveTextContent('Scaled to 525 g pasta.')
+    expect(screen.queryByRole('region', { name: 'Add to catch up' })).not.toBeInTheDocument()
+    click('Next')
+    expect(uses()).toHaveTextContent('parmesanas needed')
+
+    // The step already cooked keeps the recipe's amounts.
+    for (let i = 0; i < 3; i++) click('Back')
+    expect(uses()).toHaveTextContent('butter2 tbsp ≈ 40 gchicken thigh diced500 g')
+    expect(uses()).not.toHaveTextContent('was')
+    // Nothing is written to the recipe.
+    expect(api.updateRecipe).not.toHaveBeenCalled()
+  })
+
+  it('has no catch-up list when less went in', () => {
+    cook()
+    click('Start step 1')
+    click('Next')
+    used(/^pasta/, '175')
+    expect(screen.getByRole('status')).toHaveTextContent('Scaled to 175 g pasta.')
+    expect(screen.queryByRole('region', { name: 'Add to catch up' })).not.toBeInTheDocument()
+    click('Next')
+    expect(uses()).toHaveTextContent('cream100 ml, was 200 ml')
+  })
+
+  it('replaces the first amount with a second, and goes back to the recipe’s amounts', () => {
+    cook()
+    click('Start step 1')
+    click('Next')
+    used(/^pasta/, '525')
+    click('Next')
+    // Twice the cream: the cook is now scaled by 2, not by 1.5 × 2.
+    used(/^cream/, '400')
+    expect(screen.getByRole('status')).toHaveTextContent('Scaled to 400 ml cream.')
+    expect(uses()).toHaveTextContent('cream400 ml, was 200 ml')
+    expect(screen.getByRole('region', { name: 'Add to catch up' })).toHaveTextContent('pasta350 g more')
+
+    click('Use recipe amounts')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(uses()).toHaveTextContent(/^This step usescream200 ml/)
+    expect(screen.queryByRole('region', { name: 'Add to catch up' })).not.toBeInTheDocument()
+
+    // Saying the planned amount is the same as going back.
+    used(/^cream/, '300')
+    used(/^cream/, '200')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('rescales everything from the prep list, and can be cancelled', () => {
+    cook()
+    const prep = screen.getByRole('dialog', { name: 'Cooking Creamy chicken pasta' })
+    click(/^pasta/)
+    click('Cancel')
+    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
+    used(/^pasta/, '525')
+    expect(prep).toHaveTextContent('Scaled to 525 g pasta.')
+    expect(within(prep).getByRole('region', { name: 'For step 1' })).toHaveTextContent('butter3 tbsp ≈ 60 g, was 2 tbsp ≈ 40 g')
+    expect(within(prep).getByRole('region', { name: 'For step 3' })).toHaveTextContent('cream300 ml, was 200 ml')
+    click('Start step 1')
+    expect(uses()).toHaveTextContent('chicken thigh diced750 g, was 500 g')
+    expect(screen.queryByRole('region', { name: 'Add to catch up' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the rescale through a reload, and loses it with the session', () => {
+    const first = cook()
+    click('Start step 1')
+    click('Next')
+    used(/^pasta/, '525')
+    first.unmount()
+
+    const again = cook()
+    expect(screen.getByRole('status')).toHaveTextContent('Scaled to 525 g pasta.')
+    expect(uses()).toHaveTextContent('pasta525 g, was 350 g')
+    expect(screen.getByRole('region', { name: 'Add to catch up' })).toHaveTextContent('chicken thigh250 g more')
+
+    // Going back to the recipe on purpose clears the session, and the rescale with it.
+    click('‹ Recipe')
+    again.unmount()
+    cook()
+    click('Start step 1')
+    click('Next')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(uses()).toHaveTextContent(/^This step usespasta350 g/)
+  })
+
+  it('is not offered when the steps have no ingredient links, or for an ingredient with no quantity', () => {
+    const view = cook({ ...PASTA, steps: PASTA.steps.map((s) => ({ text: s.text, timerMins: s.timerMins })) })
+    expect(screen.queryByRole('button', { name: /^pasta/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Used a different amount/)).not.toBeInTheDocument()
+    click('Start step 1')
+    expect(screen.queryByRole('button', { name: /^chicken/ })).not.toBeInTheDocument()
+    view.unmount()
+    localStorage.clear()
+
+    cook()
+    expect(screen.getByRole('button', { name: /^pasta/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^parmesan/ })).not.toBeInTheDocument()
+  })
+})

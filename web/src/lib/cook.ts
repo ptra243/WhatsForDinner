@@ -1,7 +1,10 @@
 // Cook mode helpers: which ingredients a step uses, what to get ready and what was left over,
-// step timers, the screen wake lock and the timer sound.
+// rescaling tonight's cook around an amount that went in wrong, step timers, the screen wake
+// lock and the timer sound.
 import { useEffect, useState } from 'react'
 import { isLinked } from './extras'
+import { num, scaledQty, toBase } from './format'
+import { scaledAmount } from './spoons'
 import type { RecipeIngredient, RecipeStep } from './recipes'
 
 export { isLinked }
@@ -56,6 +59,82 @@ export function prepList(steps: readonly RecipeStep[], ingredients: RecipeIngred
   const rest = ingredients.filter((i) => !seen.has(i))
   if (rest.length) groups.push({ step: null, ingredients: rest })
   return groups
+}
+
+/**
+ * Tonight's cook rescaled around one ingredient (#97): the amount of it actually used, in its own
+ * unit, and the step (from 0; -1 for the prep list) the cook was on when they said so. Only one
+ * at a time, so factors never stack. Kept in the cook mode session, never on the recipe.
+ */
+export type Rescale = { ingredientId: string; used: number; step: number }
+
+/** The amount of an ingredient the recipe plans for `servings`, in its own unit; null when it has none. */
+export const plannedQty = (i: RecipeIngredient, servings: number, serves: number) =>
+  i.qty == null ? null : (i.qty * servings) / (serves || 4)
+
+/**
+ * Whether the cook can say they used a different amount of this ingredient: it has a quantity,
+ * and the steps have saved ingredient links (a guess from step text can't tell what is already in).
+ */
+export const canRescale = (steps: readonly RecipeStep[], i: RecipeIngredient) =>
+  isLinked(steps) && i.id != null && i.qty != null && i.qty > 0
+
+/** Used ÷ planned for the rescaled ingredient; 1 when there is no rescale or it no longer fits the cook. */
+export function rescaleFactor(
+  rescale: Rescale | null | undefined,
+  steps: readonly RecipeStep[],
+  ingredients: RecipeIngredient[],
+  servings: number,
+  serves: number,
+): number {
+  const i = rescale && ingredients.find((x) => x.id === rescale.ingredientId)
+  if (!rescale || !i || !canRescale(steps, i) || !(rescale.used > 0)) return 1
+  const planned = plannedQty(i, servings, serves)
+  return planned && planned > 0 ? rescale.used / planned : 1
+}
+
+/** Whether amounts shown for `step` (null: needed by no step) follow the rescale: the step it was set on and later. */
+export const isRescaled = (rescale: Rescale | null | undefined, step: number | null) =>
+  !!rescale && (step == null || step >= rescale.step)
+
+/**
+ * An ingredient's amount for tonight multiplied by `factor`, with the recipe's amount as `was`
+ * when the two read differently ("280 ml", was "200 ml"). Grams beside spoons follow the new amount.
+ */
+export function cookAmount(i: RecipeIngredient, servings: number, serves: number, factor = 1): { text: string; was?: string } {
+  const was = scaledAmount(i, servings, serves)
+  if (factor === 1 || i.qty == null) return { text: was }
+  const text = scaledAmount({ ...i, qty: i.qty * factor }, servings, serves)
+  return text === was ? { text } : { text, was }
+}
+
+/** "500 g pasta": what the cook is scaled to. Undefined when the ingredient is not in tonight's cook. */
+export function rescaleLabel(rescale: Rescale, ingredients: RecipeIngredient[]): string | undefined {
+  const i = ingredients.find((x) => x.id === rescale.ingredientId)
+  return i && `${scaledQty(rescale.used, i.unit, 1, 1)} ${i.name}`
+}
+
+/**
+ * What to add to catch up after scaling up: each ingredient a step before the rescale already
+ * used, once, with the extra it needs (planned × (factor − 1)), rounded like any other amount.
+ * Empty when scaling down, and without the rescaled ingredient itself or extras too small to show.
+ */
+export function catchUp(
+  steps: readonly RecipeStep[],
+  ingredients: RecipeIngredient[],
+  rescale: Rescale | null | undefined,
+  servings: number,
+  serves: number,
+): { ingredient: RecipeIngredient; amount: string }[] {
+  const factor = rescaleFactor(rescale, steps, ingredients, servings, serves)
+  if (!rescale || factor <= 1) return []
+  const early = new Set(stepIngredients(steps, ingredients).slice(0, Math.max(0, rescale.step)).flat())
+  return ingredients.flatMap((i) => {
+    if (!early.has(i) || i.id === rescale.ingredientId || i.qty == null) return []
+    const extra = { ...i, qty: i.qty * (factor - 1) }
+    const shown = toBase(plannedQty(extra, servings, serves), i.unit).qty
+    return shown != null && num(shown) !== '0' ? [{ ingredient: i, amount: scaledAmount(extra, servings, serves) }] : []
+  })
 }
 
 /** Seconds as "4:05". */
