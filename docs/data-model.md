@@ -31,7 +31,7 @@ Table privileges are granted explicitly, because the live project gives `anon` a
 
 ## Rules enforced by the database
 
-- **Units:** `g, kg, ml, l, each, tsp, tbsp, bunch, tin`. Tins and packs are stored by weight or volume (a 400 g tin is `400 g`).
+- **Units:** `g, kg, ml, l, each, tsp, tbsp, bunch, tin`. Tins and packs are stored by weight or volume (a 400 g tin is `400 g`). `tbsp` is the 20 ml Australian tablespoon and `tsp` is 5 ml (4 tsp to the tbsp); a recipe written in 15 ml tablespoons is converted when it is added. Cook mode and the recipe view show grams beside a spoon measure of a common ingredient you'd weigh ("2 tbsp ≈ 40 g"), from a table in the app by ingredient slug (`web/src/lib/spoons.ts`), not from the database; the shopping list shows spoons as they are.
 - **Sections** (in walking order): `fruit and veg, bakery, meat and seafood, dairy and fridge, canned veg, canned fruit, international, pantry, herbs and spices, frozen, other`.
 - **Allergens** (Australia's mandatory allergens, `private.allergens()`): `egg, milk, peanut, tree nut, sesame, soy, wheat, gluten, fish, crustacean, mollusc, lupin`. An ingredient lists those it usually contains, erring towards tagging (`egg noodle` and `wonton wrapper` are `egg`). Tags are generic, not per brand, so the app and Claude say "check the label" rather than promising a dish is safe.
 - **Ingredient names** are singular, lowercase and plain (`onion`, `crushed tomato`); variety and prep go in `note`. Every `recipe_ingredients` row references `ingredients`, so a new ingredient needs a section first.

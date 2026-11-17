@@ -3,7 +3,8 @@ import { allergenWarnings, containsText, type TaggedSwap } from '../lib/allergen
 import { recipePrompt } from '../lib/claude'
 import { stepIngredients } from '../lib/cook'
 import { extraDetail, skippedIngredients } from '../lib/extras'
-import { mins, scaledQty } from '../lib/format'
+import { mins } from '../lib/format'
+import { scaledAmount } from '../lib/spoons'
 import { allMethods, methodOf } from '../lib/methods'
 import { deleteRecipe, updateRecipe, type Recipe } from '../lib/recipes'
 import { AddToNight } from './AddToNight'
@@ -210,7 +211,7 @@ export function RecipeView({
                   {i.note && <small> {i.note}</small>}
                   {optional.includes(i) && <small> (optional)</small>}
                 </span>
-                <span>{scaledQty(i.qty, i.unit, servings, r.serves)}</span>
+                <span>{scaledAmount(i, servings, r.serves)}</span>
               </div>
             ))}
           </div>

@@ -14,7 +14,7 @@ import {
   type Timer,
 } from '../lib/cook'
 import { cookedSteps, extraDetail, isCooked, skippedIngredients } from '../lib/extras'
-import { scaledQty } from '../lib/format'
+import { scaledAmount } from '../lib/spoons'
 import { methodOf } from '../lib/methods'
 import { markCooked, updateRecipe, type Recipe, type RecipeIngredient, type RecipeStep } from '../lib/recipes'
 import { dayOf, weekStartOf } from '../lib/week'
@@ -247,7 +247,7 @@ export function CookMode({ householdId, recipe: r, servings, methodId, extras = 
     )
   }
 
-  const amount = (i: RecipeIngredient) => scaledQty(i.qty, i.unit, servings, r.serves)
+  const amount = (i: RecipeIngredient) => scaledAmount(i, servings, r.serves)
 
   if (step < 0) {
     return (

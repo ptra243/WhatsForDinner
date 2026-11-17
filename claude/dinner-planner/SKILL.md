@@ -50,6 +50,7 @@ where h.id <> private.template_household_id();
 The database rejects anything else.
 
 - Units: `g, kg, ml, l, each, tsp, tbsp, bunch, tin`. Tins and packs by weight or volume (a 400 g tin of tomatoes is `400 g`).
+- `tbsp` is the 20 ml Australian tablespoon and `tsp` is 5 ml, so 4 tsp make 1 tbsp. Use them that way everywhere: in ingredient amounts, in step text and when you answer a question about an amount.
 - Ingredient names singular, lowercase, plain (`onion`, `crushed tomato`, `chicken thigh`); variety and prep go in `note` (`red`, `finely chopped`). Before using a new ingredient, add it to `ingredients` with its section; reuse an existing name when one fits.
 - Sections follow an Australian supermarket:
   - `fruit and veg`: fresh produce and fresh herbs
@@ -147,6 +148,8 @@ When the owner asks to plan around the pantry ("Plan around my What's for Dinner
 ## Recipes
 
 - From pasted text or a photo: check the recipe list first and reuse an existing recipe rather than duplicating it. Otherwise convert it to the schema: course, provides, active and total minutes, serves, spice, steps with `timer_mins` where a step involves waiting, units from the list. Add any new ingredients, save, and summarise in two or three lines.
+- Tablespoons: a recipe from the US, the UK, New Zealand or anywhere else that uses a 15 ml tablespoon is converted to 20 ml tablespoons when you add it, in the ingredients and in any step that names an amount. Multiply its tablespoons by 0.75 and write the result in whole and quarter tbsp, or tbsp plus tsp when that is easier to measure: 3 US tbsp → 2 tbsp + 1 tsp (save it as `2.25 tbsp`), 1 US tbsp → 3 tsp, 2 US tbsp → 1.5 tbsp, 4 US tbsp → 3 tbsp. Teaspoons are 5 ml everywhere, so leave them. An Australian recipe already uses 20 ml: leave it. When you can't tell where a recipe is from, ask. Say in your summary that you converted the tablespoons. Don't convert recipes already saved.
+- Keep spoon measures of butter, flour, sugar, honey and the like as spoons when the recipe gives them that way; the app shows the grams beside them ("2 tbsp ≈ 40 g").
 - When the recipe has steps it calls optional or worth it if there's time ("optionally velvet the beef", "for extra flavour, toast the spices first"), save each as an optional step (`optional`, `extra_mins`, a short `why`), and leave its minutes out of the recipe's active and total minutes. Link its ingredients like any step's, so an ingredient only it uses is bought only on the nights it is chosen. Name the optional steps in your summary.
 - Every recipe has at least one or two optional extras, sides included. When the source has none, add your own: something that makes the dish better if there's time (marinate ahead, salt overnight, a quick sauce or gravy, a garnish or topping), placed where it belongs in the method. Its extra ingredients go in the recipe's ingredients, linked only to that step, so they're bought only when it's chosen.
 - If only a link is given and you can't read it, ask for the text.
