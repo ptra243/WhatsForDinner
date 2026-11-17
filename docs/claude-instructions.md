@@ -12,12 +12,14 @@ What Claude is told when it plans for the household. The working copy is the Din
 ## Data rules
 
 - Units only: g, kg, ml, l, each, tsp, tbsp, bunch, tin. Tins and packs by weight or volume.
+- `tbsp` is the 20 ml Australian tablespoon and `tsp` is 5 ml. A recipe written in 15 ml tablespoons (US, UK, New Zealand) is converted when Claude adds it: 3 of its tbsp → 2 tbsp + 1 tsp. Teaspoons are 5 ml everywhere and stay as they are. Recipes already saved are left alone. The app shows grams beside spoon measures of butter, flour, sugar and the like, so Claude keeps those in spoons when the recipe does.
 - Ingredient names singular, lowercase, plain; prep and variety in `note`. Add a new ingredient to `ingredients` with its section before using it.
 - Sections follow an Australian supermarket: fruit and veg (fresh produce and fresh herbs), bakery, meat and seafood, dairy and fridge (milk, cheese, yoghurt, eggs, chilled), canned veg (tinned tomatoes, paste, beans, legumes), canned fruit, international (Asian, Mexican, Indian items: soy and hoisin, coconut milk, curry paste, rice noodles, tortillas, chipotle), pantry (pasta, rice, oils, vinegars, everyday sauces, stock, flour, sugar), herbs and spices (dried), frozen.
 - Every new ingredient gets a pack size (`pack_qty` and `pack_unit`, how an Australian supermarket usually sells it; `1 each` when sold loose) and `shelf_days` (about how long it keeps once bought). Claude fills gaps on existing ingredients when asked or when it uses one without them, never overwriting values already set (the household can set them in the app).
 - Allergens from a fixed list: egg, milk, peanut, tree nut, sesame, soy, wheat, gluten, fish, crustacean, mollusc, lupin. Tag every new ingredient with what it usually contains, erring towards tagging; names hide them (`egg noodle`, `wonton wrapper`, mayonnaise, fresh pasta and brioche have egg; stock and most sauces wheat and gluten). Tags are generic, so never promise a dish is safe: "check the label".
 - Every recipe has course (main / side), provides (protein / veg / carb), active and total minutes, steps (with `timer_mins` where a step involves waiting).
 - A step the recipe calls optional or worth it if there's time ("optionally velvet the beef") is saved as an optional step (`recipe_steps.optional`, with the minutes it adds, `extra_mins`, and a short `why`), left out of the recipe's own minutes. An ingredient only optional steps use is bought only on the nights one of them is chosen.
+- Every recipe, sides included, has at least one or two optional extras. When the source gives none, Claude adds its own (marinate ahead, a quick sauce, a garnish), with any extra ingredients linked only to that step.
 - Check existing recipes before creating one; reuse ids.
 
 ## Planning
@@ -27,13 +29,29 @@ What Claude is told when it plans for the household. The working copy is the Din
 - Read the week's votes (`recipe_votes`, each member's 👍 / 👎 for that week). Favour 👍 recipes, leave out any with a 👎 unless asked, and say in the proposal which votes were followed ("Fish tacos: 👍 Sam. Left out beef ragù: 👎 you"). Claude never writes votes.
 - Then favour well-rated recipes, avoid repeating anything cooked in the last two weeks (planned but not cooked doesn't count), spread proteins.
 - Fit each night's hands-on minutes, counting each dish by the method it is cooked by and its chosen extras (`meal_plan_dishes.extras`): the night's own minutes when the app set one (`meal_plan_nights.minutes`, "only 20 minutes tonight"), else the weekday's from household settings; long cooks on weekends. On a weeknight, a recipe with a method for equipment the household has (`settings.equipment`) that fits is planned with it (`meal_plan_dishes.method_id`), and the proposal says so ("beef ragù in the pressure cooker"). Never a method for equipment the household lacks. On a night with time to spare, Claude may choose a dish's extras when they still fit, and says so ("velvet the pork +5 min"); never on a locked night.
-- Add sides so each night covers a vegetable and a carb (per the household's meal rule); use leftovers across the week.
+- Add sides so each night covers a vegetable and a carb (per the household's meal rule); use leftovers within a pair (below).
 - Prefer a main's usual sides: those it was cooked with on nights marked cooked in the last 26 weeks (the skill's pairing query). Pairings are worked out from the plan, never saved.
 - Respect household notes (preferences such as spice level).
 - Allergens to avoid (`settings.avoid`): a recipe containing one is planned only if every ingredient bringing it gets a swap to one without it, and the proposal says so ("egg noodles → rice noodles"); otherwise it is left out.
 - Never change a locked night's dishes (`meal_plan_nights.locked`) unless asked to by name; plan around it and say it is kept ("Wed: locked, kept").
 - Favour recipes that use pantry items near their best-before.
-- Propose a plan as a short day-by-day list and wait for approval before writing, unless asked to just do it.
+- At least one Asian dinner a week, Chinese when one fits.
+- Propose the plan as pairs with three choices each (below) and wait for the owner's pick before writing, unless asked to just do it.
+
+## Pairs and choices
+
+- The week is planned as pairs of nights, so three choices do six dinners: Saturday is free unless asked (or `settings.freeNights` says otherwise), locked and cooked nights are kept, and the open nights pair up in week order (from a Saturday start: Sun–Mon, Tue–Wed, Thu–Fri). A night with no partner is a single.
+- A pair is **twice** (one dish both nights with different sides; recipes tagged `leftovers-ok` or `freezes well`), **remake** (a big cook tagged `makes-leftovers`, then a dish tagged `uses-leftovers` from it within a day or two, the big cook's servings raised to cover it), **shared** (two dishes sharing meat or a pack the first doesn't use up) or **separate**. The big cook goes on the night with more time; proteins and pair kinds are spread across pairs. Until #91 links planned-overs, the list still shows the second dish's `cooked meat` and the proposal says to mark it as already have; with no big cook, a `uses-leftovers` dish gets a swap from `cooked meat` to raw meat.
+- Before choosing, Claude searches WhichGrocer specials for the proteins and a few key veg (about 4–6 credits, skipped when credits are short) and favours recipes that use them, comparing unit prices rather than discounts.
+- Each pair has three choices: Claude's top pick, another of the household's recipes, and a one-line new recipe idea. Every pair gets a new idea while the household has fewer than about 50 recipes; from about 50, two pairs a week. Each choice shows its nights' dishes with sides, its kind, an estimated cost from cached prices and what's on special. The owner replies `OK` or picks (`Sun–Mon 3`); Claude rechecks the week, saves a picked new idea as a recipe first, then writes the plan.
+- Claude tags recipes for pairing (`leftovers-ok`, `makes-leftovers`, `uses-leftovers`, the cuisine) when it saves them.
+- When the chat can run code, Claude fetches `claude/dinner-planner/scripts/plan_week.py` from GitHub and runs it on the skill's planner query (one JSON value): it filters (minutes, the quicker method on a short night, two-week repeats, 👎), scores (rating, 👍, time since last cooked, specials, cost per serve) and fills the pairs (no recipe twice, proteins and kinds spread, an Asian dinner), printing each pair's top pick, an alternative and a brief for the new idea. It only plans mains and never touches the database or a connector; Claude adds sides, checks allergens and notes, and decides. Without code, Claude plans by hand with the same rules.
+
+## Where to shop
+
+- After pricing, Claude says where to shop: the cheapest single shop after discounts, or a split between two only when it saves more than $15 or one shop lacks items.
+- Discounts: 5% off at Woolworths, and once a month a 10% Woolworths shop, which Claude asks about when planning and offers as a stock-up week. These are defaults until #93 adds them to settings.
+- `claude/dinner-planner/scripts/choose_shop.py` does the sums from the items-to-price query (packs to buy × pack price, as the list counts them).
 
 ## Plan around the pantry
 

@@ -280,6 +280,8 @@ describe('CookMode with extras', () => {
     cook(['velvet'])
     const prep = screen.getByRole('dialog', { name: 'Cooking Beef stir-fry' })
     expect(within(prep).getByText('cornflour')).toBeTruthy()
+    // Grams beside a spoon measure of something you'd weigh (#96).
+    expect(within(prep).getByText('1 tbsp ≈ 10 g')).toBeTruthy()
     expect(within(prep).queryByText('chilli')).toBeNull()
     fireEvent.click(within(prep).getByRole('button', { name: 'Start step 1' }))
     expect(screen.getByText('Step 1 of 2')).toBeTruthy()
@@ -308,10 +310,12 @@ describe('CookMode with extras', () => {
 })
 
 describe('Reopening where it was', () => {
-  it('comes back to the recipe, its servings and the cook step after a reload', async () => {
-    const cook = await startCooking(2)
-    fireEvent.click(within(cook).getByRole('button', { name: 'Next' }))
-    expect(within(cook).getByText('Step 2 of 3')).toBeInTheDocument()
+  it('comes back to the recipe and its servings after a reload', async () => {
+    render(<RecipesTab householdId="h1" />)
+    fireEvent.click(await screen.findByRole('button', { name: /Red lentil dal/ }))
+    const view = screen.getByRole('dialog', { name: 'Red lentil dal' })
+    fireEvent.click(within(view).getByRole('button', { name: 'More servings' }))
+    fireEvent.click(within(view).getByRole('button', { name: 'More servings' }))
 
     // A reload ends the page without closing anything, so what was kept stays.
     const kept = localStorage.getItem('wfd-place-1')!
@@ -319,17 +323,17 @@ describe('Reopening where it was', () => {
     localStorage.setItem('wfd-place-1', kept)
 
     render(<RecipesTab householdId="h1" />)
-    const again = await screen.findByRole('dialog', { name: 'Cooking Red lentil dal' })
-    expect(within(again).getByText('Step 2 of 3')).toBeInTheDocument()
-    fireEvent.click(within(again).getByRole('button', { name: '‹ Recipe' }))
-    expect(within(screen.getByRole('dialog', { name: 'Red lentil dal' })).getByText('6 serves')).toBeInTheDocument()
+    const again = await screen.findByRole('dialog', { name: 'Red lentil dal' })
+    expect(within(again).getByText('6 serves')).toBeInTheDocument()
   })
 
-  it('starts from the top once the recipe has been closed', async () => {
-    const cook = await startCooking()
-    fireEvent.click(within(cook).getByRole('button', { name: '‹ Recipe' }))
+  it('opens on the list once the recipe has been closed', async () => {
+    render(<RecipesTab householdId="h1" />)
+    fireEvent.click(await screen.findByRole('button', { name: /Red lentil dal/ }))
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Red lentil dal' })).getByRole('button', { name: '‹ Back' }))
+    const kept = localStorage.getItem('wfd-place-1')!
     cleanup()
+    localStorage.setItem('wfd-place-1', kept)
 
     render(<RecipesTab householdId="h1" />)
     await screen.findByRole('button', { name: /Red lentil dal/ })

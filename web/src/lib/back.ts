@@ -60,12 +60,16 @@ function exit(layer: Layer) {
   })
 }
 
+/** Added to the order of a layer that is drawn in front of every other, so it closes first. */
+const FRONT = 1e9
+
 /**
  * While `open`, the phone's back button calls `close` instead of leaving the app. Whatever
- * opened last closes first.
+ * opened last closes first; a `front` layer (cook mode, which the app can reopen by itself
+ * over anything) closes before the rest.
  */
-export function useBackCloses(close: () => void, open = true): void {
-  const [order] = useState(() => nextOrder++)
+export function useBackCloses(close: () => void, open = true, front = false): void {
+  const [order] = useState(() => nextOrder++ + (front ? FRONT : 0))
   const latest = useRef(close)
   useEffect(() => {
     latest.current = close

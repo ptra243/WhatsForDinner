@@ -77,7 +77,7 @@ export function WeekTab({
   /** Opens the recipes someone gave 👍 for the week, from the week's vote tally. */
   onShowVotes?: (week: string) => void
 }) {
-  // The week, open recipe and cook mode are kept, so a reload comes back to them.
+  // The week and open recipe are kept, so a reload comes back to them.
   const [week, setWeek] = usePlaceState('week.week', () => weekStartOf(new Date()), keptWeek)
   const { votes } = useVotes(householdId, week)
   const votesText = votes ? tallyText(votes, week) : ''
@@ -90,7 +90,7 @@ export function WeekTab({
   const [version, setVersion] = useState(0)
   const [openDay, setOpenDay] = useState<Day>()
   const [viewing, setViewing] = usePlaceState<Opened | undefined>('week.viewing', undefined, keptOpened)
-  const [cooking, setCooking] = usePlaceState<Opened | undefined>('week.cooking', undefined, keptOpened)
+  const [cooking, setCooking] = useState<Opened>()
   const [status, setStatus] = useState<string>()
   const [failed, setFailed] = useState<string>()
   // Saves still on their way; reloads wait for them so a half-done save never replaces what is shown.

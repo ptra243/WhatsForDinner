@@ -24,6 +24,7 @@ The v1 prototype is retired. Its link (https://claude.ai/artifact/DkAY7CjiQxYSsi
 | `supabase/seed/` | `seed.sql` loads `seed/` into the template household that new households copy; rebuild it with `node supabase/seed/build.mjs` |
 | `docs/` | Project docs and decision records |
 | `supabase/` | Migrations, CI checks (`tests/`) and local Supabase config |
+| `claude/dinner-planner/` | The Dinner Planner skill (`SKILL.md`) and its scripts (`scripts/`: the week planner and the shop chooser, tested with `python3 -m unittest discover -s claude/dinner-planner/scripts/tests`) |
 | `.claude/skills/` | `/ship`, `/implement-issue`, `/review-pr`: the issue workflow (decision 0008) |
 
 Real recipes and plans live in the database, not in this repo.

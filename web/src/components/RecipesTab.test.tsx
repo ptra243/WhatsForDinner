@@ -154,6 +154,8 @@ describe('Recipe view', () => {
     expect(ings).toHaveTextContent('red lentil500 g')
     expect(ings).toHaveTextContent('onion diced1 each')
     expect(ings).toHaveTextContent('saltas needed')
+    // Grams beside a spoon measure of something you'd weigh (#96).
+    expect(ings).toHaveTextContent('ghee2 tbsp ≈ 35 g')
     const method = within(view).getByRole('region', { name: 'Method' })
     expect(within(method).getAllByRole('listitem')[1]).toHaveTextContent('Simmer the lentils. 25 min timer')
   })
@@ -183,6 +185,7 @@ describe('Recipe view', () => {
     for (let i = 0; i < 4; i++) fireEvent.click(within(view).getByRole('button', { name: 'More servings' }))
     expect(ings).toHaveTextContent('8 serves')
     expect(ings).toHaveTextContent('red lentil1 kg')
+    expect(ings).toHaveTextContent('ghee4 tbsp ≈ 70 g')
     expect(ings).toHaveTextContent('2 each')
     for (let i = 0; i < 10; i++) fireEvent.click(within(view).getByRole('button', { name: 'Fewer servings' }))
     expect(ings).toHaveTextContent('1 serves')

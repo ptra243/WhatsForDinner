@@ -5,7 +5,8 @@ import { recipePrompt } from '../lib/claude'
 import { getPlace, setPlace } from '../lib/place'
 import { stepIngredients } from '../lib/cook'
 import { extraDetail, skippedIngredients } from '../lib/extras'
-import { mins, scaledQty } from '../lib/format'
+import { mins } from '../lib/format'
+import { scaledAmount } from '../lib/spoons'
 import { allMethods, methodOf } from '../lib/methods'
 import { deleteRecipe, updateRecipe, type Recipe } from '../lib/recipes'
 import { AddToNight } from './AddToNight'
@@ -33,14 +34,14 @@ type Props = {
 }
 
 const VIEW_KEY = 'recipe'
-type KeptView = { id: string; servings: number; methodId: string | null; cooking: boolean }
+type KeptView = { id: string; servings: number; methodId: string | null }
 
 /** What the open recipe view was showing, when it was this recipe and still fits it. */
 function keptView(r: Recipe): KeptView | undefined {
   const k = getPlace(VIEW_KEY) as Partial<KeptView> | undefined
   if (!k || k.id !== r.id || typeof k.servings !== 'number' || k.servings < 1) return undefined
   const methodId = allMethods(r).some((m) => m.id === k.methodId) ? (k.methodId ?? null) : null
-  return { id: r.id, servings: Math.round(k.servings), methodId, cooking: k.cooking === true }
+  return { id: r.id, servings: Math.round(k.servings), methodId }
 }
 
 /**
@@ -59,14 +60,15 @@ export function RecipeView({
   onDeleted,
   onClose,
 }: Props) {
-  // Reopened where it was (after a reload, say): the servings, method and cook mode come back.
+  // Reopened where it was (after a reload, say): the servings and method come back. Cook mode
+  // comes back by itself (ResumeCook).
   const [kept] = useState(() => keptView(r))
   const [servings, setServings] = useState(kept?.servings ?? startServings ?? r.serves)
   const [methodId, setMethodId] = useState(kept ? kept.methodId : (startMethod ?? null))
   const [notes, setNotes] = useState(r.notes)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [adding, setAdding] = useState(false)
-  const [cooking, setCooking] = useState(kept?.cooking ?? false)
+  const [cooking, setCooking] = useState(false)
   const [editing, setEditing] = useState(false)
   const [status, setStatus] = useState<string>()
   const [error, setError] = useState<string>()
@@ -74,9 +76,9 @@ export function RecipeView({
   useBackCloses(onClose)
 
   useEffect(() => {
-    setPlace(VIEW_KEY, { id: r.id, servings, methodId, cooking } satisfies KeptView)
+    setPlace(VIEW_KEY, { id: r.id, servings, methodId } satisfies KeptView)
     return () => setPlace(VIEW_KEY, undefined)
-  }, [r.id, servings, methodId, cooking])
+  }, [r.id, servings, methodId])
 
   useEffect(() => {
     back.current?.focus()
@@ -231,7 +233,7 @@ export function RecipeView({
                   {i.note && <small> {i.note}</small>}
                   {optional.includes(i) && <small> (optional)</small>}
                 </span>
-                <span>{scaledQty(i.qty, i.unit, servings, r.serves)}</span>
+                <span>{scaledAmount(i, servings, r.serves)}</span>
               </div>
             ))}
           </div>

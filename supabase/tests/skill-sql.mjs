@@ -85,6 +85,11 @@ const extrasQueries = blocks.filter((b) => b.includes('as chosen'));
 if (extrasQueries.length !== 1) throw new Error(`Expected 1 extras query in SKILL.md, found ${extrasQueries.length}`);
 const weekExtras = fill(extrasQueries[0]).replace(/;\s*$/, '');
 
+// The planner query (#92), checked for the week's nights, a vote and a method.
+const plannerQueries = blocks.filter((b) => b.includes('as planner_input'));
+if (plannerQueries.length !== 1) throw new Error(`Expected 1 planner query in SKILL.md, found ${plannerQueries.length}`);
+const plannerInput = fill(plannerQueries[0]).replace(/;\s*$/, '');
+
 // The query that finds the owner's household, so it can be checked with a member in the household (#16).
 const ownerQueries = blocks.filter((b) => b.includes("m.role = 'owner'"));
 if (ownerQueries.length !== 1) throw new Error(`Expected 1 owner household query in SKILL.md, found ${ownerQueries.length}`);
@@ -141,6 +146,18 @@ insert into meal_plan_nights (household_id, week_start, day, minutes, locked) va
 select pg_temp.expect('the week''s nights, each with its minutes and lock',
   (select string_agg(day || ' ' || minutes || ' ' || own_time || ' ' || locked, ', ') from (${weekNights}) q),
   'mon 45 false false, tue 45 false false, wed 20 true true, thu 45 false false, fri 45 false false, sat 120 false false, sun 120 false false');
+select pg_temp.expect('the planner input''s nights, in week order with Wednesday locked',
+  (select string_agg((n->>'day') || ' ' || (n->>'minutes') || ' ' || (n->>'locked'), ', ')
+   from (${plannerInput}) q, jsonb_array_elements(q.planner_input->'nights') n),
+  'mon 45 false, tue 45 false, wed 20 true, thu 45 false, fri 45 false, sat 120 false, sun 120 false');
+select pg_temp.expect('the planner input''s mains: beef ragù with its 👍 and 👎, its pressure cooker method and the ragù on Tuesday',
+  (select (r->>'likes') || ' ' || (r->>'dislikes') || ' ' || (r->'best_method'->>'name') || ' ' || (q.planner_input->'nights'->1->'planned'->>0)
+   from (${plannerInput}) q, jsonb_array_elements(q.planner_input->'recipes') r where r->>'slug' = 'beef-ragu'),
+  '1 1 Pressure cooker beef-ragu');
+select pg_temp.expect('the planner input has only mains, and no staples in their ingredients',
+  (select count(*) from (${plannerInput}) q, jsonb_array_elements(q.planner_input->'recipes') r,
+          jsonb_array_elements(r->'ingredients') i
+   where i->>0 ~ '(^|\\s)(oil|sauce|stock)$' or i->>0 in ('salt', 'black pepper')), 0::bigint);
 -- The pantry: beef chuck needs using tomorrow, crushed tomato keeps, lemon has no date and isn't in the ragù (#19).
 insert into pantry_items (household_id, ingredient_slug, qty, unit, location, best_before)
 select :'hid', i.slug, v.qty, v.unit, v.location, current_date + v.days
