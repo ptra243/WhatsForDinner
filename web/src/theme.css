@@ -268,8 +268,8 @@ fieldset.plain legend{padding:0;margin-bottom:6px}
 .extra small{display:block}
 ol.steps li.optional{color:var(--muted)}
 ol.steps .opt{display:block;font-size:13px;font-weight:700}
-.cue{font-size:17px;line-height:1.4}
-.tip{font-size:15px;line-height:1.4;color:var(--muted)}
+p.cue{font-size:17px;line-height:1.4}
+p.tip{font-size:15px;line-height:1.4;color:var(--muted)}
 .could{border-top:1px dashed var(--line);padding-top:10px}
 .could p{color:var(--muted);opacity:.85}
 .could small{display:block}

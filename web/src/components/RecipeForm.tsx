@@ -583,7 +583,7 @@ function StepEditor({
         <input
           className="field"
           aria-label={`Step ${index + 1} done when`}
-          placeholder="What done looks like: browned at the edges"
+          placeholder="e.g. browned at the edges"
           maxLength={CUE_MAX}
           value={step.cue}
           aria-invalid={!!p('cue')}
@@ -596,7 +596,7 @@ function StepEditor({
         <input
           className="field"
           aria-label={`Step ${index + 1} tip`}
-          placeholder="The usual problem and what to do about it"
+          placeholder="e.g. If it sticks, wait a minute"
           maxLength={CUE_MAX}
           value={step.tip}
           aria-invalid={!!p('tip')}
