@@ -68,6 +68,21 @@ describe('deriveList', () => {
     expect(itemDetail(onion!)).toBe('Mon, Thu')
   })
 
+  it('says which recipes an item is for, each with its nights', () => {
+    const named = { ...bolognese, name: 'Bolognese' }
+    const items = deriveList(
+      [dish('thu', { ...salad, name: 'Green salad' }, 2), dish('thu', named, 4), dish('mon', named, 4, [{ from: 'onion', to: 'red onion', qty: null, unit: null }])],
+      sections,
+    )
+    expect(find(items, 'onion|each')?.uses).toEqual([
+      { day: 'thu', recipe: 'Green salad' },
+      { day: 'thu', recipe: 'Bolognese' },
+    ])
+    expect(itemDetail(find(items, 'onion|each')!)).toBe('Green salad (Thu), Bolognese (Thu)')
+    expect(itemDetail(find(items, 'beef mince|g')!)).toBe('Bolognese (Mon, Thu)')
+    expect(itemDetail(find(items, 'red onion|each')!)).toBe('Swap for onion · Bolognese (Mon)')
+  })
+
   it('normalises kg to g and l to ml before adding up', () => {
     const a = { serves: 4, ingredients: [ing('beef mince', 1, 'kg'), ing('milk', 0.5, 'l')] }
     const b = { serves: 4, ingredients: [ing('beef mince', 250, 'g'), ing('milk', 250, 'ml')] }
