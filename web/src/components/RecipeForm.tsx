@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ALLERGENS } from '../lib/allergens'
+import { useBackCloses } from '../lib/back'
 import { addRecipePrompt } from '../lib/claude'
 import { SECTIONS, UNITS } from '../lib/list'
 import {
@@ -49,6 +50,7 @@ export function RecipeForm({ householdId, recipe, onSaved, onClose }: Props) {
   const [serverProblems, setServerProblems] = useState<Problems>({})
   const back = useRef<HTMLButtonElement>(null)
   const listId = useId()
+  useBackCloses(onClose)
 
   useEffect(() => {
     back.current?.focus()

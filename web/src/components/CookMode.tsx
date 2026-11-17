@@ -13,6 +13,7 @@ import {
   useWakeLock,
   type Timer,
 } from '../lib/cook'
+import { useBackCloses } from '../lib/back'
 import { cookedSteps, extraDetail, isCooked, skippedIngredients } from '../lib/extras'
 import { scaledAmount } from '../lib/spoons'
 import { methodOf } from '../lib/methods'
@@ -150,6 +151,8 @@ export function CookMode({ householdId, recipe: r, servings, methodId, extras = 
     clearCookSession(opened.night)
     onExit()
   }
+  // The phone's back button leaves cook mode as ‹ Recipe does; it is in front of anything else open.
+  useBackCloses(exit, true, true)
 
   useEffect(() => {
     back.current?.focus()

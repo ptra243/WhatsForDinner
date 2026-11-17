@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Recipe } from '../lib/recipes'
 import { CookMode } from './CookMode'
@@ -306,5 +306,37 @@ describe('CookMode with extras', () => {
       'Velvet the beef.silkier, more tender · +15 min',
       'Pickle the chilli.heat · +10 min',
     ])
+  })
+})
+
+describe('Reopening where it was', () => {
+  it('comes back to the recipe and its servings after a reload', async () => {
+    render(<RecipesTab householdId="h1" />)
+    fireEvent.click(await screen.findByRole('button', { name: /Red lentil dal/ }))
+    const view = screen.getByRole('dialog', { name: 'Red lentil dal' })
+    fireEvent.click(within(view).getByRole('button', { name: 'More servings' }))
+    fireEvent.click(within(view).getByRole('button', { name: 'More servings' }))
+
+    // A reload ends the page without closing anything, so what was kept stays.
+    const kept = localStorage.getItem('wfd-place-1')!
+    cleanup()
+    localStorage.setItem('wfd-place-1', kept)
+
+    render(<RecipesTab householdId="h1" />)
+    const again = await screen.findByRole('dialog', { name: 'Red lentil dal' })
+    expect(within(again).getByText('6 serves')).toBeInTheDocument()
+  })
+
+  it('opens on the list once the recipe has been closed', async () => {
+    render(<RecipesTab householdId="h1" />)
+    fireEvent.click(await screen.findByRole('button', { name: /Red lentil dal/ }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Red lentil dal' })).getByRole('button', { name: '‹ Back' }))
+    const kept = localStorage.getItem('wfd-place-1')!
+    cleanup()
+    localStorage.setItem('wfd-place-1', kept)
+
+    render(<RecipesTab householdId="h1" />)
+    await screen.findByRole('button', { name: /Red lentil dal/ })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

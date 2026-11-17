@@ -1,7 +1,9 @@
 import { useEffect, type ReactNode } from 'react'
+import { useBackCloses } from '../lib/back'
 
-/** Bottom sheet over a scrim. Closes on the scrim, Escape, or the caller's own buttons. */
+/** Bottom sheet over a scrim. Closes on the scrim, Escape, the phone's back button, or the caller's own buttons. */
 export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  useBackCloses(onClose)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()

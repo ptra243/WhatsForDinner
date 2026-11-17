@@ -29,6 +29,7 @@ import {
   type Settings,
   type Week,
 } from '../lib/plan'
+import { usePlaceState } from '../lib/place'
 import { addToNight, loadRecipes, matches, type Course, type Recipe } from '../lib/recipes'
 import { tallyText, useVotes } from '../lib/votes'
 import { DAY_FULL, DAY_NAMES, addDays, nightsOf, dateOf, dayLabel, parseYmd, rangeLabel, weekStartOf, ymd, type Day } from '../lib/week'
@@ -50,6 +51,13 @@ const PAIRING_WEEKS = 26
  */
 type Opened = { recipeId: string; servings?: number; swaps?: TaggedSwap[]; methodId?: string | null; extras?: string[] }
 
+const keptOpened = (k: unknown): Opened | undefined =>
+  k && typeof k === 'object' && typeof (k as Opened).recipeId === 'string' ? (k as Opened) : undefined
+
+/** A kept week, moved to the start of its week in case the day weeks start on has changed. */
+const keptWeek = (k: unknown): string | undefined =>
+  typeof k === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(k) ? weekStartOf(parseYmd(k)) : undefined
+
 /** Where a night's dinner can move: another night this week or next, with what is planned there. */
 type Target = { week: string; day: Day; night: Night }
 
@@ -69,7 +77,8 @@ export function WeekTab({
   /** Opens the recipes someone gave 👍 for the week, from the week's vote tally. */
   onShowVotes?: (week: string) => void
 }) {
-  const [week, setWeek] = useState(() => weekStartOf(new Date()))
+  // The week and open recipe are kept, so a reload comes back to them.
+  const [week, setWeek] = usePlaceState('week.week', () => weekStartOf(new Date()), keptWeek)
   const { votes } = useVotes(householdId, week)
   const votesText = votes ? tallyText(votes, week) : ''
   const canAskClaude = useCanAskClaude()
@@ -80,7 +89,7 @@ export function WeekTab({
   const [error, setError] = useState<string>()
   const [version, setVersion] = useState(0)
   const [openDay, setOpenDay] = useState<Day>()
-  const [viewing, setViewing] = useState<Opened>()
+  const [viewing, setViewing] = usePlaceState<Opened | undefined>('week.viewing', undefined, keptOpened)
   const [cooking, setCooking] = useState<Opened>()
   const [status, setStatus] = useState<string>()
   const [failed, setFailed] = useState<string>()
