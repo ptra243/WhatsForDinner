@@ -13,7 +13,7 @@ The dispatcher starts you alongside the author, before there is a PR. Run `bash 
 
 ## Review
 
-1. **Load** the PR (`gh pr view P --json title,body,headRefName,commits,files`), its diff (`gh pr diff P`), the issue it closes, every earlier `Review:` comment and author reply on the PR, `CLAUDE.md`, and the docs the change touches. The round number is the count of earlier `Review:` comments plus one. Title this session `#N - review PR #P` (N is the issue it closes) with `set_session_title` (session `self`), unless it already has that title.
+1. **Load** the PR (`gh pr view P --json title,body,headRefName,commits,files`), its diff (`gh pr diff P`), the issue it closes and the author's `Plan:` comment on it, every earlier `Review:` comment and author reply on the PR, `CLAUDE.md`, and the docs the change touches. The round number is the count of earlier `Review:` comments plus one. Title this session `#N - review PR #P` (N is the issue it closes) with `set_session_title` (session `self`), unless it already has that title.
 2. **Guard.** If this session wrote any commit on the PR, post `Review: ESCALATED` saying so and stop.
 3. **Check out** the PR head (`gh pr checkout P`) and run what the change can be run with. Read every changed file in full, not only the diff. If `master` has moved since the PR branched, also run the tests with `origin/master` merged in locally (never pushed): other issues land in parallel (decision 0009). If GitHub reports the PR as conflicting, that is a blocking finding: rebase on `master`.
 4. **Use it.** For any change the app shows, run the local stack and the dev server, sign in with `npm run dev:login` in `web/` (README, "To sign in locally"; add `-- --app <dev server URL>` when it is not on port 5173), and use the changed screens at phone width (375 px) in the built-in browser. Walk the issue's **Goal** as the owner would, starting from the tab they would open: a goal the screens don't reach, or a step that is slow or confusing, is a finding. Try an empty week, a failed save and a reload mid-action. If you cannot run it (for example Docker is not running), post `Review: ESCALATED` with the reason and everything else you checked, so the owner decides; never approve without it.
@@ -34,6 +34,7 @@ The dispatcher starts you alongside the author, before there is a PR. Run `bash 
 - **Bugs**: wrong results, unhandled cases, broken re-runs, data loss. Each one with its failure case.
 - **Use**: the issue's goal can be reached from the screens, at phone width, without lag or a dead end.
 - **Scope**: changes outside the issue are findings.
+- **Plan**: the change matches the author's `Plan:` comment, or the PR's **Plan** section says where it departs and why. An unexplained departure is a finding; a plan that was itself wrong is judged as the code is.
 
 ## Verdict
 

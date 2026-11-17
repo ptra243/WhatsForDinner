@@ -15,12 +15,20 @@ With `--after A B …`, wait before building: run `bash .claude/skills/ship/wait
 
 1. **Title** this session `#N - author: <issue title>` with `set_session_title` (session `self`), unless it already has that title.
 2. **Read** the issue (`gh api repos/ptra243/WhatsForDinner/issues/N`), `CLAUDE.md`, and the docs it names. If the issue is unclear or needs an owner decision, stop and say so in your final message; the dispatcher passes it on.
-3. **Branch** `issue-N-<short-slug>` from the latest `master`.
-4. **Implement** until every acceptance criterion is met. The issue's **Owner checks** are the owner's to do after merge; leave them to the owner. The live database is for dry runs inside a transaction that rolls back; the reviewer applies real changes after merge.
-5. **Check** with whatever runs locally (build scripts, tests, lint). For any change the app shows, run the local stack and the dev server, sign in with `npm run dev:login` in `web/` (README, "To sign in locally"; add `-- --app <dev server URL>` when it is not on port 5173), and use the changed screens at phone width (375 px) in the built-in browser, walking the issue's **Goal** from the tab the owner would open.
-6. **Rebase** on the latest `master` and re-run the checks: other issues land in parallel (decision 0009). If a migration you added now sorts before one already on `master`, rename it to a later timestamp.
-7. **Open the PR** against `master`: title from the issue, body with `Closes #N` (or `Refs #N` when the issue has an **Owner checks** section, so it stays open for the owner), a **What** section, and a **Tested** section split into *CI covers* and *Checked by hand* (say exactly what was run). Name anything not verified.
-8. **Hand off**: once the PR is open and pushed, post a PR comment whose first line is `Ready for review`. The reviewer session is already waiting for it. Post it only once, when everything above is done.
+3. **Plan** before writing any code. Read the code the change touches, then post one comment on the issue (`gh api repos/ptra243/WhatsForDinner/issues/N/comments -f body=...`) whose first line is `Plan:`. Keep it under a screen:
+   - **Approach**: a few sentences on how the change works, and any alternative you turned down and why.
+   - **Touches**: the files and modules you expect to change or add.
+   - **Schema**: each migration, its Row Level Security, and the docs, skill and types that change with it (`CLAUDE.md`, Workflow); or `None`.
+   - **Criteria**: for each acceptance criterion, what will meet it and how it gets checked (the test, or the screen you will use).
+   - **Assumptions**: anything the issue leaves open that you settled yourself.
+
+   If planning shows the issue cannot be met as written, or an assumption is really the owner's decision, stop as in step 2. If the issue already has a `Plan:` comment from an earlier run of this session, work from it. Nobody approves the plan: post it and carry on.
+4. **Branch** `issue-N-<short-slug>` from the latest `master`.
+5. **Implement** the plan until every acceptance criterion is met. When the code shows the plan was wrong, change course and note it for the PR. The issue's **Owner checks** are the owner's to do after merge; leave them to the owner. The live database is for dry runs inside a transaction that rolls back; the reviewer applies real changes after merge.
+6. **Check** with whatever runs locally (build scripts, tests, lint). For any change the app shows, run the local stack and the dev server, sign in with `npm run dev:login` in `web/` (README, "To sign in locally"; add `-- --app <dev server URL>` when it is not on port 5173), and use the changed screens at phone width (375 px) in the built-in browser, walking the issue's **Goal** from the tab the owner would open.
+7. **Rebase** on the latest `master` and re-run the checks: other issues land in parallel (decision 0009). If a migration you added now sorts before one already on `master`, rename it to a later timestamp.
+8. **Open the PR** against `master`: title from the issue, body with `Closes #N` (or `Refs #N` when the issue has an **Owner checks** section, so it stays open for the owner), a **What** section, a **Plan** section linking the `Plan:` comment and listing each place the change departs from it and why (or `As planned`), and a **Tested** section split into *CI covers* and *Checked by hand* (say exactly what was run). Name anything not verified.
+9. **Hand off**: once the PR is open and pushed, post a PR comment whose first line is `Ready for review`. The reviewer session is already waiting for it. Post it only once, when everything above is done.
 
 End your turn with the PR link.
 
