@@ -27,6 +27,7 @@ const shopRow = (name: string, qty: number | null, unit: string, section = 'meat
   unit,
   section: section as ShopRow['section'],
   nights: [],
+  uses: [],
   notes: [],
   mark,
 })

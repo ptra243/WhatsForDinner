@@ -59,6 +59,8 @@ export type ListItem = {
   section: Section
   /** The nights that use it, in the order of the week. */
   nights: Day[]
+  /** The dishes that use it, in the order of the week; a recipe cooked on two nights is there twice. */
+  uses: { day: Day; recipe: string }[]
   /** "Swap for onion", "Added by hand". */
   notes: string[]
   /** The `list_extras` id of a hand-added item. */
@@ -105,11 +107,13 @@ export function deriveList(
       const key = `${name}|${b.unit}`
       let item = items.get(key)
       if (!item) {
-        item = { key, name, qty: null, unit: b.unit, section: asSection(sections[name]), nights: [], notes: [], pack: packs[name] }
+        item = { key, name, qty: null, unit: b.unit, section: asSection(sections[name]), nights: [], uses: [], notes: [], pack: packs[name] }
         items.set(key, item)
       }
       if (b.qty != null) item.qty = (item.qty ?? 0) + b.qty
       if (!item.nights.includes(dish.day)) item.nights.push(dish.day)
+      const recipe = r.name?.trim() ?? ''
+      if (!item.uses.some((u) => u.day === dish.day && u.recipe === recipe)) item.uses.push({ day: dish.day, recipe })
       if (note && !item.notes.includes(note)) item.notes.push(note)
     }
   }
@@ -123,6 +127,7 @@ export function deriveList(
       unit: b.unit,
       section: asSection(x.section || sections[x.name.toLowerCase().trim()]),
       nights: [],
+      uses: [],
       notes: ['Added by hand'],
       extra: x.id,
       pack: packs[x.name.toLowerCase().trim()],
@@ -175,9 +180,23 @@ export function readPackForm(
   return { pack, shelfDays }
 }
 
-/** The line under an item's name: its notes, then the nights that use it ("Swap for onion · Mon, Thu"). */
-export const itemDetail = (item: ListItem) =>
-  [...item.notes, ...(item.nights.length ? [item.nights.map((d) => DAY_NAMES[d]).join(', ')] : [])].join(' · ')
+/**
+ * What an item is for: each recipe with its nights, in the order of the week ("Bolognese (Mon, Thu), Green salad (Thu)").
+ * A dish whose recipe has no name is just its night.
+ */
+export function itemUses(item: ListItem): string {
+  const byRecipe = new Map<string, Day[]>()
+  for (const u of item.uses) byRecipe.set(u.recipe, [...(byRecipe.get(u.recipe) ?? []), u.day])
+  return [...byRecipe]
+    .map(([recipe, days]) => {
+      const nights = days.map((d) => DAY_NAMES[d]).join(', ')
+      return recipe ? `${recipe} (${nights})` : nights
+    })
+    .join(', ')
+}
+
+/** The line under an item's name: its notes, then what it is for ("Swap for onion · Bolognese (Mon)"). */
+export const itemDetail = (item: ListItem) => [...item.notes, ...(item.uses.length ? [itemUses(item)] : [])].join(' · ')
 
 /** What the shopper did with an item (`list_marks`). */
 export type Mark = { ticked: boolean; boughtQty: number | null; boughtUnit: string | null; missing: boolean; haveIt: boolean }

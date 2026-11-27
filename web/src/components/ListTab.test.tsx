@@ -87,7 +87,7 @@ describe('Shopping list', () => {
     expect(within(section('dairy and fridge')).getByText('Added by hand')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Change amount for milk' })).toHaveTextContent('2 l')
     expect(screen.getByRole('button', { name: 'Change amount for salt' })).toHaveTextContent('as needed')
-    expect(within(section('fruit and veg')).getByText('Thu')).toBeInTheDocument()
+    expect(within(section('fruit and veg')).getByText('Green salad (Thu)')).toBeInTheDocument()
   })
 
   it('shows progress and ticks an item straight away', async () => {
@@ -145,7 +145,7 @@ describe('Amount sheet', () => {
   it('saves the amount bought and ticks the item', async () => {
     renderTab()
     const sheet = await openItem('beef mince')
-    expect(sheet).toHaveTextContent('Needed 500 g · Mon')
+    expect(sheet).toHaveTextContent('Needed 500 g · Bolognese (Mon)')
     expect(within(sheet).getByLabelText('Bought')).toHaveValue(500)
     fireEvent.change(within(sheet).getByLabelText('Bought'), { target: { value: '0.6' } })
     fireEvent.change(within(sheet).getByRole('combobox', { name: 'Bought unit' }), { target: { value: 'kg' } })
