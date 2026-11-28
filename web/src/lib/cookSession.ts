@@ -1,6 +1,6 @@
 // The cook mode session kept on this device, so a tab the phone threw away comes back to the
 // same dish, step and timers. One localStorage entry per household, week, night and recipe.
-import { doneTimer, type Timer } from './cook'
+import { doneTimer, type Rescale, type Timer } from './cook'
 import { isDay, type Day } from './week'
 
 const PREFIX = 'wfd.cook.'
@@ -25,6 +25,8 @@ export type CookSession = {
   finished: boolean
   /** Timers by step. A running one holds the time it ends, a paused one the seconds left. */
   timers: Record<number, Timer>
+  /** The cook rescaled around an amount that went in wrong (#97); null when cooking the recipe's amounts. */
+  rescale: Rescale | null
   savedAt: number
 }
 
@@ -35,6 +37,11 @@ const keyOf = (n: Night) => `${PREFIX}${n.householdId}.${n.week}.${n.day}.${n.re
 const isTimer = (t: unknown): t is Timer => {
   const x = t as Timer | null
   return !!x && typeof x.left === 'number' && typeof x.done === 'boolean' && (x.endAt === null || typeof x.endAt === 'number')
+}
+
+const isRescale = (r: unknown): r is Rescale => {
+  const x = r as Rescale
+  return typeof x.ingredientId === 'string' && typeof x.used === 'number' && x.used > 0 && Number.isInteger(x.step)
 }
 
 /** The session stored under `key` when it is whole and fresh; a broken or old one is removed. */
@@ -54,9 +61,11 @@ function read(key: string, now: number): CookSession | undefined {
       typeof s.finished === 'boolean' &&
       !!s.timers &&
       Object.values(s.timers).every(isTimer) &&
+      // A session saved before rescaling existed has none.
+      (s.rescale == null || isRescale(s.rescale)) &&
       typeof s.savedAt === 'number' &&
       now - s.savedAt < COOK_SESSION_HOURS * 3600_000
-    if (ok) return s
+    if (ok) return { ...s, rescale: s.rescale ?? null }
     if (localStorage.getItem(key) != null) localStorage.removeItem(key)
   } catch {
     // No storage, or not a session: nothing to resume.

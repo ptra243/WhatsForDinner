@@ -68,7 +68,8 @@
     {
       "text": "Pan-fry the fish until just cooked, then flake.",
       "timerMins": 6,
-      "uses": []
+      "uses": [],
+      "cue": "opaque all the way through and flakes with a fork"
     },
     {
       "text": "Stir the chipotle into the yoghurt with a squeeze of lime.",

@@ -178,9 +178,9 @@ describe('toSaveRecipe', () => {
         { name: 'leek', qty: 0.5, unit: 'bunch', note: '', section: 'fruit and veg', allergens: [] },
       ],
       steps: [
-        { id: 's1', text: 'Fry the onion.', timer_mins: null, uses: [0], optional: false, extra_mins: null, why: '' },
-        { id: 's2', text: 'Simmer.', timer_mins: 25, uses: [0, 1], optional: false, extra_mins: null, why: '' },
-        { text: 'Serve.', timer_mins: null, uses: [2], optional: false, extra_mins: null, why: '' },
+        { id: 's1', text: 'Fry the onion.', timer_mins: null, uses: [0], optional: false, extra_mins: null, why: '', cue: null, tip: null },
+        { id: 's2', text: 'Simmer.', timer_mins: 25, uses: [0, 1], optional: false, extra_mins: null, why: '', cue: null, tip: null },
+        { text: 'Serve.', timer_mins: null, uses: [2], optional: false, extra_mins: null, why: '', cue: null, tip: null },
       ],
     })
   })
@@ -191,7 +191,7 @@ describe('toSaveRecipe', () => {
     const blank = emptyIngredient()
     const steps = [{ ...f.steps[1], uses: [lentil.key, blank.key, onion.key] }]
     expect(toSaveRecipe({ ...f, ingredients: [blank, onion], steps }, known).steps).toEqual([
-      { id: 's2', text: 'Simmer.', timer_mins: 25, uses: [0], optional: false, extra_mins: null, why: '' },
+      { id: 's2', text: 'Simmer.', timer_mins: 25, uses: [0], optional: false, extra_mins: null, why: '', cue: null, tip: null },
     ])
   })
 
@@ -208,6 +208,28 @@ describe('toSaveRecipe', () => {
       extra_mins: null,
       why: '',
     })
+  })
+
+  it('sends a step’s cue and tip trimmed, null when blank, and refuses one over 140 characters', () => {
+    const f = filled()
+    const step = { ...f.steps[1], cue: ' thick enough to coat a spoon ', tip: '  ' }
+    expect(problems({ ...f, steps: [step] }, known)).toEqual({})
+    expect(toSaveRecipe({ ...f, steps: [step] }, known).steps[0]).toMatchObject({ cue: 'thick enough to coat a spoon', tip: null })
+    const long = { ...step, tip: 'x'.repeat(141) }
+    expect(problems({ ...f, steps: [long] }, known)[`step:${long.key}:tip`]).toBe('Keep it to 140 characters.')
+    expect(problems({ ...f, steps: [{ ...step, tip: 'x'.repeat(140) }] }, known)).toEqual({})
+  })
+
+  it('loads a step’s cue and tip into the form, blank when it has none', () => {
+    const f = formFromRecipe({
+      ...dal,
+      steps: [
+        { id: 's1', text: 'Fry the onion.', timerMins: null, cue: 'soft and golden', tip: null },
+        { id: 's2', text: 'Serve.', timerMins: null },
+      ],
+    })
+    expect(f.steps[0]).toMatchObject({ cue: 'soft and golden', tip: '' })
+    expect(f.steps[1]).toMatchObject({ cue: '', tip: '' })
   })
 
   it('loads an optional step into the form', () => {

@@ -20,7 +20,8 @@ export type IngredientRow = {
 }
 /**
  * A step row. `uses` holds the keys of the ingredient rows it uses. An `optional` step is an extra
- * a night can choose, with the minutes it adds (`extra`) and why it's worth it (`why`).
+ * a night can choose, with the minutes it adds (`extra`) and why it's worth it (`why`). `cue` is
+ * what done looks like and `tip` the usual problem and its fix; blank for none.
  */
 export type StepRow = {
   key: string
@@ -31,7 +32,12 @@ export type StepRow = {
   optional: boolean
   extra: string
   why: string
+  cue: string
+  tip: string
 }
+
+/** The most characters a step's cue or tip can have (a database check). */
+export const CUE_MAX = 140
 
 /** What the form holds, as typed. `id` is the recipe being edited. */
 export type RecipeFormState = {
@@ -64,7 +70,7 @@ export type SaveRecipe = {
   source: string
   notes: string
   ingredients: { id?: string; name: string; qty: number | null; unit: string; note: string; section?: string; allergens?: string[] }[]
-  /** `uses`: positions in `ingredients` of the ingredients the step uses. `extra_mins` and `why` only for an optional step. */
+  /** `uses`: positions in `ingredients` of the ingredients the step uses. `extra_mins` and `why` only for an optional step; `cue` and `tip` null for none. */
   steps: {
     id?: string
     text: string
@@ -73,6 +79,8 @@ export type SaveRecipe = {
     optional: boolean
     extra_mins: number | null
     why: string
+    cue: string | null
+    tip: string | null
   }[]
 }
 
@@ -94,7 +102,7 @@ export const emptyIngredient = (): IngredientRow => ({
   section: '',
   allergens: [],
 })
-export const emptyStep = (): StepRow => ({ key: newKey(), text: '', timer: '', uses: [], optional: false, extra: '', why: '' })
+export const emptyStep = (): StepRow => ({ key: newKey(), text: '', timer: '', uses: [], optional: false, extra: '', why: '', cue: '', tip: '' })
 
 /** The form for a recipe, or a blank one with a row each to start on. */
 export function formFromRecipe(r?: Recipe): RecipeFormState {
@@ -147,6 +155,8 @@ export function formFromRecipe(r?: Recipe): RecipeFormState {
       optional: !!s.optional,
       extra: text(s.extraMins),
       why: s.why ?? '',
+      cue: s.cue ?? '',
+      tip: s.tip ?? '',
     })),
   }
 }
@@ -162,7 +172,7 @@ export const isNew = (row: IngredientRow, known: ReadonlyMap<string, KnownIngred
   ingredientName(row.name) !== '' && !known.has(ingredientName(row.name))
 
 const blankIngredient = (r: IngredientRow) => !r.name.trim() && !r.qty.trim() && !r.note.trim()
-const blankStep = (s: StepRow) => !s.text.trim() && !s.timer.trim() && !s.optional
+const blankStep = (s: StepRow) => !s.text.trim() && !s.timer.trim() && !s.optional && !s.cue.trim() && !s.tip.trim()
 
 /** A quantity as typed: "2", "1.5", "1/2" or "1 1/2"; blank is null ("to taste"); undefined when unreadable. */
 export function parseQty(s: string): number | null | undefined {
@@ -219,6 +229,8 @@ export function problems(
     const timer = parseMins(step.timer)
     if (timer === undefined || timer === 0) p[`step:${step.key}:timer`] = 'Whole minutes, more than 0.'
     if (step.optional && !(Number(parseMins(step.extra)) > 0)) p[`step:${step.key}:extra`] = 'How many minutes it adds, more than 0.'
+    if (step.cue.trim().length > CUE_MAX) p[`step:${step.key}:cue`] = `Keep it to ${CUE_MAX} characters.`
+    if (step.tip.trim().length > CUE_MAX) p[`step:${step.key}:tip`] = `Keep it to ${CUE_MAX} characters.`
   }
   return p
 }
@@ -259,6 +271,8 @@ export function toSaveRecipe(form: RecipeFormState, known: ReadonlyMap<string, K
         optional: s.optional,
         extra_mins: s.optional ? (parseMins(s.extra) ?? null) : null,
         why: s.optional ? s.why.trim() : '',
+        cue: s.cue.trim() || null,
+        tip: s.tip.trim() || null,
       })),
   }
 }

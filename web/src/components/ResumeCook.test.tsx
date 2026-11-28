@@ -286,6 +286,40 @@ describe('Cook mode session', () => {
     expect(saved()).toBeNull()
   })
 
+  it('brings a rescaled cook back rescaled, and still reopens a session saved before rescaling existed', async () => {
+    const linked: Recipe = {
+      ...DAL,
+      ingredients: [
+        { id: 'lentil', name: 'red lentil', qty: 0.5, unit: 'kg', note: '' },
+        { id: 'onion', name: 'onion', qty: 1, unit: 'each', note: 'diced' },
+      ],
+      steps: [
+        { text: 'Fry the onion.', timerMins: 5, uses: ['onion'] },
+        { text: 'Add the lentils and simmer.', timerMins: 2, uses: ['lentil'] },
+      ],
+    }
+    api.loadRecipes.mockResolvedValue([linked])
+    const view = cook(linked)
+    click('Start step 1')
+    // Cooking for 6, the recipe plans 1.5 onions; 3 went in.
+    click(/^onion/)
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '3' } })
+    click('Rescale')
+    expect(saved()).toMatchObject({ step: 0, rescale: { ingredientId: 'onion', used: 3, step: 0 } })
+
+    const again = await reload(view)
+    expect(screen.getByRole('status')).toHaveTextContent('Scaled to 3 each onion.')
+    click('Next')
+    expect(screen.getByRole('region', { name: 'This step uses' })).toHaveTextContent('red lentil1.5 kg, was 750 g')
+
+    const old: Partial<CookSession> = { ...saved()! }
+    delete old.rescale
+    localStorage.setItem(KEY, JSON.stringify(old))
+    await reload(again)
+    expect(screen.getByRole('dialog', { name: 'Cooking Red lentil dal' })).toHaveTextContent('Step 2 of 2')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
   it('keeps the night it started on when reopened after midnight', async () => {
     vi.setSystemTime(new Date(2026, 9, 28, 23, 50))
     const view = cook()

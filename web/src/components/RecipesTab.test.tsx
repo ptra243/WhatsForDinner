@@ -67,7 +67,7 @@ const RECIPES = [
     ],
     steps: [
       { text: 'Fry the onion.', timerMins: null },
-      { text: 'Simmer the lentils.', timerMins: 25 },
+      { text: 'Simmer the lentils.', timerMins: 25, cue: 'soft and falling apart', tip: 'If it catches, add a splash of water.' },
     ],
   }),
   recipe({
@@ -157,7 +157,10 @@ describe('Recipe view', () => {
     // Grams beside a spoon measure of something you'd weigh (#96).
     expect(ings).toHaveTextContent('ghee2 tbsp ≈ 35 g')
     const method = within(view).getByRole('region', { name: 'Method' })
-    expect(within(method).getAllByRole('listitem')[1]).toHaveTextContent('Simmer the lentils. 25 min timer')
+    expect(within(method).getAllByRole('listitem')[1]).toHaveTextContent('Simmer the lentils. 25 min timerDone when: soft and falling apart')
+    // A step without a cue shows as before; the tip is for cook mode only.
+    expect(within(method).getAllByRole('listitem')[0].textContent).toBe('onionFry the onion.')
+    expect(method).not.toHaveTextContent('If it catches')
   })
 
   it('warns about allergens the household avoids, and only those', async () => {

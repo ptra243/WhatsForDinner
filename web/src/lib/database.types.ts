@@ -329,14 +329,14 @@ isOneToOne: false
                   ]
                 },"recipe_steps": {
                   Row: {
-                    "extra_mins": number | null,"id": string,"method_id": string | null,"optional": boolean,"position": number,"recipe_id": string,"text": string,"timer_mins": number | null,"why": string
+                    "cue": string | null,"extra_mins": number | null,"id": string,"method_id": string | null,"optional": boolean,"position": number,"recipe_id": string,"text": string,"timer_mins": number | null,"tip": string | null,"why": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "extra_mins"?: number | null,"id"?: string,"method_id"?: string | null,"optional"?: boolean,"position": number,"recipe_id": string,"text": string,"timer_mins"?: number | null,"why"?: string
+                    "cue"?: string | null,"extra_mins"?: number | null,"id"?: string,"method_id"?: string | null,"optional"?: boolean,"position": number,"recipe_id": string,"text": string,"timer_mins"?: number | null,"tip"?: string | null,"why"?: string
                   }
                   Update: {
-                    "extra_mins"?: number | null,"id"?: string,"method_id"?: string | null,"optional"?: boolean,"position"?: number,"recipe_id"?: string,"text"?: string,"timer_mins"?: number | null,"why"?: string
+                    "cue"?: string | null,"extra_mins"?: number | null,"id"?: string,"method_id"?: string | null,"optional"?: boolean,"position"?: number,"recipe_id"?: string,"text"?: string,"timer_mins"?: number | null,"tip"?: string | null,"why"?: string
                   }
                   Relationships: [
                     {

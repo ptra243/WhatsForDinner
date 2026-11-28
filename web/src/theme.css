@@ -118,10 +118,17 @@ textarea.field{min-height:84px;padding:10px 12px;resize:vertical}
 .ing{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line-soft);font-size:15px}
 .ing span:last-child{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .ing small{color:var(--muted)}
+button.ing{width:100%;min-height:44px;align-items:center;border:0;border-bottom:1px solid var(--line-soft);background:none;text-align:left}
+button.ing span:last-child{white-space:normal;text-align:right}
+button.ing span:last-child::after{content:" \203A";color:var(--accent)}
+.usedform{padding:10px 0;border-bottom:1px solid var(--line-soft)}
+.usedform .field{min-width:0;width:100%}
+.rescaled{display:flex;align-items:center;justify-content:space-between;gap:0 8px;flex-wrap:wrap;padding:6px 10px 2px;border-radius:6px;background:var(--hl)}
+.rescaled .btn{min-height:36px;padding:0}
 ol.steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:10px}
 ol.steps li{padding-left:4px}
 ol.steps .tm{color:var(--warn);font-family:var(--display);font-weight:700;font-size:14px}
-ol.steps .uses{display:block}
+ol.steps .uses,ol.steps .cue{display:block}
 .rate{display:flex;gap:2px}
 .rate button{width:44px;height:44px;border:0;background:none;font-size:28px;line-height:1;color:var(--line);padding:0}
 .rate button.on{color:var(--star)}
@@ -261,6 +268,8 @@ fieldset.plain legend{padding:0;margin-bottom:6px}
 .extra small{display:block}
 ol.steps li.optional{color:var(--muted)}
 ol.steps .opt{display:block;font-size:13px;font-weight:700}
+p.cue{font-size:17px;line-height:1.4}
+p.tip{font-size:15px;line-height:1.4;color:var(--muted)}
 .could{border-top:1px dashed var(--line);padding-top:10px}
 .could p{color:var(--muted);opacity:.85}
 .could small{display:block}
