@@ -3,6 +3,7 @@ import { useCanAskClaude } from '../lib/askAccess'
 import { addRecipePrompt } from '../lib/claude'
 import type { Allergen } from '../lib/allergens'
 import { mins } from '../lib/format'
+import { usePlaceState } from '../lib/place'
 import { loadSettings } from '../lib/plan'
 import { loadRecipes, matches, type Course, type Recipe } from '../lib/recipes'
 import { comingWeek, likedIds, useCurrentUser, useMemberNames, useVotes, voteSummary, weekWords } from '../lib/votes'
@@ -16,6 +17,8 @@ const COURSES: [Course | 'all', string][] = [
   ['main', 'Mains'],
   ['side', 'Sides'],
 ]
+
+const keptText = (k: unknown) => (typeof k === 'string' ? k : undefined)
 
 type Props = {
   householdId: string
@@ -34,9 +37,12 @@ export function RecipesTab({ householdId, likedWeek, adding: headerAdding = fals
   const [recipes, setRecipes] = useState<Recipe[]>()
   const canAskClaude = useCanAskClaude()
   const [error, setError] = useState<string>()
-  const [query, setQuery] = useState('')
-  const [course, setCourse] = useState<Course | 'all'>('all')
-  const [openId, setOpenId] = useState<string>()
+  // The search, filter and open recipe are kept, so a reload comes back to them.
+  const [query, setQuery] = usePlaceState('recipes.query', '', keptText)
+  const [course, setCourse] = usePlaceState<Course | 'all'>('recipes.course', 'all', (k) =>
+    COURSES.some(([c]) => c === k) ? (k as Course | 'all') : undefined,
+  )
+  const [openId, setOpenId] = usePlaceState<string | undefined>('recipes.open', undefined, keptText)
   const [emptyAdding, setEmptyAdding] = useState(false)
   const [version, setVersion] = useState(0)
   const adding = headerAdding || emptyAdding

@@ -64,6 +64,13 @@ const signedIn = (memberships: { household_id: string; role: string }[] = [{ hou
   db.state.memberships = memberships
 }
 
+/** The phone's back button. */
+const back = async () => {
+  const landed = new Promise((r) => window.addEventListener('popstate', r, { once: true }))
+  act(() => window.history.back())
+  await act(() => landed)
+}
+
 beforeEach(() => {
   window.history.replaceState(null, '', '/')
   vi.clearAllMocks()
@@ -211,6 +218,54 @@ describe('App shell', () => {
     window.history.replaceState(null, '', '/#recipes')
     render(<App />)
     expect(await screen.findByRole('heading', { level: 1, name: 'Recipes' })).toBeInTheDocument()
+  })
+
+  it('goes back to the Week tab on the phone’s back button, then has nothing left to close', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'List' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pantry' }))
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Pantry')
+    await back()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('This week')
+    expect(window.location.hash).toBe('#week')
+    expect((window.history.state as { wfdDepth?: number } | null)?.wfdDepth ?? 0).toBe(0)
+  })
+
+  it('names Week in the URL after the Week tab is tapped, whatever tab the app opened on', async () => {
+    window.history.replaceState(null, '', '/#recipes')
+    render(<App />)
+    await screen.findByRole('heading', { level: 1, name: 'Recipes' })
+    fireEvent.click(screen.getByRole('button', { name: 'Week' }))
+    await waitFor(() => expect((window.history.state as { wfdDepth?: number } | null)?.wfdDepth ?? 0).toBe(0))
+    expect(window.location.hash).toBe('#week')
+  })
+
+  it('closes the settings sheet on the phone’s back button', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Household settings' }))
+    expect(screen.getByRole('dialog', { name: 'Household settings' })).toBeInTheDocument()
+    await back()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('This week')
+  })
+
+  it('reopens on the tab it was last on, and on Week after signing out', async () => {
+    const first = render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'List' }))
+    const kept = localStorage.getItem('wfd-place-1')!
+    first.unmount()
+    // Opened again from the home screen: no tab in the URL.
+    window.history.replaceState(null, '', '/')
+    localStorage.setItem('wfd-place-1', kept)
+    const second = render(<App />)
+    expect(await screen.findByRole('heading', { level: 1, name: 'Shopping list' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Week' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Household settings' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    await screen.findByRole('button', { name: 'Email me a sign-in link' })
+    expect(localStorage.getItem('wfd-place-1')).toBeNull()
+    second.unmount()
   })
 
   it('adds a recipe through Claude, toasting when it copies the prompt instead', async () => {

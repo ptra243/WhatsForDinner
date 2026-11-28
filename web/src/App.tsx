@@ -13,16 +13,29 @@ import { useHousehold, useSession, type Household } from './lib/auth'
 import { useWeekStartsOn } from './lib/household'
 import { CanAskClaude } from './lib/askAccess'
 import { flush, flushWhenShown, usePendingCount, useStalled } from './lib/offlineQueue'
+import { useBackCloses } from './lib/back'
 import { useOnline } from './lib/online'
+import { getPlace, scrollPageTo, setPlace } from './lib/place'
 import { supabase } from './lib/supabase'
 import { CurrentUser } from './lib/votes'
 import { TABS, type Tab } from './tabs'
 
 const TITLES: Record<Tab, string> = { week: 'This week', list: 'Shopping list', recipes: 'Recipes', pantry: 'Pantry' }
 
-function tabFromHash(): Tab {
+const isTab = (v: unknown): v is Tab => (TABS as readonly unknown[]).includes(v)
+
+/** The tab to open on: the one in the URL, else the one the app was last on, else Week. */
+function startTab(): Tab {
   const h = window.location.hash.slice(1)
-  return (TABS as readonly string[]).includes(h) ? (h as Tab) : 'week'
+  if (isTab(h)) return h
+  const kept = getPlace('tab')
+  return isTab(kept) ? kept : 'week'
+}
+
+/** How far down each tab was, to go back to. */
+function keptScroll(): Partial<Record<Tab, number>> {
+  const kept = getPlace('scroll')
+  return kept && typeof kept === 'object' ? (kept as Partial<Record<Tab, number>>) : {}
 }
 
 export default function App() {
@@ -77,7 +90,7 @@ function Notice({ text, children }: { text: string; children?: ReactNode }) {
 /** The signed-in app: tabs, header and the settings sheet. */
 function Shell({ user, household }: { user: { id: string; email: string }; household: Household }) {
   const householdId = household.id
-  const [tab, setTab] = useState<Tab>(tabFromHash)
+  const [tab, setTab] = useState<Tab>(startTab)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [addingRecipe, setAddingRecipe] = useState(false)
@@ -98,18 +111,42 @@ function Shell({ user, household }: { user: { id: string; email: string }; house
   }, [householdId, online])
   useEffect(() => flushWhenShown(householdId), [householdId])
 
+  // The tab goes in the URL and is kept, and the page goes back to where it was on that tab.
   useEffect(() => {
-    const onHash = () => setTab(tabFromHash())
-    window.addEventListener('hashchange', onHash)
-    return () => window.removeEventListener('hashchange', onHash)
-  }, [])
+    // Also after history moves: closing something steps back to an entry that may name another tab.
+    const show = () => window.history.replaceState(window.history.state, '', `#${tab}`)
+    show()
+    window.addEventListener('popstate', show)
+    setPlace('tab', tab)
+    const stop = scrollPageTo(keptScroll()[tab] ?? 0)
+    return () => {
+      window.removeEventListener('popstate', show)
+      stop()
+    }
+  }, [tab])
 
-  const changeTab = (t: Tab) => {
+  // Keeps how far down this tab is when the app goes off screen or reloads.
+  useEffect(() => {
+    const keep = () => setPlace('scroll', { ...keptScroll(), [tab]: window.scrollY })
+    const hidden = () => {
+      if (document.visibilityState === 'hidden') keep()
+    }
+    document.addEventListener('visibilitychange', hidden)
+    window.addEventListener('pagehide', keep)
+    return () => {
+      document.removeEventListener('visibilitychange', hidden)
+      window.removeEventListener('pagehide', keep)
+    }
+  }, [tab])
+
+  /** Shows a tab where it was left, or from its top with `fromTop`. */
+  const changeTab = (t: Tab, fromTop = false) => {
+    setPlace('scroll', { ...keptScroll(), [tab]: window.scrollY, ...(fromTop && { [t]: 0 }) })
     setLikedWeek(undefined)
     setTab(t)
-    window.history.replaceState(null, '', `#${t}`)
-    window.scrollTo(0, 0)
   }
+  // Back from another tab goes to Week; back on Week leaves the app.
+  useBackCloses(() => changeTab('week'), tab !== 'week')
 
   const settingsButton = (
     <button className="icon" type="button" aria-label="Household settings" onClick={() => setSettingsOpen(true)}>
@@ -172,7 +209,7 @@ function Shell({ user, household }: { user: { id: string; email: string }; house
               householdId={householdId}
               settingsVersion={settingsVersion}
               onShowVotes={(week) => {
-                changeTab('recipes')
+                changeTab('recipes', true)
                 setLikedWeek(week)
               }}
             />
